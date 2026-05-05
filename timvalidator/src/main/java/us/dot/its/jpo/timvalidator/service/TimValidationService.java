@@ -1,6 +1,7 @@
 package us.dot.its.jpo.timvalidator.service;
 
-import us.dot.its.jpo.timvalidator.converter.UperToJerConverter;
+import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
+import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
@@ -10,20 +11,20 @@ import us.dot.its.jpo.timvalidator.validator.SchemaValidator;
  * Main service orchestrating the TIM validation pipeline.
  * 
  * Process flow:
- * 1. Convert UPER string to JER format
- * 2. Deserialize JER into POJO using jpo-asn-runtime
- * 3. Perform schema validation against JSON schemas
+ * 1. Convert UPER hex string to XER (XML)
+ * 2. Deserialize XER into a typed MessageFrame POJO
+ * 3. Perform schema validation
  * 4. Execute best practices checks
  * 5. Return processed validation result
  */
 public class TimValidationService {
 
-    private final UperToJerConverter uperToJerConverter;
+    private final UperToMessageFrameConverter uperToMessageFrameConverter;
     private final SchemaValidator schemaValidator;
     private final BestPracticesValidator bestPracticesValidator;
 
     public TimValidationService() {
-        this.uperToJerConverter = new UperToJerConverter();
+        this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
         this.schemaValidator = new SchemaValidator();
         this.bestPracticesValidator = new BestPracticesValidator();
     }
@@ -39,12 +40,12 @@ public class TimValidationService {
         ValidationResult result = new ValidationResult();
 
         try {
-            // Step 1: Convert UPER to JER
-            String jerFormat = uperToJerConverter.convertUperToJer(uperString);
-            result.setJerFormat(jerFormat);
+            // Step 1: Convert UPER to XER
+            String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
+            result.setJerFormat(xerFormat);
 
             // Step 2: Deserialize into POJO
-            Object timMessage = uperToJerConverter.deserializeToObject(jerFormat);
+            MessageFrame<?> timMessage = uperToMessageFrameConverter.deserializeToObject(xerFormat);
             result.setTimMessage(timMessage);
 
             // Step 3: Perform schema validation
