@@ -11,7 +11,8 @@ pr:
 
 variables:
   - name: VersionNum
-    value: '0'  # initial value.  'Get version number' step will read the actual value from pom
+    type: string
+    value: '0.0.0-SNAPSHOT'  # initial value.  'Get version number' step will read the actual value from pom
 
 stages:
   - stage: Publish
@@ -25,9 +26,8 @@ stages:
           - checkout: self
             displayName: checkout
 
-          - script: |
-              echo ${{ variables.VersionNum }}
-              echo $(versionNum)
+          - bash: |
+              echo "VersionNum initial value is $(versionNum)"
             displayName: VersionNum initial value
 
 #          - task: Maven@4
