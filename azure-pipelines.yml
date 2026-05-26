@@ -61,13 +61,18 @@ stages:
             displayName: VersionNum updated value
 
           - bash: |
-              NEW_VERSION=$(VersionNum)-SNAPSHOT
-              echo "##vso[task.setvariable variable=VersionNum]$NEW_VERSION"
+              if [[ "$VERSION" == *"-SNAPSHOT" ]]; then
+                echo "The version already ends with -SNAPSHOT"
+              else
+                echo "Version doesn't end with snapshot, appending it"
+                NEW_VERSION=$(VersionNum)-SNAPSHOT
+                echo "##vso[task.setvariable variable=VersionNum]$NEW_VERSION"
+              fi
             displayName: Ensure Snapshot Version
             workingDirectory: $(WorkingDir)
 
           - bash: |
-              echo "Version number with -snapshot: $(VersionNum)"
+              echo "Updated version number is $(VersionNum)"
             displayName: VersionNum snapshot value
               
               
