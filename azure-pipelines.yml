@@ -48,10 +48,10 @@ stages:
               echo "JAVA_23_BIN: $JAVA_23_BIN"
               echo "JAVA_HOME: $JAVA_HOME"
               echo "##vso[task.setvariable variable=JavaHome]$JAVA_HOME"
-              echo "\njava version:"
+              echo "java version:"
               java -version
               sudo apt install -y maven
-              echo "\nmaven version:"
+              echo "maven version:"
               mvn -version
               echo "gpg version: $(gpg --version)"
             displayName: Install JDK, Maven, GPG
@@ -100,17 +100,11 @@ stages:
 
           - bash: |
               echo "JAVA_HOME: $JAVA_HOME"
-              echo "\njava version:"
+              echo "java version:"
               java -version
-              echo "\nmaven version"
+              echo "maven version"
               mvn -version
-              echo "\ndeploying:"
-              export GPG_TTY=$(tty)
-              echo "GPG_TTY: $GPG_TTY"
-              echo "gpg.agent.conf:"
-              cat ~/.gnupg/gpg-agent.conf
-              echo "gpg.conf:"
-              cat ~/.gnupg/gpg.conf
+              echo "deploying:"
               mvn -P release --batch-mode deploy
             env:
               JAVA_HOME: $(JavaHome)
