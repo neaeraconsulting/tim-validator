@@ -99,16 +99,18 @@ stages:
             displayName: Import gpg keys
 
           - bash: |
-              export JAVA_HOME=$(JavaHome)
               echo "JAVA_HOME: $JAVA_HOME"
               echo "\njava version:"
               java -version
               echo "\nmaven version"
               mvn -version
-              export MAVEN_USERNAME=$(CENTRAL_TOKEN_USERNAME)
-              export MAVEN_PASSWORD=$(CENTRAL_TOKEN_PASSWORD)
-              export MAVEN_GPG_PASSPHRASE=$(GPG_SIGING_KEY_PASSWORD)
+              echo "\ndeploying:"
               mvn -P release --batch-mode deploy
+            env:
+              JAVA_HOME: $(JavaHome)
+              export MAVEN_USERNAME: $(CENTRAL_TOKEN_USERNAME)
+              export MAVEN_PASSWORD: $(CENTRAL_TOKEN_PASSWORD)
+              export MAVEN_GPG_PASSPHRASE: $(GPG_SIGING_KEY_PASSWORD)
             displayName: Publish snapshot
             workingDirectory: $(WorkingDir)
 
