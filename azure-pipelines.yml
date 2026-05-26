@@ -40,7 +40,7 @@ stages:
               sudo apt update
               sudo apt install -y temurin-23-jdk
               JAVA_HOME_23=$(update-alternatives --list java | grep "23-jdk")
-              update-alternatives --set java $JAVA_HOME_23
+              sudo update-alternatives --set java $JAVA_HOME_23
               echo "JAVA_HOME_23: $JAVA_HOME_23"
               echo "JAVA_HOME: $JAVA_HOME"
               echo "java version: $(java -version)"
