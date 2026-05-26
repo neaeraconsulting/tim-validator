@@ -76,15 +76,15 @@ stages:
             inputs:
               secureFile: 'neaera-private-key.asc'
 
-          - task: DownloadSecureFile@1
-            name: publicKey
-            displayName: Get GPG public key
-            inputs:
-              secureFile: 'neaera-public-key.asc'
+#          - task: DownloadSecureFile@1
+#            name: publicKey
+#            displayName: Get GPG public key
+#            inputs:
+#              secureFile: 'neaera-public-key.asc'
 
           - bash: |
               gpg --keyserver $(GPG_KEY_SERVER) --receive-keys $(GPG_KEY_ID)
-              gpg --allow-secret-key-import --import $(privateKey.secureFilePath)
+              gpg --batch --pinentry-mode loopback --allow-secret-key-import --import $(privateKey.secureFilePath)
               gpg --list-secret-keys
             displayName: Import gpg keys
 
