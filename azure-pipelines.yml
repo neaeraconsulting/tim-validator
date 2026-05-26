@@ -35,9 +35,9 @@ stages:
           - bash: |
               sudo apt update
               sudo apt install -y temurin-23-jdk maven gnupg
-              java -version
-              mvn -version
-              gpg --version
+              echo "java version: $(java -version)"
+              echo "maven version: $(mvn -version)"
+              echo "gpg version: $(gpg --version)"
             displayName: Install JDK, Maven, and GPG
 
           - bash: |
@@ -83,6 +83,8 @@ stages:
             displayName: Import gpg keys
 
           - bash: |
+              echo "java version: $(java -version)"
+              echo "maven version: $(mvn -version)"
               export MAVEN_USERNAME=$(CENTRAL_TOKEN_USERNAME)
               export MAVEN_PASSWORD=$(CENTRAL_TOKEN_PASSWORD)
               export MAVEN_GPG_PASSPHRASE=$(GPG_SIGING_KEY_PASSWORD)
