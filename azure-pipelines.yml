@@ -11,7 +11,6 @@ pr:
 
 variables:
   - name: VersionNum
-    type: string
     value: '0.0.0-SNAPSHOT'  # initial value.  'Get version number' step will read the actual value from pom
 
 stages:
