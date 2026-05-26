@@ -39,9 +39,11 @@ stages:
               echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
               sudo apt update
               sudo apt install -y temurin-23-jdk
-              JAVA_HOME_23=$(update-alternatives --list java | grep "23-jdk")
-              sudo update-alternatives --set java $JAVA_HOME_23
-              echo "JAVA_HOME_23: $JAVA_HOME_23"
+              JAVA_23_BIN=$(update-alternatives --list java | grep "23-jdk")
+              JAVA_23_HOME=$(echo $JAVA_23_BIN | sed "s:/bin/java::")
+              sudo update-alternatives --set java $JAVA_23_BIN
+              export JAVA_HOME=$JAVA_23_HOME
+              echo "JAVA_23_BIN: $JAVA_23_BIN"
               echo "JAVA_HOME: $JAVA_HOME"
               echo "java version: $(java -version)"
               sudo apt install -y maven
