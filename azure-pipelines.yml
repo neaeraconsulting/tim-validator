@@ -105,7 +105,7 @@ stages:
               echo "maven version"
               mvn -version
               echo "deploying:"
-              mvn -P release --batch-mode deploy
+              mvn -s $(WorkingDir)/settings.xml -P release --batch-mode deploy
             env:
               JAVA_HOME: $(JavaHome)
               MAVEN_USERNAME: $(CENTRAL_TOKEN_USERNAME)
