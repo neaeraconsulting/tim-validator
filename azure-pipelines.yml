@@ -83,10 +83,7 @@ stages:
               secureFile: 'neaera-public-key.asc'
 
           - bash: |
-              # Import public key from keyserver
-              gpg --keyserver $(GPG_KEY_SERVER)
-              gpg --recv-keys $(GPG_KEY_ID)   
-              # Import private key from secure file
+              gpg --keyserver $(GPG_KEY_SERVER) --receive-keys $(GPG_KEY_ID)
               gpg --allow-secret-key-import --import $(privateKey.secureFilePath)
               gpg --list-secret-keys
             displayName: Import gpg keys
