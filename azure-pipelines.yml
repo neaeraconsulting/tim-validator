@@ -72,21 +72,23 @@ stages:
 
           - task: DownloadSecureFile@1
             name: privateKey
-            displayName: Get gpg key
+            displayName: Get gpg private key file
             inputs:
               secureFile: 'neaera-private-key.asc'
-
-#          - task: DownloadSecureFile@1
-#            name: publicKey
-#            displayName: Get GPG public key
-#            inputs:
-#              secureFile: 'neaera-public-key.asc'
 
           - bash: |
               gpg --keyserver $(GPG_KEY_SERVER) --receive-keys $(GPG_KEY_ID)
               gpg --batch --pinentry-mode loopback --allow-secret-key-import --import $(privateKey.secureFilePath)
               gpg --list-secret-keys
             displayName: Import gpg keys
+
+          - bash: |
+              export MAVEN_USERNAME=$(CENTRAL_TOKEN_USERNAME)
+              export MAVEN_PASSWORD=$(CENTRAL_TOKEN_PASSWORD)
+              export MAVEN_GPG_PASSPHRASE=$(GPG_SIGING_KEY_PASSWORD)
+              mvn -P release --batch-mode deploy
+            displayName: Publish snapshot
+            workingDirectory: $(WorkingDir)
 
               
               
