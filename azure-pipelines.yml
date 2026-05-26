@@ -14,6 +14,8 @@ variables:
     value: '0.0.0-SNAPSHOT'  # initial value.  'Get version number' step will read the actual value from pom
   - name: WorkingDir
     value: '$(system.defaultWorkingDirectory)/timvalidator'
+  - name: JavaHome
+    value: 'JavaHome' # initial value, JDK install step sets it
 
 
 stages:
@@ -45,9 +47,12 @@ stages:
               export JAVA_HOME=$JAVA_23_HOME
               echo "JAVA_23_BIN: $JAVA_23_BIN"
               echo "JAVA_HOME: $JAVA_HOME"
-              echo "java version: $(java -version)"
+              echo "##vso[task.setvariable variable=JavaHome]$JAVA_HOME"
+              echo "\njava version:"
+              java -version
               sudo apt install -y maven
-              echo "maven version: $(mvn -version)"
+              echo "\nmaven version:"
+              mvn -version
               echo "gpg version: $(gpg --version)"
             displayName: Install JDK, Maven, GPG
 
@@ -94,9 +99,12 @@ stages:
             displayName: Import gpg keys
 
           - bash: |
+              export JAVA_HOME=$(JavaHome)
               echo "JAVA_HOME: $JAVA_HOME"
-              echo "java version: $(java -version)"
-              echo "maven version: $(mvn -version)"
+              echo "\njava version:"
+              java -version
+              echo "\nmaven version"
+              mvn -version
               export MAVEN_USERNAME=$(CENTRAL_TOKEN_USERNAME)
               export MAVEN_PASSWORD=$(CENTRAL_TOKEN_PASSWORD)
               export MAVEN_GPG_PASSPHRASE=$(GPG_SIGING_KEY_PASSWORD)
