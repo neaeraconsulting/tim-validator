@@ -1,0 +1,64 @@
+trigger:
+  - main
+  - develop
+  - snapshot
+  - maven-central
+
+pr:
+  - main
+  - develop
+  - snapshot
+
+variables:
+  - name: VersionNum
+    value: '0'  # initial value.  'Get version number' step will read the actual value from pom
+
+stages:
+  - stage: Publish
+    displayName: Publish to Maven Central
+    jobs:
+      - job: PublishSnapshot
+        displayName: Publish Snapshot to Maven Central
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            displayName: checkout
+
+          - script: |
+              echo ${{ variables.VersionNum }}
+              echo $(versionNum)
+            displayName: VersionNum initial value
+
+#          - task: Maven@4
+#            displayName: Get version number
+#            inputs:
+#              mavenPOMFile: '$(system.defaultWorkingDirectory)/timvalidator/pom.xml'
+#              javaHomeOption: 'JDKVersion'
+#              jdkVersionOption: '1.23'
+#              jdkArchitectureOption: 'x64'
+#              mavenVersionOption: 'Default'
+#              goals: 'help:evaluate'
+#              mavenOptions: '-Dexpression=project.version -q -DforceStdout'
+
+          - bash: |
+              sudo apt update
+              sudo apt install -y temurin-23-jdk maven
+              java -version
+              mvn -version
+            displayName: Install JDK and Maven
+
+          - bash: |
+              VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+              echo "##vso[task.setvariable variable=VersionNum]$VERSION"
+            displayName: Get version number
+
+          - bash: |
+              echo "version number from pom is $(VersionNum)"
+            displayName: VersionNum updated value
+              
+              
+
+
+
+
