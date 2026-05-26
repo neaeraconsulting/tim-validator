@@ -49,8 +49,10 @@ stages:
 
           - bash: |
               VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+              echo "got version $VERSION"
               echo "##vso[task.setvariable variable=VersionNum]$VERSION"
             displayName: Get version number
+            workingDirectory: '$(system.defaultWorkingDirectory)/timvalidator'
 
           - bash: |
               echo "version number from pom is $(VersionNum)"
