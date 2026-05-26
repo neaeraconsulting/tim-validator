@@ -8,10 +8,61 @@
     <artifactId>timvalidator</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <name>timvalidator</name>
+    <description>TIM Validator Library</description>
+    <url>https://neaera.visualstudio.com/_git/Noblis</url>
+
+    <licenses>
+        <license>
+            <name>Apache 2.0 License</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.html</url>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>menglish</id>
+            <name>Michael English</name>
+            <email></email>
+            <organization>Neaera Consulting</organization>
+            <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
+        </developer>
+        <developer>
+            <id>djohnston</id>
+            <name>Drew Johnston</name>
+            <email></email>
+            <organization>Neaera Consulting</organization>
+            <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
+        </developer>
+        <developer>
+            <id>jwiens</id>
+            <name>John Wiens</name>
+            <email></email>
+            <organization>Neaera Consulting</organization>
+            <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
+        </developer>
+        <developer>
+            <id>iyourshaw</id>
+            <name>Ivan Yourshaw</name>
+            <email>39739503+iyourshaw@users.noreply.github.com</email>
+            <organization>Neaera Consulting</organization>
+            <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:https://neaera.visualstudio.com/Noblis/_git/Noblis</connection>
+        <developerConnection>scm:git:neaera@vs-ssh.visualstudio.com:v3/neaera/Noblis/Noblis</developerConnection>
+        <url>https://neaera.visualstudio.com/Noblis/_git/Noblis</url>
+    </scm>
+
     <properties>
+        <java.version>23</java.version>
         <maven.compiler.source>23</maven.compiler.source>
         <maven.compiler.target>23</maven.compiler.target>
         <maven.compiler.release>23</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <dependencies>
@@ -150,5 +201,80 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- Release profile includes required plugins for publishing to Maven Central -->
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+
+                    <!-- Include source code -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.4.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Include javadocs -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <executions>
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- GPG Signatures -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifact</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <bestPractices>true</bestPractices>
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Central Publishing plugin -->
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.10.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
