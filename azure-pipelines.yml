@@ -12,6 +12,8 @@ pr:
 variables:
   - name: VersionNum
     value: '0.0.0-SNAPSHOT'  # initial value.  'Get version number' step will read the actual value from pom
+  - name: WorkingDir
+    value: '$(system.defaultWorkingDirectory)/timvalidator'
 
 stages:
   - stage: Publish
@@ -52,11 +54,21 @@ stages:
               echo "got version $VERSION"
               echo "##vso[task.setvariable variable=VersionNum]$VERSION"
             displayName: Get version number
-            workingDirectory: '$(system.defaultWorkingDirectory)/timvalidator'
+            workingDirectory: $(WorkingDir)
 
           - bash: |
               echo "version number from pom is $(VersionNum)"
             displayName: VersionNum updated value
+
+          - bash: |
+              NEW_VERSION=$(VersionNum)-SNAPSHOT
+              echo "##vso[task.setvariable variable=VersionNum]$NEW_VERSION"
+            displayName: Ensure Snapshot Version
+            workingDirectory: $(WorkingDir)
+
+          - bash: |
+              echo "Version number with -snapshot: $(VersionNum)"
+            displayName: VersionNum snapshot value
               
               
 
