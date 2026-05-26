@@ -15,6 +15,7 @@ variables:
   - name: WorkingDir
     value: '$(system.defaultWorkingDirectory)/timvalidator'
 
+
 stages:
   - stage: Publish
     displayName: Publish to Maven Central
@@ -31,23 +32,13 @@ stages:
               echo "VersionNum initial value is $(versionNum)"
             displayName: VersionNum initial value
 
-#          - task: Maven@4
-#            displayName: Get version number
-#            inputs:
-#              mavenPOMFile: '$(system.defaultWorkingDirectory)/timvalidator/pom.xml'
-#              javaHomeOption: 'JDKVersion'
-#              jdkVersionOption: '1.23'
-#              jdkArchitectureOption: 'x64'
-#              mavenVersionOption: 'Default'
-#              goals: 'help:evaluate'
-#              mavenOptions: '-Dexpression=project.version -q -DforceStdout'
-
           - bash: |
               sudo apt update
-              sudo apt install -y temurin-23-jdk maven
+              sudo apt install -y temurin-23-jdk maven gnupg
               java -version
               mvn -version
-            displayName: Install JDK and Maven
+              gpg --version
+            displayName: Install JDK, Maven, and GPG
 
           - bash: |
               VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
@@ -74,7 +65,32 @@ stages:
 
           - bash: |
               echo "Updated version number is $(VersionNum)"
+              VERSION=$(VersionNum)
+              mvn versions:set -DnewVersion=$VERSION
             displayName: VersionNum snapshot value
+            workingDirectory: $(WorkingDir)
+
+          - task: DownloadSecureFile@1
+            name: privateKey
+            displayName: Get gpg key
+            inputs:
+              secureFile: 'neaera-private-key.asc'
+
+          - task: DownloadSecureFile@1
+            name: publicKey
+            displayName: Get GPG public key
+            inputs:
+              secureFile: 'neaera-public-key.asc'
+
+          - bash: |
+              # Import public key from keyserver
+              gpg --keyserver $(GPG_KEY_SERVER)
+              gpg --recv-keys $(GPG_KEY_ID)   
+              # Import private key from secure file
+              gpg --allow-secret-key-import --import $(privateKey.secureFilePath)
+              gpg --list-secret-keys
+            displayName: Import gpg keys
+
               
               
 
