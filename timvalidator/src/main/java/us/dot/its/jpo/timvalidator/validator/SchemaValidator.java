@@ -3,6 +3,7 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.util.Map;
 
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
+import us.dot.its.jpo.timvalidator.itis.ItisContentValidator;
 
 /**
  * Performs automated schema validation on TIM message POJOs.
@@ -30,11 +31,14 @@ public class SchemaValidator {
         // 2. Look up corresponding schema
         // 3. Use JSON schema validator (e.g., everit-json-schema or similar)
         // 4. Throw ValidationException if validation fails
-        
+
         // Example stub:
         if (timMessage == null) {
             throw new ValidationException("TIM message cannot be null");
         }
+
+        validateTimMessageSchema(timMessage);
+        validateItisContent(timMessage);
     }
 
     /**
@@ -59,7 +63,35 @@ public class SchemaValidator {
      */
     private String loadSchema(String schemaPath) throws Exception {
         // TODO: Load schema from classpath resources
-        
+
         throw new UnsupportedOperationException("Schema loading not yet implemented");
+    }
+
+    private void validateTimMessageSchema(Object timMessage) throws ValidationException {
+        // TODO: Implement JSON schema validation
+        // 1. Determine message type from timMessage class
+        // 2. Look up corresponding schema
+        // 3. Use JSON schema validator (e.g., networknt JSON Schema or similar)
+        // 4. Throw ValidationException if validation fails
+    }
+
+    private void validateItisContent(Object timMessage) throws ValidationException {
+        Object itisContent = extractNormalizedItisContent(timMessage);
+        if (itisContent == null) {
+            return;
+        }
+
+        new ItisContentValidator().validate(itisContent);
+    }
+
+    private Object extractNormalizedItisContent(Object timMessage) {
+        // TODO: Split the full MessageFrame into normalized ITIS content:
+        // {
+        // "itis": [6937, 55],
+        // "priority": 4,
+        // "allowIndefinite": false,
+        // "geofence": "path"
+        // }
+        return null;
     }
 }

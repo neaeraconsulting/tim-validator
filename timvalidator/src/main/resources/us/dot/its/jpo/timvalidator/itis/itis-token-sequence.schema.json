@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://us.dot.its.jpo/timvalidator/itis/itis-token-sequence.schema.json",
+  "title": "TIM ITIS Message Content",
+  "description": "Validates normalized TIM ITIS message content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "itis",
+    "priority",
+    "allowIndefinite",
+    "geofence"
+  ],
+  "properties": {
+    "itis": {
+      "type": "array",
+      "description": "Ordered array of extracted ITIS numeric tokens. The array must match exactly one supported token pattern below.",
+      "oneOf": [
+        {
+          "title": "closed-to-traffic",
+          "description": "Matches the exact closed-to-traffic phrase token sequence.",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "const": 769
+            },
+            {
+              "const": 9478
+            },
+            {
+              "const": 7747
+            }
+          ]
+        },
+        {
+          "title": "gross-weight-limit",
+          "description": "Matches a gross-weight-limit phrase: opening token, variable weight value, and weight unit token.",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "const": 2577
+            },
+            {
+              "$ref": "#/definitions/WEIGHT_LIMIT"
+            },
+            {
+              "const": 8739
+            }
+          ]
+        },
+        {
+          "title": "speed-limit",
+          "description": "Matches a speed-limit phrase: speed-limit token followed by a variable speed value.",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "const": 6937
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            }
+          ]
+        },
+        {
+          "title": "speed-unit-example",
+          "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour.",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "const": 268
+            },
+            {
+              "const": 12302
+            },
+            {
+              "type": "integer",
+              "enum": [
+                8720,
+                8721
+              ],
+              "description": "Speed unit: miles per hour or kilometers per hour."
+            },
+            {
+              "const": 13569
+            }
+          ]
+        }
+      ]
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 7,
+      "description": "TIM priority value; valid priorities are 1 through 7."
+    },
+    "allowIndefinite": {
+      "type": "boolean",
+      "description": "Whether the normalized TIM content is allowed to represent an indefinite duration."
+    },
+    "geofence": {
+      "type": "string",
+      "description": "Shape type used to represent the TIM geofence.",
+      "enum": [
+        "path",
+        "circle",
+        "polygon"
+      ]
+    }
+  },
+  "definitions": {
+    "SMALL_NUMBER": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99,
+      "description": "Number between 1 and 99"
+    },
+    "SPEED_LIMIT": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99,
+      "description": "Speed limit between 1 and 99"
+    },
+    "WEIGHT_LIMIT": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 200000,
+      "description": "Weight between 1 and 200000"
+    },
+    "DISTANCE_UNIT": {
+      "type": "integer",
+      "enum": [
+        8739,
+        8740
+      ],
+      "description": "Distance unit"
+    }
+  }
+}

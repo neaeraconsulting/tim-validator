@@ -99,6 +99,13 @@
             <version>2.17.1</version>
         </dependency>
 
+        <!-- JSON Schema validation (used for schema-based ITIS/payload validation) -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.0.87</version>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -117,6 +124,7 @@
                 <configuration>
                     <source>23</source>
                     <target>23</target>
+                    <useModulePath>false</useModulePath>
                 </configuration>
             </plugin>
             <plugin>
@@ -197,7 +205,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.example.Main</mainClass>
+                            <mainClass>us.dot.its.jpo.timvalidator.Main</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs/</classpathPrefix>
                         </manifest>
