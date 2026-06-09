@@ -87,7 +87,7 @@ public class ItisContentValidatorTest {
             }
             """));
 
-        assertTrue(ex.getMessage().contains("$.itis"));
+        assertTrue(ex.getMessage().contains("/itis"));
     }
 
     @Test
@@ -101,7 +101,7 @@ public class ItisContentValidatorTest {
                 }
                 """));
 
-        assertTrue(ex.getMessage().contains("$.priority"));
+        assertTrue(ex.getMessage().contains("/priority"));
     }
 
     @Test
@@ -115,7 +115,7 @@ public class ItisContentValidatorTest {
                 }
                 """));
 
-        assertTrue(ex.getMessage().contains("$.allowIndefinite"));
+        assertTrue(ex.getMessage().contains("/allowIndefinite"));
     }
 
     @Test
@@ -129,7 +129,7 @@ public class ItisContentValidatorTest {
                 }
                 """));
 
-        assertTrue(ex.getMessage().contains("$.geofence"));
+        assertTrue(ex.getMessage().contains("/geofence"));
     }
 
     @Test
@@ -144,6 +144,6 @@ public class ItisContentValidatorTest {
             }
             """));
 
-        assertTrue(ex.getMessage().contains("$.itis"));
+        assertTrue(ex.getMessage().contains("/itis"));
     }
 }

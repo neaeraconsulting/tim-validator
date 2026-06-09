@@ -7,6 +7,7 @@ import java.util.List;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.networknt.schema.Error;
+import com.networknt.schema.InputFormat;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaRegistry;
 import com.networknt.schema.SchemaRegistryConfig;
@@ -88,12 +89,15 @@ public class ItisContentValidator {
             }
 
             SchemaRegistryConfig config = SchemaRegistryConfig.builder()
-                    .pathType(PathType.JSON_PATH)
+                    .cacheRefs(true)
+                    .failFast(false)
+                    .pathType(PathType.JSON_POINTER)
+                    .losslessNarrowing(true)
                     .build();
             SchemaRegistry registry = SchemaRegistry.withDefaultDialect(
                     SpecificationVersion.DRAFT_7,
                     builder -> builder.schemaRegistryConfig(config));
-            return registry.getSchema(stream);
+            return registry.getSchema(stream, InputFormat.JSON);
         } catch (IOException ex) {
             throw new ValidationException("Unable to load JSON Schema: " + schemaResource, ex);
         }
