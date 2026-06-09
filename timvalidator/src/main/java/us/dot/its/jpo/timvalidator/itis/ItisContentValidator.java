@@ -16,10 +16,11 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 /**
  * Validates normalized TIM ITIS message content with JSON Schema.
  *
- * <p>The input to this validator is already normalized into a small JSON object,
+ * <p>
+ * The input to this validator is already normalized into a small JSON object,
  * for example {@code {"itis":[6937,55],"priority":4,...}}. This class does not
  * decode ASN.1 or interpret token meanings itself; it owns the structural and
- * range checks from {@code itis-token-sequence.schema.json}. Invalid content
+ * range checks from {@code ITISCodes.json}. Invalid content
  * raises a ValidationException with the schema failure details.
  */
 public class ItisContentValidator {
@@ -28,7 +29,7 @@ public class ItisContentValidator {
 
     // Classpath location of the JSON Schema that lists the accepted ITIS token patterns.
     private static final String DEFAULT_SCHEMA_RESOURCE =
-        "/us/dot/its/jpo/timvalidator/itis/itis-token-sequence.schema.json";
+            "/us/dot/its/jpo/timvalidator/ITISCodes.json";
 
     private final JsonSchema schema;
 

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://us.dot.its.jpo/timvalidator/itis/itis-token-sequence.schema.json",
+  "$id": "https://us.dot.its.jpo/timvalidator/ITISCodes.json",
   "title": "TIM ITIS Message Content",
   "description": "Validates normalized TIM ITIS message content.",
   "type": "object",
