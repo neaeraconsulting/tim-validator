@@ -2,14 +2,16 @@ package us.dot.its.jpo.timvalidator.itis;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Set;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.networknt.schema.JsonSchema;
-import com.networknt.schema.JsonSchemaFactory;
-import com.networknt.schema.SpecVersion;
-import com.networknt.schema.ValidationMessage;
+import com.networknt.schema.Error;
+import com.networknt.schema.Schema;
+import com.networknt.schema.SchemaRegistry;
+import com.networknt.schema.SchemaRegistryConfig;
+import com.networknt.schema.SpecificationVersion;
+import com.networknt.schema.path.PathType;
 
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
@@ -31,7 +33,7 @@ public class ItisContentValidator {
     private static final String DEFAULT_SCHEMA_RESOURCE =
             "/us/dot/its/jpo/timvalidator/ITISCodes.json";
 
-    private final JsonSchema schema;
+    private final Schema schema;
 
     /**
      * Builds a validator using the default ITIS token sequence schema bundled
@@ -73,28 +75,33 @@ public class ItisContentValidator {
      * when upstream code is already working with JsonNode content.
      */
     public void validate(JsonNode content) throws ValidationException {
-        Set<ValidationMessage> messages = schema.validate(content);
+        List<Error> messages = schema.validate(content);
         if (!messages.isEmpty()) {
             throw new ValidationException(toErrorMessage(messages));
         }
     }
 
-    private JsonSchema loadSchema(String schemaResource) throws ValidationException {
+    private Schema loadSchema(String schemaResource) throws ValidationException {
         try (InputStream stream = ItisContentValidator.class.getResourceAsStream(schemaResource)) {
             if (stream == null) {
                 throw new ValidationException("JSON Schema resource not found: " + schemaResource);
             }
 
-            JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
-            return factory.getSchema(stream);
+            SchemaRegistryConfig config = SchemaRegistryConfig.builder()
+                    .pathType(PathType.JSON_PATH)
+                    .build();
+            SchemaRegistry registry = SchemaRegistry.withDefaultDialect(
+                    SpecificationVersion.DRAFT_7,
+                    builder -> builder.schemaRegistryConfig(config));
+            return registry.getSchema(stream);
         } catch (IOException ex) {
             throw new ValidationException("Unable to load JSON Schema: " + schemaResource, ex);
         }
     }
 
-    private String toErrorMessage(Set<ValidationMessage> messages) {
+    private String toErrorMessage(List<Error> messages) {
         return messages.stream()
-            .map(message -> message.getPath() + ": " + message.getMessage())
+            .map(message -> message.getInstanceLocation() + ": " + message.getMessage())
             .reduce((left, right) -> left + "; " + right)
             .orElse("ITIS content does not match JSON Schema");
     }
