@@ -19,9 +19,9 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
  * <p>
  * The input to this validator is already normalized into a small JSON object,
  * for example {@code {"itis":[6937,55],"priority":4,...}}. This class does not
- * decode ASN.1 or interpret token meanings itself; it owns the structural and
- * range checks from {@code ITISCodes.json}. Invalid content
- * raises a ValidationException with the schema failure details.
+ * decode ASN.1 or interpret token meanings itself; it owns the structural,
+ * range, and associated TIM metadata checks from {@code ITISCodes.json}.
+ * Invalid content raises a ValidationException with the schema failure details.
  */
 public class ItisContentValidator {
 

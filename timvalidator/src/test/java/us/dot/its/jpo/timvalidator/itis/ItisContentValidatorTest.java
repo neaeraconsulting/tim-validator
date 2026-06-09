@@ -36,8 +36,8 @@ public class ItisContentValidatorTest {
         assertDoesNotThrow(() -> validator.validate("""
             {
               "itis": [769, 9478, 7747],
-              "priority": 4,
-              "allowIndefinite": false,
+                  "priority": 5,
+                      "allowIndefinite": false,
               "geofence": "path"
             }
             """));
@@ -49,8 +49,8 @@ public class ItisContentValidatorTest {
             {
               "itis": [2577, 12000, 8739],
               "priority": 4,
-              "allowIndefinite": false,
-              "geofence": "path"
+                  "allowIndefinite": true,
+                      "geofence": "path"
             }
             """));
     }
@@ -88,6 +88,48 @@ public class ItisContentValidatorTest {
             """));
 
         assertTrue(ex.getMessage().contains("$.itis"));
+    }
+
+    @Test
+    public void validate_rejectsPriorityThatDoesNotMatchItisPattern() throws Exception {
+        ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
+                {
+                  "itis": [769, 9478, 7747],
+                  "priority": 4,
+                  "allowIndefinite": false,
+                  "geofence": "path"
+                }
+                """));
+
+        assertTrue(ex.getMessage().contains("$.priority"));
+    }
+
+    @Test
+    public void validate_rejectsAllowIndefiniteThatDoesNotMatchItisPattern() throws Exception {
+        ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
+                {
+                  "itis": [2577, 12000, 8739],
+                  "priority": 4,
+                  "allowIndefinite": false,
+                  "geofence": "path"
+                }
+                """));
+
+        assertTrue(ex.getMessage().contains("$.allowIndefinite"));
+    }
+
+    @Test
+    public void validate_rejectsGeofenceThatDoesNotMatchItisPattern() throws Exception {
+        ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
+                {
+                  "itis": [6937, 55],
+                  "priority": 4,
+                  "allowIndefinite": false,
+                  "geofence": "circle"
+                }
+                """));
+
+        assertTrue(ex.getMessage().contains("$.geofence"));
     }
 
     @Test

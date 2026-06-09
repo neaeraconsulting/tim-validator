@@ -3,22 +3,22 @@
   "$id": "https://us.dot.its.jpo/timvalidator/ITISCodes.json",
   "title": "TIM ITIS Message Content",
   "description": "Validates normalized TIM ITIS message content.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "itis",
-    "priority",
-    "allowIndefinite",
-    "geofence"
-  ],
-  "properties": {
-    "itis": {
-      "type": "array",
-      "description": "Ordered array of extracted ITIS numeric tokens. The array must match exactly one supported token pattern below.",
-      "oneOf": [
-        {
-          "title": "closed-to-traffic",
+  "oneOf": [
+    {
+      "title": "closed-to-traffic",
+      "description": "Matches the exact closed-to-traffic phrase token sequence and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis",
+        "priority",
+        "allowIndefinite",
+        "geofence"
+      ],
+      "properties": {
+        "itis": {
           "description": "Matches the exact closed-to-traffic phrase token sequence.",
+          "type": "array",
           "minItems": 3,
           "maxItems": 3,
           "items": [
@@ -33,9 +33,35 @@
             }
           ]
         },
-        {
-          "title": "gross-weight-limit",
+        "priority": {
+          "const": 5,
+          "description": "Road closure ahead priority."
+        },
+        "allowIndefinite": {
+          "const": false,
+          "description": "Road closure TIMs are expected to have a bounded active period."
+        },
+        "geofence": {
+          "const": "path",
+          "description": "Road closure TIMs are expected to be represented along a path."
+        }
+      }
+    },
+    {
+      "title": "gross-weight-limit",
+      "description": "Matches a gross-weight-limit phrase and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis",
+        "priority",
+        "allowIndefinite",
+        "geofence"
+      ],
+      "properties": {
+        "itis": {
           "description": "Matches a gross-weight-limit phrase: opening token, variable weight value, and weight unit token.",
+          "type": "array",
           "minItems": 3,
           "maxItems": 3,
           "items": [
@@ -50,9 +76,35 @@
             }
           ]
         },
-        {
-          "title": "speed-limit",
+        "priority": {
+          "const": 4,
+          "description": "Vehicle restriction priority."
+        },
+        "allowIndefinite": {
+          "const": true,
+          "description": "Vehicle restriction TIMs may represent an indefinite standing restriction."
+        },
+        "geofence": {
+          "const": "path",
+          "description": "Vehicle restriction TIMs are expected to be represented along a path."
+        }
+      }
+    },
+    {
+      "title": "speed-limit",
+      "description": "Matches a speed-limit phrase and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis",
+        "priority",
+        "allowIndefinite",
+        "geofence"
+      ],
+      "properties": {
+        "itis": {
           "description": "Matches a speed-limit phrase: speed-limit token followed by a variable speed value.",
+          "type": "array",
           "minItems": 2,
           "maxItems": 2,
           "items": [
@@ -64,9 +116,35 @@
             }
           ]
         },
-        {
-          "title": "speed-unit-example",
+        "priority": {
+          "const": 4,
+          "description": "Reduced speed zone priority."
+        },
+        "allowIndefinite": {
+          "const": false,
+          "description": "Speed-limit TIMs are expected to have a bounded active period."
+        },
+        "geofence": {
+          "const": "path",
+          "description": "Speed-limit TIMs are expected to be represented along a path."
+        }
+      }
+    },
+    {
+      "title": "speed-unit-example",
+      "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis",
+        "priority",
+        "allowIndefinite",
+        "geofence"
+      ],
+      "properties": {
+        "itis": {
           "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour.",
+          "type": "array",
           "minItems": 4,
           "maxItems": 4,
           "items": [
@@ -88,29 +166,22 @@
               "const": 13569
             }
           ]
+        },
+        "priority": {
+          "const": 4,
+          "description": "Reduced speed zone priority."
+        },
+        "allowIndefinite": {
+          "const": false,
+          "description": "Speed-related TIMs are expected to have a bounded active period."
+        },
+        "geofence": {
+          "const": "path",
+          "description": "Speed-related TIMs are expected to be represented along a path."
         }
-      ]
-    },
-    "priority": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 7,
-      "description": "TIM priority value; valid priorities are 1 through 7."
-    },
-    "allowIndefinite": {
-      "type": "boolean",
-      "description": "Whether the normalized TIM content is allowed to represent an indefinite duration."
-    },
-    "geofence": {
-      "type": "string",
-      "description": "Shape type used to represent the TIM geofence.",
-      "enum": [
-        "path",
-        "circle",
-        "polygon"
-      ]
+      }
     }
-  },
+  ],
   "definitions": {
     "SMALL_NUMBER": {
       "type": "integer",
