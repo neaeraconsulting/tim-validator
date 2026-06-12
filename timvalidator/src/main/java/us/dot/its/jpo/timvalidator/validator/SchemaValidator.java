@@ -13,10 +13,16 @@ import us.dot.its.jpo.timvalidator.itis.ItisContentValidator;
 public class SchemaValidator {
 
     private Map<String, String> schemaMap; // Maps message types to JSON schema definitions
+    private final ItisContentValidator itisContentValidator;
 
     public SchemaValidator() {
         // TODO: Initialize schema map from resources
         // Load JSON schemas from src/main/resources/schemas/
+        try {
+            this.itisContentValidator = new ItisContentValidator();
+        } catch (ValidationException ex) {
+            throw new IllegalStateException("Unable to initialize ITIS content validator", ex);
+        }
     }
 
     /**
@@ -81,7 +87,7 @@ public class SchemaValidator {
             return;
         }
 
-        new ItisContentValidator().validate(itisContent);
+        itisContentValidator.validate(itisContent);
     }
 
     private Object extractNormalizedItisContent(Object timMessage) {
