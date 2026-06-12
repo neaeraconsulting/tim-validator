@@ -60,41 +60,19 @@
       ],
       "properties": {
         "itis": {
-          "description": "Matches a gross-weight-limit phrase: opening token, large-number weight value, optional small-number remainder, and weight unit token.",
+          "description": "Matches a gross-weight-limit phrase: opening token, large-number weight value, and weight unit token.",
           "type": "array",
-          "oneOf": [
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
             {
-              "minItems": 3,
-              "maxItems": 3,
-              "items": [
-                {
-                  "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
-                },
-                {
-                  "$ref": "#/definitions/LARGE_NUMBER"
-                },
-                {
-                  "$ref": "#/definitions/POUNDS"
-                }
-              ]
+              "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
             },
             {
-              "minItems": 4,
-              "maxItems": 4,
-              "items": [
-                {
-                  "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
-                },
-                {
-                  "$ref": "#/definitions/LARGE_NUMBER"
-                },
-                {
-                  "$ref": "#/definitions/SMALL_NUMBER"
-                },
-                {
-                  "$ref": "#/definitions/POUNDS"
-                }
-              ]
+              "$ref": "#/definitions/LARGE_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/POUNDS"
             }
           ]
         },

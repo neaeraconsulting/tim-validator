@@ -52,19 +52,7 @@ public class ItisContentValidatorTest {
                   "allowIndefinite": true,
                       "geofence": "path"
             }
-            """));
-    }
-
-    @Test
-    public void validate_acceptsGrossWeightLimitWithSmallNumberRemainder() throws Exception {
-        assertDoesNotThrow(() -> validator.validate("""
-            {
-              "itis": [2577, 11594, 12667, 8739],
-              "priority": 4,
-              "allowIndefinite": true,
-              "geofence": "path"
-            }
-            """));
+                """));
 
         assertDoesNotThrow(() -> validator.validate("""
             {
