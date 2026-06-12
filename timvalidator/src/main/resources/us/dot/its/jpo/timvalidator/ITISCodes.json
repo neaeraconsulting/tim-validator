@@ -60,19 +60,41 @@
       ],
       "properties": {
         "itis": {
-          "description": "Matches a gross-weight-limit phrase: opening token, variable weight value, and weight unit token.",
+          "description": "Matches a gross-weight-limit phrase: opening token, large-number weight value, optional small-number remainder, and weight unit token.",
           "type": "array",
-          "minItems": 3,
-          "maxItems": 3,
-          "items": [
+          "oneOf": [
             {
-              "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
+              "minItems": 3,
+              "maxItems": 3,
+              "items": [
+                {
+                  "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
+                },
+                {
+                  "$ref": "#/definitions/LARGE_NUMBER"
+                },
+                {
+                  "$ref": "#/definitions/POUNDS"
+                }
+              ]
             },
             {
-              "$ref": "#/definitions/WEIGHT_LIMIT"
-            },
-            {
-              "$ref": "#/definitions/POUNDS"
+              "minItems": 4,
+              "maxItems": 4,
+              "items": [
+                {
+                  "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
+                },
+                {
+                  "$ref": "#/definitions/LARGE_NUMBER"
+                },
+                {
+                  "$ref": "#/definitions/SMALL_NUMBER"
+                },
+                {
+                  "$ref": "#/definitions/POUNDS"
+                }
+              ]
             }
           ]
         },
@@ -112,7 +134,7 @@
               "$ref": "#/definitions/TRUCK_CHECK_POINT"
             },
             {
-              "$ref": "#/definitions/SPEED_LIMIT"
+              "$ref": "#/definitions/SMALL_NUMBER"
             }
           ]
         },
@@ -240,21 +262,15 @@
     },
     "SMALL_NUMBER": {
       "type": "integer",
-      "minimum": 1,
-      "maximum": 99,
-      "description": "Number between 1 and 99"
+      "minimum": 12545,
+      "maximum": 12799,
+      "description": "J2540/2 small-number ITIS code: N1 through N255"
     },
-    "SPEED_LIMIT": {
+    "LARGE_NUMBER": {
       "type": "integer",
-      "minimum": 1,
-      "maximum": 99,
-      "description": "Speed limit between 1 and 99"
-    },
-    "WEIGHT_LIMIT": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 200000,
-      "description": "Weight between 1 and 200000"
+      "minimum": 11531,
+      "maximum": 11613,
+      "description": "J2540/2 large-number ITIS code: N300 through N100000"
     },
     "SPEED_UNIT": {
       "oneOf": [

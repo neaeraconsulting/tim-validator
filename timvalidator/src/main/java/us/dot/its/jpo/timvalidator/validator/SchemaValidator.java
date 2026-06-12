@@ -93,7 +93,7 @@ public class SchemaValidator {
     private Object extractNormalizedItisContent(Object timMessage) {
         // TODO: Split the full MessageFrame into normalized ITIS content:
         // {
-        // "itis": [6937, 55],
+        // "itis": [6937, 12599],
         // "priority": 4,
         // "allowIndefinite": false,
         // "geofence": "path"

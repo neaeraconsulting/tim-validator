@@ -23,7 +23,7 @@ public class ItisContentValidatorTest {
     public void validate_acceptsSpeedLimitPatternAndMessageFields() throws Exception {
         assertDoesNotThrow(() -> validator.validate("""
             {
-              "itis": [6937, 55],
+              "itis": [6937, 12599],
               "priority": 4,
               "allowIndefinite": false,
               "geofence": "path"
@@ -47,10 +47,31 @@ public class ItisContentValidatorTest {
     public void validate_acceptsGrossWeightLimitPattern() throws Exception {
         assertDoesNotThrow(() -> validator.validate("""
             {
-              "itis": [2577, 12000, 8739],
+              "itis": [2577, 11581, 8739],
               "priority": 4,
                   "allowIndefinite": true,
                       "geofence": "path"
+            }
+            """));
+    }
+
+    @Test
+    public void validate_acceptsGrossWeightLimitWithSmallNumberRemainder() throws Exception {
+        assertDoesNotThrow(() -> validator.validate("""
+            {
+              "itis": [2577, 11594, 12667, 8739],
+              "priority": 4,
+              "allowIndefinite": true,
+              "geofence": "path"
+            }
+            """));
+
+        assertDoesNotThrow(() -> validator.validate("""
+            {
+              "itis": [6937, 12644],
+              "priority": 4,
+              "allowIndefinite": false,
+              "geofence": "path"
             }
             """));
     }
@@ -108,7 +129,7 @@ public class ItisContentValidatorTest {
     public void validate_rejectsAllowIndefiniteThatDoesNotMatchItisPattern() throws Exception {
         ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
                 {
-                  "itis": [2577, 12000, 8739],
+                  "itis": [2577, 11581, 8739],
                   "priority": 4,
                   "allowIndefinite": false,
                   "geofence": "path"
@@ -122,7 +143,7 @@ public class ItisContentValidatorTest {
     public void validate_rejectsGeofenceThatDoesNotMatchItisPattern() throws Exception {
         ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
                 {
-                  "itis": [6937, 55],
+                  "itis": [6937, 12599],
                   "priority": 4,
                   "allowIndefinite": false,
                   "geofence": "circle"
@@ -133,11 +154,11 @@ public class ItisContentValidatorTest {
     }
 
     @Test
-    public void validate_rejectsSpeedLimitOutsideSchemaRange() throws Exception {
-        // 100 exceeds the SPEED_LIMIT definition's maximum, so no oneOf pattern should match.
+    public void validate_rejectsSmallNumberOutsideSchemaRange() throws Exception {
+        // 12800 is just above the J2540/2 small-number token range of N1 through N255.
         ValidationException ex = assertThrows(ValidationException.class, () -> validator.validate("""
             {
-              "itis": [6937, 100],
+              "itis": [6937, 12800],
               "priority": 4,
               "allowIndefinite": false,
               "geofence": "path"
