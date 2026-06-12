@@ -78,6 +78,7 @@
         <maven.compiler.release>23</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <lombok.version>1.18.30</lombok.version>
     </properties>
 
     <dependencies>
@@ -106,11 +107,18 @@
             <version>2.17.1</version>
         </dependency>
 
-        <!-- JSON Schema validation (used for schema-based ITIS/payload validation) -->
+        <!-- JSON Schema validation -->
         <dependency>
             <groupId>com.networknt</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>2.0.1</version>
+        </dependency>
+
+        <!-- Lombok removes boilerplate getters/setters from POJOs. -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
         </dependency>
 
         <!-- Test Dependencies -->
@@ -132,6 +140,13 @@
                     <source>23</source>
                     <target>23</target>
                     <useModulePath>false</useModulePath>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

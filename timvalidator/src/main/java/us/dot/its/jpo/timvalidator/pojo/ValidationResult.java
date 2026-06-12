@@ -4,12 +4,19 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
 /**
  * Processed validation result for a TIM message.
  * 
  * Provides a comprehensive summary of validation status, individual check results,
  * and the deserialized message for reference.
  */
+@Getter
+@Setter
 public class ValidationResult {
 
     private boolean valid;
@@ -20,6 +27,8 @@ public class ValidationResult {
     private Instant validationTimestamp;
     private long validationDurationMs;
 
+    @Getter(AccessLevel.NONE)
+    @Setter(AccessLevel.NONE)
     private Map<String, CheckResult> validationChecks; // Maps check name to result
 
     public ValidationResult() {
@@ -66,63 +75,6 @@ public class ValidationResult {
         return summary.toString();
     }
 
-    // Getters and setters
-    public boolean isValid() {
-        return valid;
-    }
-
-    public void setValid(boolean valid) {
-        this.valid = valid;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    public void setErrorMessage(String errorMessage) {
-        this.errorMessage = errorMessage;
-    }
-
-    public String getUperInput() {
-        return uperInput;
-    }
-
-    public void setUperInput(String uperInput) {
-        this.uperInput = uperInput;
-    }
-
-    public String getJerFormat() {
-        return jerFormat;
-    }
-
-    public void setJerFormat(String jerFormat) {
-        this.jerFormat = jerFormat;
-    }
-
-    public Object getTimMessage() {
-        return timMessage;
-    }
-
-    public void setTimMessage(Object timMessage) {
-        this.timMessage = timMessage;
-    }
-
-    public Instant getValidationTimestamp() {
-        return validationTimestamp;
-    }
-
-    public void setValidationTimestamp(Instant validationTimestamp) {
-        this.validationTimestamp = validationTimestamp;
-    }
-
-    public long getValidationDurationMs() {
-        return validationDurationMs;
-    }
-
-    public void setValidationDurationMs(long validationDurationMs) {
-        this.validationDurationMs = validationDurationMs;
-    }
-
     public Map<String, CheckResult> getValidationChecks() {
         return new HashMap<>(validationChecks);
     }
@@ -130,27 +82,11 @@ public class ValidationResult {
     /**
      * Inner class representing a single validation check result.
      */
+    @Getter
+    @AllArgsConstructor
     public static class CheckResult {
         private final String name;
         private final boolean passed;
         private final String details;
-
-        public CheckResult(String name, boolean passed, String details) {
-            this.name = name;
-            this.passed = passed;
-            this.details = details;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public boolean isPassed() {
-            return passed;
-        }
-
-        public String getDetails() {
-            return details;
-        }
     }
 }
