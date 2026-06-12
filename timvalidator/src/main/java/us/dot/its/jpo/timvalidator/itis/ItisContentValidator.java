@@ -107,6 +107,6 @@ public class ItisContentValidator {
         return messages.stream()
             .map(message -> message.getInstanceLocation() + ": " + message.getMessage())
             .reduce((left, right) -> left + "; " + right)
-            .orElse("ITIS content does not match JSON Schema");
+            .orElseThrow(() -> new IllegalArgumentException("Validation error messages cannot be empty"));
     }
 }
