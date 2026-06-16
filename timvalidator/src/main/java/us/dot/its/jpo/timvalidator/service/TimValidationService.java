@@ -5,7 +5,7 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
-import us.dot.its.jpo.timvalidator.validator.SchemaValidator;
+import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
 
 /**
  * Main service orchestrating the TIM validation pipeline.
@@ -20,12 +20,12 @@ import us.dot.its.jpo.timvalidator.validator.SchemaValidator;
 public class TimValidationService {
 
     private final UperToMessageFrameConverter uperToMessageFrameConverter;
-    private final SchemaValidator schemaValidator;
+    private final TimJsonValidator schemaValidator;
     private final BestPracticesValidator bestPracticesValidator;
 
     public TimValidationService() {
         this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
-        this.schemaValidator = new SchemaValidator();
+        this.schemaValidator = new TimJsonValidator();
         this.bestPracticesValidator = new BestPracticesValidator();
     }
 
