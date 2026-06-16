@@ -38,6 +38,7 @@ public class TimValidationService {
      */
     public ValidationResult validateTim(String uperString) throws ValidationException {
         ValidationResult result = new ValidationResult();
+        result.setUperInput(uperString);
 
         try {
             // Step 1: Convert UPER to XER
@@ -49,8 +50,13 @@ public class TimValidationService {
             result.setTimMessage(timMessage);
 
             // Step 3: Perform schema validation
-            schemaValidator.validate(timMessage);
-            result.addValidationCheck("Schema Validation", true, "POJO conforms to schema");
+            try {
+                schemaValidator.validate(timMessage);
+                result.addValidationCheck("Schema Validation", true, "Message conforms to J2735 schema");
+            } catch (Exception ex) {
+                result.addValidationCheck("Schema Validation", false, ex.getMessage());
+                throw ex;
+            }
 
             // Step 4: Perform best practices checks
             java.util.List<String> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
@@ -62,9 +68,12 @@ public class TimValidationService {
 
             result.setValid(true);
         } catch (Exception e) {
+            if (result.getValidationChecks().isEmpty()) {
+                result.addValidationCheck("Validation Pipeline", false, e.getMessage());
+            }
             result.setValid(false);
             result.setErrorMessage(e.getMessage());
-            throw new ValidationException("TIM validation failed: " + e.getMessage(), e);
+            throw new ValidationException("TIM validation failed: " + e.getMessage(), e, result);
         }
 
         return result;
