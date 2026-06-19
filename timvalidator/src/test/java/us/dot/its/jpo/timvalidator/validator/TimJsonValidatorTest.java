@@ -24,7 +24,7 @@ class TimJsonValidatorTest {
     @Test
     void validate_validDecodedTimMessage_passesValidation() throws Exception {
         Assumptions.assumeTrue(isNativeLibraryAvailable(),
-            "Native codec library not found; skipping schema validation integration assertion");
+            "Native codec library not found; skipping test");
 
         UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
         String xer = converter.convertUperToXer(VALID_UPER_HEX);
@@ -82,7 +82,7 @@ class TimJsonValidatorTest {
     @Test
     void validateJson_validJsonFromDecodedMessage_passesValidation() throws Exception {
         Assumptions.assumeTrue(isNativeLibraryAvailable(),
-            "Native codec library not found; skipping schema validation JSON-path assertion");
+            "Native codec library not found; skipping test");
 
         UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
         String xer = converter.convertUperToXer(VALID_UPER_HEX);
@@ -93,7 +93,7 @@ class TimJsonValidatorTest {
 
         assertDoesNotThrow(() -> timJsonValidator.validateJson(jsonPayload));
     }
-
+    
     private static boolean isNativeLibraryAvailable() {
         String osName = System.getProperty("os.name", "").toLowerCase();
         String fileName = osName.contains("win") ? "asnapplication.dll" : "libasnapplication.so";

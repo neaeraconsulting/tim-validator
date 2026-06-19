@@ -8,8 +8,7 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 public class TimJsonValidator extends AbstractJsonValidator {
 
-    private static final Resource TIM_SCHEMA_RESOURCE = new ClassPathResource("schemas/tim.schema.json");
-    private static final String TIM_SCHEMA_REF_RESOURCE = "us/dot/its/jpo/timvalidator/TravelerInformationMessageFrame.schema.json";
+    private static final Resource TIM_SCHEMA_RESOURCE = new ClassPathResource("schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json");
 
     public TimJsonValidator() {
         super(TIM_SCHEMA_RESOURCE);
@@ -37,18 +36,7 @@ public class TimJsonValidator extends AbstractJsonValidator {
     }
 
     /**
-     * Rewrites the external J2735 TIM schema reference to a bundled classpath schema for offline resolution.
-     */
-    @Override
-    protected String preprocessSchemaJson(String schemaJson) {
-        return schemaJson.replace(
-            "https://github.com/usdot-jpo-ode/jpo-asn-pojos/blob/jpo-asn-pojos-1.2.0/jpo-asn-jsonschema-generator/src/main/resources/schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json",
-            "classpath:/" + TIM_SCHEMA_REF_RESOURCE
-        );
-    }
-
-    /**
-     * Extracts the numeric message id for J2735 TIM type gating in this concrete validator.
+     * Extracts the numeric message id for J2735 TIM type.
      */
     private Integer extractMessageId(MessageFrame<?> messageFrame) {
         if (messageFrame.getMessageId() == null) {

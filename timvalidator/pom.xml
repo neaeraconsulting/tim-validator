@@ -140,6 +140,7 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
+                    <argLine>-Djava.library.path=${project.build.directory}/libs</argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -150,7 +151,7 @@
                     <!-- Copy Windows native library and rename -->
                     <execution>
                         <id>copy-native-windows-x86_64</id>
-                        <phase>package</phase>
+                        <phase>process-test-resources</phase>
                         <goals>
                             <goal>copy</goal>
                         </goals>
@@ -171,7 +172,7 @@
                     <!-- Copy Linux native library and rename -->
                     <execution>
                         <id>copy-native-linux-x86_64</id>
-                        <phase>package</phase>
+                        <phase>process-test-resources</phase>
                         <goals>
                             <goal>copy</goal>
                         </goals>
@@ -192,7 +193,7 @@
                     <!-- Copy all runtime dependencies to libs/ -->
                     <execution>
                         <id>copy-dependencies</id>
-                        <phase>package</phase>
+                        <phase>process-test-resources</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
                         </goals>

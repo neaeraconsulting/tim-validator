@@ -1,5 +1,0 @@
-{
-  "$comment": "Baseline schema for J2735 TIM messages. This schema references the TravelerInformationMessageFrame schema.",
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$ref": "https://github.com/usdot-jpo-ode/jpo-asn-pojos/blob/jpo-asn-pojos-1.2.0/jpo-asn-jsonschema-generator/src/main/resources/schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json"
-}

@@ -63,23 +63,24 @@ public abstract class AbstractJsonValidator {
     }
 
     /**
-     * Exposes the compiled schema for testing while preserving lazy initialization.
+     * Exposes the compiled schema for testing.
      */
-    public Schema getJsonSchema() throws IOException {
-        try {
-            return getOrCreateSchema();
-        } catch (IOException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new IOException(ex);
-        }
+    public Schema getJsonSchema() throws Exception {
+        return getOrCreateSchema();
     }
 
     /**
      * Centralizes schema error aggregation so callers receive a single actionable validation message.
      */
     protected void validateNodeAgainstSchema(JsonNode node) throws ValidationException {
-        List<Error> validationErrors = getSchemaUnchecked().validate(node);
+        List<Error> validationErrors;
+        try {
+            validationErrors = getOrCreateSchema().validate(node);
+        } catch (ValidationException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new ValidationException("Schema validation execution failed: " + ex.getMessage(), ex);
+        }
 
         if (!validationErrors.isEmpty()) {
             StringBuilder message = new StringBuilder("Schema validation failed:");
@@ -87,26 +88,6 @@ public abstract class AbstractJsonValidator {
                 message.append(System.lineSeparator()).append("- ").append(error);
             }
             throw new ValidationException(message.toString());
-        }
-    }
-
-    /**
-     * Extension hook for subclasses to rewrite schema text.
-     */
-    protected String preprocessSchemaJson(String schemaJson) {
-        return schemaJson;
-    }
-
-    /**
-     * Translates schema loading/compilation failures into validation exceptions.
-     */
-    private Schema getSchemaUnchecked() throws ValidationException {
-        try {
-            return getOrCreateSchema();
-        } catch (ValidationException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new ValidationException("Schema validation execution failed: " + ex.getMessage(), ex);
         }
     }
 
@@ -138,8 +119,6 @@ public abstract class AbstractJsonValidator {
             throw new IllegalStateException("Failed to load schema from resource: " + schemaResource, ex);
         }
 
-        schemaJson = preprocessSchemaJson(schemaJson);
-
         SchemaRegistryConfig config = SchemaRegistryConfig.builder()
             .cacheRefs(true)
             .failFast(false)
@@ -153,8 +132,8 @@ public abstract class AbstractJsonValidator {
                 .schemaRegistryConfig(config)
                 .schemaIdResolvers(resolvers -> resolvers
                     .mappings(
-                        source -> source.startsWith("https://") && source.contains("/schemas"),
-                        source -> source.replaceFirst("https://.+/schemas", "classpath:/schemas")
+                        source -> source != null && source.startsWith("https://") && source.contains("/schemas/"),
+                        source -> "classpath:" + source.substring(source.indexOf("/schemas/"))
                 ))
         );
 
