@@ -43,7 +43,7 @@ public class TimValidationService {
         try {
             // Step 1: Convert UPER to XER
             String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
-            result.setJerFormat(xerFormat);
+            result.setXerFormat(xerFormat);
 
             // Step 2: Deserialize into POJO
             MessageFrame<?> timMessage = uperToMessageFrameConverter.deserializeToObject(xerFormat);

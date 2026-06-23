@@ -15,7 +15,7 @@ public class ValidationResult {
     private boolean valid;
     private String errorMessage;
     private String uperInput;
-    private String jerFormat;
+    private String xerFormat;
     private Object timMessage; // The deserialized POJO
     private Instant validationTimestamp;
     private long validationDurationMs;
@@ -91,12 +91,12 @@ public class ValidationResult {
         this.uperInput = uperInput;
     }
 
-    public String getJerFormat() {
-        return jerFormat;
+    public String getXerFormat() {
+        return xerFormat;
     }
 
-    public void setJerFormat(String jerFormat) {
-        this.jerFormat = jerFormat;
+    public void setXerFormat(String xerFormat) {
+        this.xerFormat = xerFormat;
     }
 
     public Object getTimMessage() {
