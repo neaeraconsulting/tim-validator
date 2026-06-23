@@ -211,7 +211,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.example.Main</mainClass>
+                            <mainClass>us.dot.its.jpo.timvalidator.Main</mainClass>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>libs/</classpathPrefix>
                         </manifest>
