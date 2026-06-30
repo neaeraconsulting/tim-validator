@@ -1,4 +1,4 @@
-package us.dot.its.jpo.timvalidator;
+package us.dot.its.jpo.timvalidator.service;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -7,12 +7,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import us.dot.its.jpo.timvalidator.converter.UperToJerConverter;
+import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
-import us.dot.its.jpo.timvalidator.service.TimValidationService;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
-import us.dot.its.jpo.timvalidator.validator.SchemaValidator;
+import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
 
 /**
  * Basic test suite to verify Maven build and project structure.
@@ -63,21 +62,22 @@ public class TimValidationServiceTest {
 
     @Test
     public void testValidationException() {
-        assertThrows(ValidationException.class, () -> {
+        ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
         }, "ValidationException should be throwable");
+        assertTrue(ex.getMessage().contains("Test exception"));
     }
 
     @Test
-    public void testUperToJerConverterInstantiation() {
-        UperToJerConverter converter = new UperToJerConverter();
-        assertNotNull(converter, "UperToJerConverter should be instantiated");
+    public void testUperToMessageFrameConverterInstantiation() {
+        UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
+        assertNotNull(converter, "UperToMessageFrameConverter should be instantiated");
     }
 
     @Test
-    public void testSchemaValidatorInstantiation() {
-        SchemaValidator validator = new SchemaValidator();
-        assertNotNull(validator, "SchemaValidator should be instantiated");
+    public void testTimJsonValidatorInstantiation() {
+        TimJsonValidator validator = new TimJsonValidator();
+        assertNotNull(validator, "TimJsonValidator should be instantiated");
     }
 
     @Test

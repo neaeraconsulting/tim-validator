@@ -1,0 +1,122 @@
+trigger:
+  - main
+  - develop
+  - snapshot
+  - maven-central
+
+pr:
+  - main
+  - develop
+  - snapshot
+
+variables:
+  - name: VersionNum
+    value: '0.0.0-SNAPSHOT'  # initial value.  'Get version number' step will read the actual value from pom
+  - name: WorkingDir
+    value: '$(system.defaultWorkingDirectory)/timvalidator'
+  - name: JavaHome
+    value: 'JavaHome' # initial value, JDK install step sets it
+
+
+stages:
+  - stage: Publish
+    displayName: Publish to Maven Central
+    jobs:
+      - job: PublishSnapshot
+        displayName: Publish Snapshot to Maven Central
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            displayName: checkout
+
+          - bash: |
+              echo "VersionNum initial value is $(versionNum)"
+            displayName: VersionNum initial value
+
+          - bash: |
+              sudo apt update
+              sudo apt install -y wget apt-transport-https gnupg
+              wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+              echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+              sudo apt update
+              sudo apt install -y temurin-23-jdk
+              JAVA_23_BIN=$(update-alternatives --list java | grep "23-jdk")
+              JAVA_23_HOME=$(echo $JAVA_23_BIN | sed "s:/bin/java::")
+              sudo update-alternatives --set java $JAVA_23_BIN
+              export JAVA_HOME=$JAVA_23_HOME
+              echo "JAVA_23_BIN: $JAVA_23_BIN"
+              echo "JAVA_HOME: $JAVA_HOME"
+              echo "##vso[task.setvariable variable=JavaHome]$JAVA_HOME"
+              echo "java version:"
+              java -version
+              sudo apt install -y maven
+              echo "maven version:"
+              mvn -version
+              echo "gpg version: $(gpg --version)"
+            displayName: Install JDK, Maven, GPG
+
+          - bash: |
+              VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+              echo "got version $VERSION"
+              echo "##vso[task.setvariable variable=VersionNum]$VERSION"
+            displayName: Get version number
+            workingDirectory: $(WorkingDir)
+
+          - bash: |
+              echo "version number from pom is $(VersionNum)"
+            displayName: VersionNum updated value
+
+          - bash: |
+              VERSION=$(VersionNum)
+              if [[ "$VERSION" == *"-SNAPSHOT" ]]; then
+                echo "The version already ends with -SNAPSHOT"
+              else
+                echo "Version doesn't end with snapshot, appending it"
+                NEW_VERSION=$(VersionNum)-SNAPSHOT
+                echo "##vso[task.setvariable variable=VersionNum]$NEW_VERSION"
+              fi
+            displayName: Ensure Snapshot Version
+            workingDirectory: $(WorkingDir)
+
+          - bash: |
+              echo "Updated version number is $(VersionNum)"
+              VERSION=$(VersionNum)
+              mvn versions:set -DnewVersion=$VERSION
+            displayName: VersionNum snapshot value
+            workingDirectory: $(WorkingDir)
+
+          - task: DownloadSecureFile@1
+            name: privateKey
+            displayName: Get gpg private key file
+            inputs:
+              secureFile: 'neaera-private-key.asc'
+
+          - bash: |
+              gpg --keyserver $(GPG_KEY_SERVER) --receive-keys $(GPG_KEY_ID)
+              gpg --batch --pinentry-mode loopback --allow-secret-key-import --import $(privateKey.secureFilePath)
+              gpg --list-secret-keys
+            displayName: Import gpg keys
+
+          - bash: |
+              echo "JAVA_HOME: $JAVA_HOME"
+              echo "java version:"
+              java -version
+              echo "maven version"
+              mvn -version
+              echo "deploying:"
+              mvn -s $(WorkingDir)/settings.xml -P release --batch-mode deploy
+            env:
+              JAVA_HOME: $(JavaHome)
+              MAVEN_USERNAME: $(CENTRAL_TOKEN_USERNAME)
+              MAVEN_PASSWORD: $(CENTRAL_TOKEN_PASSWORD)
+              MAVEN_GPG_PASSPHRASE: $(GPG_SIGNING_KEY_PASSWORD)
+            displayName: Publish snapshot
+            workingDirectory: $(WorkingDir)
+
+              
+              
+
+
+
+

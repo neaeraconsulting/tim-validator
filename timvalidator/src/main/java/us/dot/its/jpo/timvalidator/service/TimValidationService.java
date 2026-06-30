@@ -1,30 +1,31 @@
 package us.dot.its.jpo.timvalidator.service;
 
-import us.dot.its.jpo.timvalidator.converter.UperToJerConverter;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
-import us.dot.its.jpo.timvalidator.validator.SchemaValidator;
+import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
 
 /**
  * Main service orchestrating the TIM validation pipeline.
  * 
  * Process flow:
- * 1. Convert UPER string to JER format
- * 2. Deserialize JER into POJO using jpo-asn-runtime
- * 3. Perform schema validation against JSON schemas
+ * 1. Convert UPER hex string to XER (XML)
+ * 2. Deserialize XER into a typed TravelerInformationMessageFrame POJO
+ * 3. Perform schema validation
  * 4. Execute best practices checks
  * 5. Return processed validation result
  */
 public class TimValidationService {
 
-    private final UperToJerConverter uperToJerConverter;
-    private final SchemaValidator schemaValidator;
+    private final UperToMessageFrameConverter uperToMessageFrameConverter;
+    private final TimJsonValidator schemaValidator;
     private final BestPracticesValidator bestPracticesValidator;
 
     public TimValidationService() {
-        this.uperToJerConverter = new UperToJerConverter();
-        this.schemaValidator = new SchemaValidator();
+        this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
+        this.schemaValidator = new TimJsonValidator();
         this.bestPracticesValidator = new BestPracticesValidator();
     }
 
@@ -37,19 +38,25 @@ public class TimValidationService {
      */
     public ValidationResult validateTim(String uperString) throws ValidationException {
         ValidationResult result = new ValidationResult();
+        result.setUperInput(uperString);
 
         try {
-            // Step 1: Convert UPER to JER
-            String jerFormat = uperToJerConverter.convertUperToJer(uperString);
-            result.setJerFormat(jerFormat);
+            // Step 1: Convert UPER to XER
+            String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
+            result.setXerFormat(xerFormat);
 
             // Step 2: Deserialize into POJO
-            Object timMessage = uperToJerConverter.deserializeToObject(jerFormat);
+            TravelerInformationMessageFrame timMessage = uperToMessageFrameConverter.deserialize(xerFormat);
             result.setTimMessage(timMessage);
 
             // Step 3: Perform schema validation
-            schemaValidator.validate(timMessage);
-            result.addValidationCheck("Schema Validation", true, "POJO conforms to schema");
+            try {
+                schemaValidator.validate(timMessage);
+                result.addValidationCheck("Schema Validation", true, "Message conforms to J2735 schema");
+            } catch (Exception ex) {
+                result.addValidationCheck("Schema Validation", false, ex.getMessage());
+                throw ex;
+            }
 
             // Step 4: Perform best practices checks
             java.util.List<String> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
@@ -61,9 +68,12 @@ public class TimValidationService {
 
             result.setValid(true);
         } catch (Exception e) {
+            if (result.getValidationChecks().isEmpty()) {
+                result.addValidationCheck("Validation Pipeline", false, e.getMessage());
+            }
             result.setValid(false);
             result.setErrorMessage(e.getMessage());
-            throw new ValidationException("TIM validation failed: " + e.getMessage(), e);
+            throw new ValidationException("TIM validation failed: " + e.getMessage(), e, result);
         }
 
         return result;
