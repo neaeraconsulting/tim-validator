@@ -1,7 +1,9 @@
 package us.dot.its.jpo.timvalidator.pojo;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import lombok.AllArgsConstructor;
@@ -22,17 +24,20 @@ public class ValidationResult {
     private boolean valid;
     private String errorMessage;
     private String uperInput;
+    private String jerInput;
     private String xerFormat;
     private TravelerInformationMessageFrame timMessage; // The deserialized POJO
     private Instant validationTimestamp;
     private long validationDurationMs;
-    
+
     private final Map<String, CheckResult> validationChecks; // Maps check name to result
+    private final List<ValidationFieldError> fieldErrors;
 
     public ValidationResult() {
         this.valid = true;
         this.validationTimestamp = Instant.now();
         this.validationChecks = new HashMap<>();
+        this.fieldErrors = new ArrayList<>();
     }
 
     /**
@@ -44,6 +49,17 @@ public class ValidationResult {
      */
     public void addValidationCheck(String checkName, boolean passed, String details) {
         validationChecks.put(checkName, new CheckResult(checkName, passed, details));
+    }
+
+    /**
+     * Adds field-specific errors to the overall result.
+     *
+     * @param errors field-specific errors
+     */
+    public void addFieldErrors(List<ValidationFieldError> errors) {
+        if (errors != null) {
+            fieldErrors.addAll(errors);
+        }
     }
 
     /**
@@ -75,6 +91,10 @@ public class ValidationResult {
 
     public Map<String, CheckResult> getValidationChecks() {
         return new HashMap<>(validationChecks);
+    }
+
+    public List<ValidationFieldError> getFieldErrors() {
+        return new ArrayList<>(fieldErrors);
     }
 
     /**

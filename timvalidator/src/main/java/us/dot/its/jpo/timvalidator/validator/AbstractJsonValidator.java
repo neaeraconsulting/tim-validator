@@ -3,6 +3,7 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.core.io.Resource;
@@ -18,6 +19,7 @@ import com.networknt.schema.SpecificationVersion;
 import com.networknt.schema.path.PathType;
 
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
+import us.dot.its.jpo.timvalidator.pojo.ValidationFieldError;
 
 /**
  * Base validator for schema-backed POJO and JSON validation.
@@ -84,10 +86,15 @@ public abstract class AbstractJsonValidator {
 
         if (!validationErrors.isEmpty()) {
             StringBuilder message = new StringBuilder("Schema validation failed:");
+            List<ValidationFieldError> fieldErrors = new ArrayList<>();
             for (Error error : validationErrors) {
                 message.append(System.lineSeparator()).append("- ").append(error);
+                fieldErrors.add(new ValidationFieldError(
+                    error.getInstanceLocation().toString(),
+                    error.getMessage()
+                ));
             }
-            throw new ValidationException(message.toString());
+            throw new ValidationException(message.toString(), fieldErrors);
         }
     }
 

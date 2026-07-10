@@ -77,6 +77,9 @@ class TimJsonValidatorTest {
         ValidationException ex = assertThrows(ValidationException.class, () -> timJsonValidator.validateJson("{}"));
 
         assertTrue(ex.getMessage().contains("Schema validation failed"));
+        assertTrue(!ex.getFieldErrors().isEmpty());
+        assertTrue(ex.getFieldErrors().stream().allMatch(error -> error.getPath() != null));
+        assertTrue(ex.getFieldErrors().stream().allMatch(error -> error.getMessage() != null));
     }
 
     @Test

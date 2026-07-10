@@ -1,0 +1,12 @@
+services:
+  timvalidator-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MAVEN_SKIP_TESTS: "true"
+    image: timvalidator-api
+    container_name: timvalidator-api
+    ports:
+      - "8080:8080"
+    restart: always

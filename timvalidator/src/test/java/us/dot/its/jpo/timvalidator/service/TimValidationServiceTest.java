@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
@@ -60,12 +61,30 @@ public class TimValidationServiceTest {
         assertTrue(summary.contains("Schema Validation"), "Summary should contain check names");
     }
 
-    @Test
     public void testValidationException() {
         ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
         }, "ValidationException should be throwable");
         assertTrue(ex.getMessage().contains("Test exception"));
+    }
+
+    @Test
+    public void testJerValidationFailureIncludesResult() {
+        ValidationException ex = assertThrows(
+            ValidationException.class,
+            () -> validationService.validateTimJer("{}"),
+            "Invalid JER should produce a validation exception"
+        );
+
+        assertNotNull(ex.getValidationResult(), "ValidationException should include validation result");
+        assertFalse(ex.getValidationResult().isValid(), "Validation result should be invalid");
+        assertFalse(ex.getValidationResult().getValidationChecks().isEmpty(), "Validation checks should be populated");
+    }
+
+    @Test
+    public void testJerToMessageFrameConverterInstantiation() {
+        JerToMessageFrameConverter converter = new JerToMessageFrameConverter();
+        assertNotNull(converter, "JerToMessageFrameConverter should be instantiated");
     }
 
     @Test
