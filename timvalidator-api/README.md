@@ -49,26 +49,43 @@ Accept: application/json
 
 Send the TIM MessageFrame as JER JSON in the raw request body. The endpoint accepts either an unwrapped MessageFrame JSON object or a wrapper shaped like `{ "MessageFrame": { ... } }`.
 
+## UPER Validation Endpoint
+
+```http
+POST /api/v1/tim/validate/uper
+Content-Type: text/plain
+Accept: application/json
+```
+
+Send the UPER-encoded TIM MessageFrame as a hexadecimal string in the raw request body.
+
 ## Response Shape
 
 ```json
 {
   "valid": false,
-  "errors": [
-    "Schema Validation: Schema validation failed: ..."
-  ],
-  "warnings": [
-    "Best Practices: ..."
-  ],
-  "fieldErrors": [
+  "issues": [
     {
-      "path": "/value/TravelerInformation/dataFrames/0/priority",
-      "message": "must have a maximum value of 7"
+      "severity": "ERROR",
+      "checkName": "ITWG Schema Validation",
+      "message": "must have a maximum value of 7",
+      "path": "/value/TravelerInformation/dataFrames/0/priority"
+    },
+    {
+      "severity": "WARNING",
+      "checkName": "ITIS Content Validation",
+      "message": "No data frame contained numeric advisory ITIS codes eligible for ITIS pattern validation.",
+      "path": "/value/TravelerInformation/dataFrames"
     }
   ],
   "checks": [
     {
-      "name": "Schema Validation",
+      "name": "J2735 Schema Validation",
+      "passed": true,
+      "details": "Message conforms to generated J2735 schema"
+    },
+    {
+      "name": "ITWG Schema Validation",
       "passed": false,
       "details": "Schema validation failed: ..."
     }
@@ -79,3 +96,20 @@ Send the TIM MessageFrame as JER JSON in the raw request body. The endpoint acce
 ```
 
 Validation failures return `200 OK` with `valid: false` when the API can parse and process the request. Invalid request bodies return `400 Bad Request`.
+
+Schema checks are split into the generated J2735 schema and the stricter ITWG TIM profile schema:
+
+```text
+J2735 Schema Validation
+ITWG Schema Validation
+```
+
+Issue paths are JSON Pointer paths or `null`. Examples:
+
+```text
+/messageId
+/value/TravelerInformation/dataFrames/0/priority
+/value/TravelerInformation/dataFrames/0/content/advisory
+/itis
+null
+```

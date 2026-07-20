@@ -1,9 +1,7 @@
 package us.dot.its.jpo.timvalidator.api.controller;
 
-import java.util.List;
-
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.hasItem;
 import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -19,8 +17,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import us.dot.its.jpo.timvalidator.exception.ValidationException;
-import us.dot.its.jpo.timvalidator.pojo.ValidationFieldError;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.service.TimValidationService;
 
@@ -38,8 +34,8 @@ class TimValidationControllerTest {
     @Test
     void validateJer_validMessage_returnsValidResponse() throws Exception {
         ValidationResult validationResult = new ValidationResult();
-        validationResult.setValid(true);
-        validationResult.addValidationCheck("Schema Validation", true, "Message conforms to J2735 schema");
+        validationResult.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
+        validationResult.addValidationCheck("ITWG Schema Validation", true, "Message conforms to ITWG TIM profile schema");
 
         when(timValidationService.validateTimJer(anyString())).thenReturn(validationResult);
 
@@ -49,37 +45,30 @@ class TimValidationControllerTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.valid").value(true))
-            .andExpect(jsonPath("$.errors", hasSize(0)))
-            .andExpect(jsonPath("$.warnings", hasSize(0)))
-            .andExpect(jsonPath("$.fieldErrors", hasSize(0)))
-            .andExpect(jsonPath("$.checks[0].name").value("Schema Validation"))
-            .andExpect(jsonPath("$.checks[0].passed").value(true));
+            .andExpect(jsonPath("$.issues", hasSize(0)))
+            .andExpect(jsonPath("$.checks[?(@.name == 'J2735 Schema Validation')].passed").value(hasItem(true)))
+            .andExpect(jsonPath("$.checks[?(@.name == 'ITWG Schema Validation')].passed").value(hasItem(true)));
     }
 
     @Test
-    void validateJer_schemaFailure_returnsOkInvalidResponseWithFieldErrors() throws Exception {
+    void validateJer_schemaFailure_returnsOkInvalidResponseWithIssues() throws Exception {
         ValidationResult validationResult = new ValidationResult();
-        validationResult.setValid(false);
-        validationResult.setErrorMessage("Schema validation failed");
-        validationResult.addValidationCheck("Schema Validation", false, "required property 'value' missing");
-        validationResult.addFieldErrors(List.of(
-            new ValidationFieldError("$.value", "required property 'value' missing")
-        ));
+        validationResult.setErrorMessage("J2735 schema validation failed");
+        validationResult.addValidationCheck("J2735 Schema Validation", false, "required property 'value' missing");
+        validationResult.addError("J2735 Schema Validation", "required property 'value' missing", "/value");
 
-        when(timValidationService.validateTimJer(anyString())).thenThrow(
-            new ValidationException("TIM validation failed", new ValidationException("Schema validation failed"), validationResult)
-        );
+        when(timValidationService.validateTimJer(anyString())).thenReturn(validationResult);
 
         mockMvc.perform(post("/api/v1/tim/validate/jer")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"messageId\":31}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.valid").value(false))
-            .andExpect(jsonPath("$.errors[0]", containsString("Schema Validation")))
-            .andExpect(jsonPath("$.warnings", hasSize(0)))
-            .andExpect(jsonPath("$.fieldErrors", hasSize(1)))
-            .andExpect(jsonPath("$.fieldErrors[0].path").value("$.value"))
-            .andExpect(jsonPath("$.fieldErrors[0].message").value("required property 'value' missing"));
+            .andExpect(jsonPath("$.issues", hasSize(1)))
+            .andExpect(jsonPath("$.issues[0].severity").value("ERROR"))
+            .andExpect(jsonPath("$.issues[0].checkName").value("J2735 Schema Validation"))
+            .andExpect(jsonPath("$.issues[0].path").value("/value"))
+            .andExpect(jsonPath("$.issues[0].message").value("required property 'value' missing"));
     }
 
     @Test
@@ -89,7 +78,9 @@ class TimValidationControllerTest {
                 .content("{"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.valid").value(false))
-            .andExpect(jsonPath("$.errors[0]").value("Request body must be valid application/json JER"));
+            .andExpect(jsonPath("$.issues[0].severity").value("ERROR"))
+            .andExpect(jsonPath("$.issues[0].checkName").value("Request"))
+            .andExpect(jsonPath("$.issues[0].message").value("Request body must be valid application/json JER"));
 
         verifyNoInteractions(timValidationService);
     }
@@ -97,8 +88,8 @@ class TimValidationControllerTest {
     @Test
     void validateUper_validHexPayload_returnsValidResponse() throws Exception {
         ValidationResult validationResult = new ValidationResult();
-        validationResult.setValid(true);
-        validationResult.addValidationCheck("Schema Validation", true, "Message conforms to J2735 schema");
+        validationResult.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
+        validationResult.addValidationCheck("ITWG Schema Validation", true, "Message conforms to ITWG TIM profile schema");
 
         when(timValidationService.validateTim(VALID_UPER_HEX)).thenReturn(validationResult);
 
@@ -108,11 +99,9 @@ class TimValidationControllerTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.valid").value(true))
-            .andExpect(jsonPath("$.errors", hasSize(0)))
-            .andExpect(jsonPath("$.warnings", hasSize(0)))
-            .andExpect(jsonPath("$.fieldErrors", hasSize(0)))
-            .andExpect(jsonPath("$.checks[0].name").value("Schema Validation"))
-            .andExpect(jsonPath("$.checks[0].passed").value(true));
+            .andExpect(jsonPath("$.issues", hasSize(0)))
+            .andExpect(jsonPath("$.checks[?(@.name == 'J2735 Schema Validation')].passed").value(hasItem(true)))
+            .andExpect(jsonPath("$.checks[?(@.name == 'ITWG Schema Validation')].passed").value(hasItem(true)));
 
         verify(timValidationService).validateTim(VALID_UPER_HEX);
     }

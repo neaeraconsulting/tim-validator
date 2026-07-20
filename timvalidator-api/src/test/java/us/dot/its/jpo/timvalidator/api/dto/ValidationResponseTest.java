@@ -4,45 +4,42 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
-import us.dot.its.jpo.timvalidator.pojo.ValidationFieldError;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 class ValidationResponseTest {
 
     @Test
     void from_failedNonBestPracticeCheck_mapsToErrors() {
         ValidationResult validationResult = new ValidationResult();
-        validationResult.setValid(false);
         validationResult.addValidationCheck("Schema Validation", false, "required property missing");
-        validationResult.addFieldErrors(List.of(
-            new ValidationFieldError("$.tim", "required property missing")
-        ));
+        validationResult.addError("Schema Validation", "required property missing", "/tim");
 
         ValidationResponse response = ValidationResponse.from(validationResult);
 
         assertFalse(response.valid());
-        assertEquals(List.of("Schema Validation: required property missing"), response.errors());
-        assertTrue(response.warnings().isEmpty());
-        assertEquals(1, response.fieldErrors().size());
-        assertEquals("$.tim", response.fieldErrors().getFirst().path());
-        assertEquals("required property missing", response.fieldErrors().getFirst().message());
+        assertEquals(1, response.issues().size());
+        assertEquals(ValidationSeverity.ERROR, response.issues().getFirst().severity());
+        assertEquals("Schema Validation", response.issues().getFirst().checkName());
+        assertEquals("/tim", response.issues().getFirst().path());
+        assertEquals("required property missing", response.issues().getFirst().message());
     }
 
     @Test
     void from_failedBestPracticeCheck_mapsToWarnings() {
         ValidationResult validationResult = new ValidationResult();
-        validationResult.setValid(true);
         validationResult.addValidationCheck("Best Practices", false, "advisory issue found");
+        validationResult.addWarning("Best Practices", "advisory issue found", null);
 
         ValidationResponse response = ValidationResponse.from(validationResult);
 
         assertTrue(response.valid());
-        assertTrue(response.errors().isEmpty());
-        assertEquals(List.of("Best Practices: advisory issue found"), response.warnings());
+        assertEquals(1, response.issues().size());
+        assertEquals(ValidationSeverity.WARNING, response.issues().getFirst().severity());
+        assertEquals("Best Practices", response.issues().getFirst().checkName());
+        assertEquals("advisory issue found", response.issues().getFirst().message());
         assertEquals(1, response.checks().size());
         assertEquals("Best Practices", response.checks().getFirst().name());
         assertFalse(response.checks().getFirst().passed());

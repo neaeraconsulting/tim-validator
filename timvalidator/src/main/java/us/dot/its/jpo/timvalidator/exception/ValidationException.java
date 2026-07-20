@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lombok.Getter;
-import us.dot.its.jpo.timvalidator.pojo.ValidationFieldError;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 
 /**
@@ -14,46 +14,42 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 public class ValidationException extends Exception {
 
     private final ValidationResult validationResult;
-    private final List<ValidationFieldError> fieldErrors;
+    private final List<ValidationIssue> issues;
 
     public ValidationException(String message) {
         super(message);
         this.validationResult = null;
-        this.fieldErrors = List.of();
+        this.issues = List.of();
     }
 
     public ValidationException(String message, Throwable cause) {
         super(message, cause);
         this.validationResult = null;
-        this.fieldErrors = List.of();
+        this.issues = List.of();
+    }
+
+    public ValidationException(String message, List<ValidationIssue> issues) {
+        super(message);
+        this.validationResult = null;
+        this.issues = copyIssues(issues);
     }
 
     public ValidationException(Throwable cause) {
         super(cause);
         this.validationResult = null;
-        this.fieldErrors = List.of();
-    }
-
-    public ValidationException(String message, List<ValidationFieldError> fieldErrors) {
-        super(message);
-        this.validationResult = null;
-        this.fieldErrors = copyFieldErrors(fieldErrors);
+        this.issues = List.of();
     }
 
     public ValidationException(String message, Throwable cause, ValidationResult validationResult) {
         super(message, cause);
         this.validationResult = validationResult;
-        this.fieldErrors = List.of();
+        this.issues = validationResult == null ? List.of() : validationResult.getErrors();
     }
 
-    public List<ValidationFieldError> getFieldErrors() {
-        return copyFieldErrors(fieldErrors);
-    }
-
-    private static List<ValidationFieldError> copyFieldErrors(List<ValidationFieldError> fieldErrors) {
-        if (fieldErrors == null || fieldErrors.isEmpty()) {
+    private static List<ValidationIssue> copyIssues(List<ValidationIssue> issues) {
+        if (issues == null) {
             return List.of();
         }
-        return new ArrayList<>(fieldErrors);
+        return new ArrayList<>(issues);
     }
 }

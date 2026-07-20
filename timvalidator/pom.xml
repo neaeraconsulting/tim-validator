@@ -48,6 +48,13 @@
             <organization>Neaera Consulting</organization>
             <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
         </developer>
+        <developer>
+            <id>rkapoor</id>
+            <name>Rishabh Kapoor</name>
+            <email>115128026+RishabhK12@users.noreply.github.com</email>
+            <organization>Neaera Consulting</organization>
+            <organizationUrl>https://neaeraconsulting.com/</organizationUrl>
+        </developer>
     </developers>
 
     <contributors>

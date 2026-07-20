@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "https://us.dot.its.jpo/timvalidator/ITISCodes.json",
+  "title": "TIM ITIS Message Content",
+  "description": "Validates normalized TIM ITIS message content.",
+  "oneOf": [
+    {
+      "title": "closed-to-traffic",
+      "description": "Matches the exact closed-to-traffic phrase token sequence and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis"
+      ],
+      "properties": {
+        "itis": {
+          "description": "Matches the exact closed-to-traffic phrase token sequence.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/CLOSED_TO_TRAFFIC"
+            },
+            {
+              "$ref": "#/definitions/LOCAL_TRAFFIC"
+            },
+            {
+              "$ref": "#/definitions/ONLY"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "title": "gross-weight-limit",
+      "description": "Matches a gross-weight-limit phrase and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis"
+      ],
+      "properties": {
+        "itis": {
+          "description": "Matches a gross-weight-limit phrase: opening token, large-number weight value, and weight unit token.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/LARGE_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/WEIGHT_UNIT"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "title": "speed-limit",
+      "description": "Matches a speed-limit phrase and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis"
+      ],
+      "properties": {
+        "itis": {
+          "description": "Matches a speed-limit phrase: speed-limit token followed by a variable speed value.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT_TOKEN"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "title": "speed-unit-example",
+      "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour and associated TIM metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "itis"
+      ],
+      "properties": {
+        "itis": {
+          "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour.",
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT_TOKEN"
+            },
+            {
+              "$ref": "#/definitions/REDUCED"
+            },
+            {
+              "$ref": "#/definitions/SPEED_UNIT"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "SPEED_LIMIT_TOKEN": {
+      "type": "integer",
+      "const": 268,
+      "description": "J2540/2 ITIS code: speed-limit"
+    },
+    "CLOSED_TO_TRAFFIC": {
+      "type": "integer",
+      "const": 769,
+      "description": "J2540/2 ITIS code: closed-to-traffic"
+    },
+    "GROSS_WEIGHT_LIMIT": {
+      "type": "integer",
+      "const": 2577,
+      "description": "J2540/2 ITIS code: gross-weight-limit"
+    },
+    "ONLY": {
+      "type": "integer",
+      "const": 7747,
+      "description": "J2540/2 ITIS code: only"
+    },
+    "MPH": {
+      "type": "integer",
+      "const": 8720,
+      "description": "J2540/2 ITIS code: mPH"
+    },
+    "KPH": {
+      "type": "integer",
+      "const": 8721,
+      "description": "J2540/2 ITIS code: kPH"
+    },
+    "POUNDS": {
+      "type": "integer",
+      "const": 8739,
+      "description": "J2540/2 ITIS code: pounds"
+    },
+    "TONS": {
+      "type": "integer",
+      "const": 8740,
+      "description": "J2540/2 ITIS code: tons"
+    },
+    "LOCAL_TRAFFIC": {
+      "type": "integer",
+      "const": 9478,
+      "description": "J2540/2 ITIS code: local-traffic"
+    },
+    "REDUCED": {
+      "type": "integer",
+      "const": 12302,
+      "description": "J2540/2 ITIS code: reduced"
+    },
+    "AHEAD": {
+      "type": "integer",
+      "const": 13569,
+      "description": "J2540/2 ITIS code: ahead"
+    },
+    "SMALL_NUMBER": {
+      "type": "integer",
+      "minimum": 12545,
+      "maximum": 12799,
+      "description": "J2540/2 small-number ITIS code: N1 through N255"
+    },
+    "LARGE_NUMBER": {
+      "type": "integer",
+      "minimum": 11531,
+      "maximum": 11613,
+      "description": "J2540/2 large-number ITIS code: N300 through N100000"
+    },
+    "SPEED_UNIT": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/MPH"
+        },
+        {
+          "$ref": "#/definitions/KPH"
+        }
+      ],
+      "description": "Speed unit: miles per hour or kilometers per hour."
+    },
+    "WEIGHT_UNIT": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/POUNDS"
+        },
+        {
+          "$ref": "#/definitions/TONS"
+        }
+      ],
+      "description": "Weight unit"
+    }
+  }
+}

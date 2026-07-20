@@ -8,10 +8,20 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 public class TimJsonValidator extends AbstractJsonValidator {
 
-    private static final Resource TIM_SCHEMA_RESOURCE = new ClassPathResource("schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json");
+    private static final Resource TIM_SCHEMA_RESOURCE =
+        new ClassPathResource("schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json");
 
     public TimJsonValidator() {
-        super(TIM_SCHEMA_RESOURCE);
+        this(TIM_SCHEMA_RESOURCE);
+    }
+
+    protected TimJsonValidator(Resource schemaResource) {
+        super(schemaResource);
+    }
+
+    @Override
+    protected String getCheckName() {
+        return "J2735 Schema Validation";
     }
 
     /**
@@ -19,6 +29,11 @@ public class TimJsonValidator extends AbstractJsonValidator {
      */
     @Override
     public void validate(Object messageFramePayload) throws ValidationException {
+        validateMessageFramePayload(messageFramePayload);
+        super.validate(messageFramePayload);
+    }
+
+    protected void validateMessageFramePayload(Object messageFramePayload) throws ValidationException {
         if (messageFramePayload == null) {
             throw new ValidationException("TIM message cannot be null");
         }
@@ -31,8 +46,6 @@ public class TimJsonValidator extends AbstractJsonValidator {
         if (messageId == null || messageId != 31) {
             throw new ValidationException("Unsupported message type; only J2735 TIM MessageFrame (messageId=31) is supported");
         }
-
-        super.validate(messageFrame);
     }
 
     /**

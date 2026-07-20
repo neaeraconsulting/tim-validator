@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -21,7 +22,6 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
 @Setter
 public class ValidationResult {
 
-    private boolean valid;
     private String errorMessage;
     private String uperInput;
     private String jerInput;
@@ -31,13 +31,12 @@ public class ValidationResult {
     private long validationDurationMs;
 
     private final Map<String, CheckResult> validationChecks; // Maps check name to result
-    private final List<ValidationFieldError> fieldErrors;
+    private final List<ValidationIssue> issues;
 
     public ValidationResult() {
-        this.valid = true;
         this.validationTimestamp = Instant.now();
         this.validationChecks = new HashMap<>();
-        this.fieldErrors = new ArrayList<>();
+        this.issues = new ArrayList<>();
     }
 
     /**
@@ -52,14 +51,38 @@ public class ValidationResult {
     }
 
     /**
-     * Adds field-specific errors to the overall result.
+     * Adds a validation issue to the overall result.
      *
-     * @param errors field-specific errors
+     * @param issue structured validation issue
      */
-    public void addFieldErrors(List<ValidationFieldError> errors) {
-        if (errors != null) {
-            fieldErrors.addAll(errors);
+    public void addIssue(ValidationIssue issue) {
+        if (issue != null) {
+            issues.add(issue);
         }
+    }
+
+    /**
+     * Adds validation issues to the overall result.
+     *
+     * @param issues structured validation issues
+     */
+    public void addIssues(List<ValidationIssue> issues) {
+        if (issues == null) {
+            return;
+        }
+        issues.forEach(this::addIssue);
+    }
+
+    public void addError(String checkName, String message, String path) {
+        addIssue(new ValidationIssue(ValidationSeverity.ERROR, checkName, message, path));
+    }
+
+    public void addWarning(String checkName, String message, String path) {
+        addIssue(new ValidationIssue(ValidationSeverity.WARNING, checkName, message, path));
+    }
+
+    public boolean isValid() {
+        return getErrors().isEmpty();
     }
 
     /**
@@ -69,7 +92,7 @@ public class ValidationResult {
         StringBuilder summary = new StringBuilder();
         summary.append("TIM Validation Result\n");
         summary.append("====================\n");
-        summary.append("Overall Status: ").append(valid ? "VALID" : "INVALID").append("\n");
+        summary.append("Overall Status: ").append(isValid() ? "VALID" : "INVALID").append("\n");
         summary.append("Timestamp: ").append(validationTimestamp).append("\n");
         summary.append("Duration: ").append(validationDurationMs).append("ms\n\n");
 
@@ -79,6 +102,17 @@ public class ValidationResult {
                     .append(check.isPassed() ? "PASS" : "FAIL").append("\n");
             if (check.getDetails() != null && !check.getDetails().isEmpty()) {
                 summary.append("    Details: ").append(check.getDetails()).append("\n");
+            }
+        }
+
+        if (!issues.isEmpty()) {
+            summary.append("\nIssues:\n");
+            for (ValidationIssue issue : issues) {
+                summary.append("  - ").append(issue.severity()).append(" [").append(issue.checkName()).append("]");
+                if (issue.path() != null && !issue.path().isBlank()) {
+                    summary.append(" ").append(issue.path());
+                }
+                summary.append(": ").append(issue.message()).append("\n");
             }
         }
 
@@ -93,8 +127,20 @@ public class ValidationResult {
         return new HashMap<>(validationChecks);
     }
 
-    public List<ValidationFieldError> getFieldErrors() {
-        return new ArrayList<>(fieldErrors);
+    public List<ValidationIssue> getIssues() {
+        return new ArrayList<>(issues);
+    }
+
+    public List<ValidationIssue> getErrors() {
+        return issues.stream()
+            .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+            .collect(Collectors.toList());
+    }
+
+    public List<ValidationIssue> getWarnings() {
+        return issues.stream()
+            .filter(issue -> issue.severity() == ValidationSeverity.WARNING)
+            .collect(Collectors.toList());
     }
 
     /**

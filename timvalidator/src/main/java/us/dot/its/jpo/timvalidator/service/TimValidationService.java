@@ -6,8 +6,11 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
+import us.dot.its.jpo.timvalidator.validator.ItisJsonValidator;
+import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
 
 /**
@@ -17,20 +20,25 @@ import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
  * 1. Convert UPER hex string to XER (XML)
  * 2. Deserialize XER into a typed TravelerInformationMessageFrame POJO
  * 3. Perform schema validation
- * 4. Execute best practices checks
- * 5. Return processed validation result
+ * 4. Execute ITIS content validation
+ * 5. Execute best practices checks
+ * 6. Return processed validation result
  */
 public class TimValidationService {
 
     private final UperToMessageFrameConverter uperToMessageFrameConverter;
     private final JerToMessageFrameConverter jerToMessageFrameConverter;
-    private final TimJsonValidator schemaValidator;
+    private final TimJsonValidator j2735SchemaValidator;
+    private final ItwgTimJsonValidator itwgSchemaValidator;
+    private final ItisJsonValidator itisContentValidator;
     private final BestPracticesValidator bestPracticesValidator;
 
     public TimValidationService() {
         this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
         this.jerToMessageFrameConverter = new JerToMessageFrameConverter();
-        this.schemaValidator = new TimJsonValidator();
+        this.j2735SchemaValidator = new TimJsonValidator();
+        this.itwgSchemaValidator = new ItwgTimJsonValidator();
+        this.itisContentValidator = new ItisJsonValidator();
         this.bestPracticesValidator = new BestPracticesValidator();
     }
 
@@ -42,21 +50,22 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTim(String uperString) throws ValidationException {
+        long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setUperInput(uperString);
 
         try {
-            // Step 1: Convert UPER to XER
             String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
             result.setXerFormat(xerFormat);
 
-            // Step 2: Deserialize into POJO
             TravelerInformationMessageFrame timMessage = uperToMessageFrameConverter.deserialize(xerFormat);
             result.setTimMessage(timMessage);
 
             return validateTimMessage(result, timMessage);
         } catch (Exception e) {
             throw buildValidationException(result, e);
+        } finally {
+            result.setValidationDurationMs(elapsedMillis(validationStartNanos));
         }
     }
 
@@ -68,31 +77,51 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTimJer(String jerString) throws ValidationException {
+        long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setJerInput(jerString);
 
         try {
-            // Step 1: Deserialize into POJO
             TravelerInformationMessageFrame timMessage = jerToMessageFrameConverter.deserialize(jerString);
             result.setTimMessage(timMessage);
 
             return validateTimMessage(result, timMessage);
         } catch (Exception e) {
             throw buildValidationException(result, e);
+        } finally {
+            result.setValidationDurationMs(elapsedMillis(validationStartNanos));
         }
     }
 
     private ValidationResult validateTimMessage(
-        ValidationResult result,
-        TravelerInformationMessageFrame timMessage
-    ) throws ValidationException {
+            ValidationResult result,
+            TravelerInformationMessageFrame timMessage) {
         try {
-            schemaValidator.validate(timMessage);
-            result.addValidationCheck("Schema Validation", true, "Message conforms to J2735 schema");
+            j2735SchemaValidator.validate(timMessage);
+            result.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
         } catch (ValidationException ex) {
-            result.addValidationCheck("Schema Validation", false, ex.getMessage());
-            result.addFieldErrors(ex.getFieldErrors());
-            throw ex;
+            result.addValidationCheck("J2735 Schema Validation", false, ex.getMessage());
+            addExceptionIssues(result, "J2735 Schema Validation", ex);
+        }
+
+        try {
+            itwgSchemaValidator.validate(timMessage);
+            result.addValidationCheck("ITWG Schema Validation", true, "Message conforms to ITWG TIM profile schema");
+        } catch (ValidationException ex) {
+            result.addValidationCheck("ITWG Schema Validation", false, ex.getMessage());
+            addExceptionIssues(result, "ITWG Schema Validation", ex);
+        }
+
+        try {
+            List<ValidationIssue> itisWarnings = itisContentValidator.validateAndCollectWarnings(timMessage);
+            result.addIssues(itisWarnings);
+            String itisDetails = itisWarnings.isEmpty()
+                ? "ITIS content conforms to expected patterns"
+                : "ITIS content validation completed with non-blocking warnings";
+            result.addValidationCheck("ITIS Content Validation", true, itisDetails);
+        } catch (ValidationException ex) {
+            result.addValidationCheck("ITIS Content Validation", false, ex.getMessage());
+            addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
         List<String> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
@@ -100,18 +129,37 @@ public class TimValidationService {
             result.addValidationCheck("Best Practices", true, "All best practices checks passed");
         } else {
             result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesIssues));
+            bestPracticesIssues.forEach(issue -> result.addError("Best Practices", issue, null));
         }
 
-        result.setValid(true);
         return result;
+    }
+
+    private long elapsedMillis(long startNanos) {
+        long elapsedNanos = System.nanoTime() - startNanos;
+        return elapsedNanos == 0 ? 0 : (elapsedNanos + 999_999) / 1_000_000;
     }
 
     private ValidationException buildValidationException(ValidationResult result, Exception e) {
         if (result.getValidationChecks().isEmpty()) {
             result.addValidationCheck("Validation Pipeline", false, e.getMessage());
+            result.addError("Validation Pipeline", e.getMessage(), null);
+        } else if (result.getErrors().isEmpty()
+                && !(e instanceof ValidationException validationException
+                    && !validationException.getIssues().isEmpty())) {
+            result.addError("Validation Pipeline", e.getMessage(), null);
         }
-        result.setValid(false);
+
         result.setErrorMessage(e.getMessage());
         return new ValidationException("TIM validation failed: " + e.getMessage(), e, result);
+    }
+
+    private void addExceptionIssues(ValidationResult result, String checkName, Exception ex) {
+        if (ex instanceof ValidationException validationException && !validationException.getIssues().isEmpty()) {
+            result.addIssues(validationException.getIssues());
+            return;
+        }
+
+        result.addError(checkName, ex.getMessage(), null);
     }
 }

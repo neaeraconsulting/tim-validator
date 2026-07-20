@@ -18,20 +18,37 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 class TimJsonValidatorTest {
 
-    private static final String VALID_UPER_HEX =
+  private static final String LEGACY_UPER_MISSING_ITWG_FIELDS_HEX =
         "001F6970138ED764E8ABE0BBA9B4D5240F775D9B0309C269A6E4D166420B77FFF93F51D3C5801EA107F92937E4AD64D6FD38352FB783062C360DE24000000004D34DC9A2CC8416E271180004420C0F23A84179FF2461BE25D59F405F03B8C82F1574AE109002009EEEBB36006001830002848A859B4B280002848AF0E51D2881010100030180C620FB90CAAD3B9C50820826550919D5729A7639692100032A3649C88400A983010180034801010001838182D6DDACDEEEE30D5990CA8E531F4562161223F5418FD9A82BE7219686AA70CD938080BE6942DDAC14F4007CC8F8BD6CAEA835F02C7BBA3354ED2856E5977879ECEF5205A37A1CD9A26E12A6CFF6550202138D3F5CA0D3AE158B18895F0BBF16176971";
 
+    private static final String ITWG_VALID_UPER_HEX = "001f3c6010000100000000000000000018080000fd40000200f2000424d693a401ad2747fc40008000026b49d200d693a3fe2000002c000000218020402200";
+
     @Test
-    void validate_validDecodedTimMessage_passesValidation() throws Exception {
+    void validate_decodedTimMessageMissingItwgFields_passesJ2735Validation() throws Exception {
         Assumptions.assumeTrue(isNativeLibraryAvailable(),
             "Native codec library not found; skipping test");
 
         UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
-        String xer = converter.convertUperToXer(VALID_UPER_HEX);
+        String xer = converter.convertUperToXer(LEGACY_UPER_MISSING_ITWG_FIELDS_HEX);
         TravelerInformationMessageFrame messageFrame = converter.deserialize(xer);
 
         TimJsonValidator timJsonValidator = new TimJsonValidator();
-        timJsonValidator.validate(messageFrame);
+
+        assertDoesNotThrow(() -> timJsonValidator.validate(messageFrame));
+      }
+
+      @Test
+      void validate_sampleUperMessage_passesValidation() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping test");
+
+        UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
+        String xer = converter.convertUperToXer(ITWG_VALID_UPER_HEX);
+        TravelerInformationMessageFrame messageFrame = converter.deserialize(xer);
+
+        TimJsonValidator timJsonValidator = new TimJsonValidator();
+
+        assertDoesNotThrow(() -> timJsonValidator.validate(messageFrame));
     }
 
     @Test
@@ -77,18 +94,95 @@ class TimJsonValidatorTest {
         ValidationException ex = assertThrows(ValidationException.class, () -> timJsonValidator.validateJson("{}"));
 
         assertTrue(ex.getMessage().contains("Schema validation failed"));
-        assertTrue(!ex.getFieldErrors().isEmpty());
-        assertTrue(ex.getFieldErrors().stream().allMatch(error -> error.getPath() != null));
-        assertTrue(ex.getFieldErrors().stream().allMatch(error -> error.getMessage() != null));
+        assertTrue(!ex.getIssues().isEmpty());
+        assertTrue(ex.getIssues().stream().allMatch(issue -> issue.path() != null));
+        assertTrue(ex.getIssues().stream().allMatch(issue -> issue.message() != null));
+        assertTrue(ex.getIssues().stream().anyMatch(issue -> issue.checkName().equals("J2735 Schema Validation")
+            && issue.message().contains("messageId")));
     }
 
     @Test
-    void validateJson_validJsonFromDecodedMessage_passesValidation() throws Exception {
+    void validateJson_validItwgTim_passesValidation() {
+      TimJsonValidator timJsonValidator = new TimJsonValidator();
+
+      assertDoesNotThrow(() -> timJsonValidator.validateJson("""
+          {
+            "messageId": 31,
+            "value": {
+              "TravelerInformation": {
+                "msgCnt": 1,
+                "timeStamp": 1,
+                "packetID": "000000000000000000",
+                "dataFrames": [
+                  {
+                    "doNotUse1": 0,
+                    "frameType": "roadSignage",
+                    "msgId": {
+                      "furtherInfoID": "0000"
+                    },
+                    "startYear": 2026,
+                    "startTime": 1,
+                    "durationTime": 60,
+                    "priority": 4,
+                    "doNotUse2": 0,
+                    "regions": [
+                      {
+                        "anchor": {
+                          "lat": 0,
+                          "long": 0,
+                          "elevation": 0
+                        },
+                        "description": {
+                          "geometry": {
+                            "direction": "0000",
+                            "circle": {
+                              "center": {
+                                "lat": 0,
+                                "long": 0,
+                                "elevation": 0
+                              },
+                              "radius": 1,
+                              "units": "meter"
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "doNotUse3": 0,
+                    "doNotUse4": 0,
+                    "content": {
+                      "advisory": [
+                        {
+                          "item": {
+                            "itis": 268
+                          }
+                        }
+                      ]
+                    },
+                    "contentNew": {
+                      "frictionInfo": {
+                        "roadSurfaceDescription": {
+                          "asphaltOrTar": {
+                            "type": "traveled"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+          """));
+    }
+
+    @Test
+    void validateJson_decodedTimMessageMissingItwgFields_passesJ2735Validation() throws Exception {
         Assumptions.assumeTrue(isNativeLibraryAvailable(),
             "Native codec library not found; skipping test");
 
         UperToMessageFrameConverter converter = new UperToMessageFrameConverter();
-        String xer = converter.convertUperToXer(VALID_UPER_HEX);
+        String xer = converter.convertUperToXer(LEGACY_UPER_MISSING_ITWG_FIELDS_HEX);
         TravelerInformationMessageFrame messageFrame = converter.deserialize(xer);
         String jsonPayload = new ObjectMapper().writeValueAsString(messageFrame);
 

@@ -3,7 +3,6 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.core.io.Resource;
@@ -19,7 +18,8 @@ import com.networknt.schema.SpecificationVersion;
 import com.networknt.schema.path.PathType;
 
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
-import us.dot.its.jpo.timvalidator.pojo.ValidationFieldError;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 /**
  * Base validator for schema-backed POJO and JSON validation.
@@ -65,6 +65,17 @@ public abstract class AbstractJsonValidator {
     }
 
     /**
+     * Validates an already parsed Jackson tree.
+     */
+    public void validate(JsonNode node) throws ValidationException {
+        if (node == null || node.isNull()) {
+            throw new ValidationException("JSON payload cannot be null");
+        }
+
+        validateNodeAgainstSchema(node);
+    }
+
+    /**
      * Exposes the compiled schema for testing.
      */
     public Schema getJsonSchema() throws Exception {
@@ -85,17 +96,40 @@ public abstract class AbstractJsonValidator {
         }
 
         if (!validationErrors.isEmpty()) {
-            StringBuilder message = new StringBuilder("Schema validation failed:");
-            List<ValidationFieldError> fieldErrors = new ArrayList<>();
-            for (Error error : validationErrors) {
-                message.append(System.lineSeparator()).append("- ").append(error);
-                fieldErrors.add(new ValidationFieldError(
-                    error.getInstanceLocation().toString(),
-                    error.getMessage()
-                ));
-            }
-            throw new ValidationException(message.toString(), fieldErrors);
+            throw new ValidationException(formatValidationErrors(validationErrors), toValidationIssues(validationErrors));
         }
+    }
+
+    /**
+     * Converts schema validation errors into structured issues for API and UI consumers.
+     */
+    protected List<ValidationIssue> toValidationIssues(List<Error> validationErrors) {
+        return validationErrors.stream()
+            .map(error -> new ValidationIssue(
+                ValidationSeverity.ERROR,
+                getCheckName(),
+                error.getMessage(),
+                String.valueOf(error.getInstanceLocation())))
+            .toList();
+    }
+
+    /**
+     * Identifies this validator in structured validation issues.
+     */
+    protected String getCheckName() {
+        return "Schema Validation";
+    }
+
+    /**
+     * Formats schema validation errors for callers. Subclasses may override this
+     * when a validator needs domain-specific wording.
+     */
+    protected String formatValidationErrors(List<Error> validationErrors) {
+        StringBuilder message = new StringBuilder("Schema validation failed:");
+        for (Error error : validationErrors) {
+            message.append(System.lineSeparator()).append("- ").append(error);
+        }
+        return message.toString();
     }
 
     /**

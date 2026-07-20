@@ -1,9 +1,14 @@
 package us.dot.its.jpo.timvalidator.service;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +17,22 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
+import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
 
 /**
  * Basic test suite to verify Maven build and project structure.
  */
 public class TimValidationServiceTest {
+
+    private static final String ITWG_VALID_UPER_HEX =
+        "001f3c6010000100000000000000000018080000fd40000200f2000424d693a401ad2747fc40008000026b49d200d693a3fe2000002c000000218020402200";
+    private static final String FULLY_VALID_UPER_HEX =
+        "001f3e6010000100000000000000000018080000fd40000200f2000424d693a401ad2747fc40008000026b49d200d693a3fe2000002c0000402183102010201100";
+    private static final String COMPLEX_VALID_UPER_HEX =
+        "001f5a60050d291a05652359a6ea9dce18080000fd29ec31f4020007a5270dcdf0e3ee6d5c00002ee208705f440006c38df5c36dadfe21c526c110eaeb4520ac11e3f2c3d6959081d706e9a150b04c3800001028445ab8222301020110";
+    private static final String LEGACY_UPER_MISSING_ITWG_FIELDS_HEX =
+        "001F6970138ED764E8ABE0BBA9B4D5240F775D9B0309C269A6E4D166420B77FFF93F51D3C5801EA107F92937E4AD64D6FD38352FB783062C360DE24000000004D34DC9A2CC8416E271180004420C0F23A84179FF2461BE25D59F405F03B8C82F1574AE109002009EEEBB36006001830002848A859B4B280002848AF0E51D2881010100030180C620FB90CAAD3B9C50820826550919D5729A7639692100032A3649C88400A983010180034801010001838182D6DDACDEEEE30D5990CA8E531F4562161223F5418FD9A82BE7219686AA70CD938080BE6942DDAC14F4007CC8F8BD6CAEA835F02C7BBA3354ED2856E5977879ECEF5205A37A1CD9A26E12A6CFF6550202138D3F5CA0D3AE158B18895F0BBF16176971";
 
     private TimValidationService validationService;
 
@@ -49,16 +64,37 @@ public class TimValidationServiceTest {
     }
 
     @Test
+    public void testValidationWarningAddition() {
+        ValidationResult result = new ValidationResult();
+        result.addWarning("Test Check", "Test warning", "/test/path");
+
+        assertNotNull(result.getWarnings(), "Validation warnings should not be null");
+        assertTrue(result.getWarnings().stream().anyMatch(issue -> issue.message().equals("Test warning")
+            && issue.path().equals("/test/path")),
+                   "Test warning should be added to results");
+        assertTrue(result.isValid(), "Warnings should not make the result invalid");
+    }
+
+    @Test
+    public void testValidationErrorMakesResultInvalid() {
+        ValidationResult result = new ValidationResult();
+        result.addError("Test Check", "Test error", "/test/path");
+
+        assertFalse(result.isValid(), "Errors should make the result invalid");
+    }
+
+    @Test
     public void testValidationResultSummary() {
         ValidationResult result = new ValidationResult();
-        result.setValid(true);
         result.addValidationCheck("Schema Validation", true, "Schema check passed");
         result.addValidationCheck("Best Practices", true, "All best practices passed");
+        result.addWarning("Best Practices", "Warning detail", "/warning/path");
         
         String summary = result.getSummary();
         assertNotNull(summary, "Summary should be generated");
         assertTrue(summary.contains("VALID"), "Summary should contain validation status");
         assertTrue(summary.contains("Schema Validation"), "Summary should contain check names");
+        assertTrue(summary.contains("Warning detail"), "Summary should contain warning details");
     }
 
     public void testValidationException() {
@@ -73,12 +109,29 @@ public class TimValidationServiceTest {
         ValidationException ex = assertThrows(
             ValidationException.class,
             () -> validationService.validateTimJer("{}"),
-            "Invalid JER should produce a validation exception"
+            "Unrecognized JER shape should produce a validation exception"
         );
 
         assertNotNull(ex.getValidationResult(), "ValidationException should include validation result");
         assertFalse(ex.getValidationResult().isValid(), "Validation result should be invalid");
         assertFalse(ex.getValidationResult().getValidationChecks().isEmpty(), "Validation checks should be populated");
+    }
+
+    @Test
+    public void validateTimJer_parseableInvalidMessage_returnsAllValidationChecks() throws Exception {
+        ValidationResult result = validationService.validateTimJer("{\"messageId\":31}");
+
+        assertFalse(result.isValid(), "Invalid parseable JER should return an invalid validation result");
+        assertTrue(result.getValidationChecks().containsKey("J2735 Schema Validation"),
+            "J2735 schema check should run");
+        assertTrue(result.getValidationChecks().containsKey("ITWG Schema Validation"),
+            "ITWG schema check should run after J2735 failure");
+        assertTrue(result.getValidationChecks().containsKey("ITIS Content Validation"),
+            "ITIS check should run after schema failures");
+        assertTrue(result.getValidationChecks().containsKey("Best Practices"),
+            "Best Practices should run after earlier failures");
+        assertFalse(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertFalse(result.getValidationChecks().get("ITWG Schema Validation").isPassed());
     }
 
     @Test
@@ -100,6 +153,12 @@ public class TimValidationServiceTest {
     }
 
     @Test
+    public void testItwgTimJsonValidatorInstantiation() {
+        ItwgTimJsonValidator validator = new ItwgTimJsonValidator();
+        assertNotNull(validator, "ItwgTimJsonValidator should be instantiated");
+    }
+
+    @Test
     public void testBestPracticesValidatorInstantiation() {
         BestPracticesValidator validator = new BestPracticesValidator();
         assertNotNull(validator, "BestPracticesValidator should be instantiated");
@@ -112,5 +171,115 @@ public class TimValidationServiceTest {
         
         assertNotNull(issues, "Issues list should not be null");
         assertFalse(issues.isEmpty(), "Should report issues for null message");
+    }
+
+    @Test
+    public void validateTim_itwgValidUperWithIncompleteItisPattern_returnsItisIssues() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(ITWG_VALID_UPER_HEX);
+
+        assertFalse(result.isValid(), "UPER with incomplete ITIS pattern should fail full validation");
+        assertNotNull(result.getXerFormat(), "XER output should be captured");
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed(),
+            "J2735 schema validation should pass before ITIS validation fails");
+        assertTrue(result.getValidationChecks().get("ITWG Schema Validation").isPassed(),
+            "ITWG schema validation should pass before ITIS validation fails");
+        assertFalse(result.getValidationChecks().get("ITIS Content Validation").isPassed(),
+            "ITIS content validation should fail for an incomplete pattern");
+        assertTrue(result.getErrors().stream()
+            .anyMatch(issue -> issue.checkName().equals("ITIS Content Validation")));
+    }
+
+    @Test
+    public void validateTim_fullyValidUper_runsEndToEnd() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(FULLY_VALID_UPER_HEX);
+
+        assertTrue(result.isValid(), "Fully valid UPER should pass the full validation pipeline");
+        assertTrue(result.getErrors().isEmpty(), "Fully valid UPER should not produce errors");
+        assertNotNull(result.getXerFormat(), "XER output should be captured");
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("ITWG Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("ITIS Content Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getValidationDurationMs() > 0,
+            "Validation duration should record elapsed validation time");
+    }
+
+    @Test
+    public void validateTim_complexValidUper_runsEndToEnd() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(COMPLEX_VALID_UPER_HEX);
+
+        assertTrue(result.isValid(), "Complex valid UPER should pass the full validation pipeline");
+        assertTrue(result.getErrors().isEmpty(), "Complex valid UPER should not produce errors");
+        assertNotNull(result.getXerFormat(), "XER output should be captured");
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("ITWG Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("ITIS Content Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
+    }
+
+    @Test
+    public void validateTim_legacyUperMissingItwgFields_returnsSchemaIssues() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(LEGACY_UPER_MISSING_ITWG_FIELDS_HEX);
+
+        assertFalse(result.isValid(), "Legacy sample should fail full validation");
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed(),
+            "Legacy sample should still pass the generated J2735 schema");
+        assertFalse(result.getValidationChecks().get("ITWG Schema Validation").isPassed(),
+            "Legacy sample should fail the stricter ITWG schema");
+        assertTrue(result.getValidationChecks().containsKey("ITIS Content Validation"),
+            "ITIS validation should still run after ITWG schema failure");
+        assertTrue(result.getValidationChecks().containsKey("Best Practices"),
+            "Best Practices should still run after ITWG schema failure");
+        assertTrue(result.getErrors().stream()
+            .anyMatch(issue -> issue.checkName().equals("ITWG Schema Validation")));
+    }
+
+    @Test
+    public void validateTim_invalidUperHex_returnsPipelineIssue() {
+        ValidationException ex = assertThrows(
+            ValidationException.class,
+            () -> validationService.validateTim("this-is-not-hex")
+        );
+
+        assertNotNull(ex.getValidationResult(), "Validation exception should include the partial result");
+        assertFalse(ex.getValidationResult().isValid(), "Invalid hex should fail validation");
+        assertTrue(ex.getValidationResult().getValidationDurationMs() > 0,
+            "Validation duration should be recorded for failed validations");
+        assertTrue(ex.getValidationResult().getErrors().stream()
+            .anyMatch(issue -> issue.checkName().equals("Validation Pipeline")));
+    }
+
+    private static boolean isNativeLibraryAvailable() {
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String fileName = osName.contains("win") ? "asnapplication.dll" : "libasnapplication.so";
+
+        Path[] candidates = new Path[] {
+            Paths.get(fileName),
+            Paths.get("target", "libs", fileName),
+            Paths.get("libs", fileName)
+        };
+
+        for (Path candidate : candidates) {
+            if (Files.exists(candidate)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
