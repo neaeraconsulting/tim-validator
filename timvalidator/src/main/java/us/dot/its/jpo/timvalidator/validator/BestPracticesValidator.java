@@ -3,9 +3,16 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.util.ArrayList;
 import java.util.List;
 
+import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+
 /**
  * Performs hard-coded best practices validation on TIM messages.
- * 
+ *
  * Checks for known best practices, field completeness, semantic validity, and other
  * business logic rules beyond basic schema validation.
  */
@@ -13,7 +20,7 @@ public class BestPracticesValidator {
 
     /**
      * Validates a TIM message against best practices rules.
-     * 
+     *
      * @param timMessage the TIM message to validate
      * @return list of validation issues found (empty list if all checks pass)
      */
@@ -22,6 +29,12 @@ public class BestPracticesValidator {
 
         if (timMessage == null) {
             issues.add("TIM message is null");
+            return issues;
+        }
+
+        TravelerInformation tim = travelerInformation(timMessage);
+        if (tim == null) {
+            issues.add("TIM message is not a TravelerInformationMessageFrame");
             return issues;
         }
 
@@ -37,63 +50,94 @@ public class BestPracticesValidator {
         // - Check that frames/extents are properly ordered
         // - Validate region geometries (roads must exist, coordinates valid)
 
-        issues.addAll(validateRequiredFields(timMessage));
-        issues.addAll(validateTimePeriod(timMessage));
-        issues.addAll(validateGeography(timMessage));
-        issues.addAll(validateAdvisoryContent(timMessage));
+        issues.addAll(validateRequiredFields(tim));
+        issues.addAll(validateTimePeriod(tim));
+        issues.addAll(validateGeography(tim));
+        issues.addAll(validateAdvisoryContent(tim));
 
         return issues;
     }
 
-    /**
-     * Validates that all required fields are present.
-     */
-    private List<String> validateRequiredFields(Object timMessage) {
+    private static TravelerInformation travelerInformation(Object timMessage) {
+        if (timMessage instanceof TravelerInformationMessageFrame messageFrame) {
+            return messageFrame.getValue();
+        }
+
+        if (timMessage instanceof MessageFrame<?> messageFrame
+                && messageFrame.getValue() instanceof TravelerInformation tim) {
+            return tim;
+        }
+
+        if (timMessage instanceof TravelerInformation tim) {
+            return tim;
+        }
+
+        return null;
+    }
+
+    /** Validates that all required fields are present. */
+    private List<String> validateRequiredFields(TravelerInformation tim) {
         List<String> issues = new ArrayList<>();
-        
+
         // TODO: Check for required fields based on message type
-        
+
         return issues;
     }
 
-    /**
-     * Validates TIM time period and duration constraints.
-     */
-    private List<String> validateTimePeriod(Object timMessage) {
+    /** Validates TIM time period and duration constraints. */
+    private List<String> validateTimePeriod(TravelerInformation tim) {
         List<String> issues = new ArrayList<>();
-        
+
         // TODO: Validate start/end times, ensure they're logical
         // TODO: Check duration doesn't exceed reasonable limits (e.g., 6 months)
         // TODO: Ensure times are in proper sequence
-        
+
         return issues;
     }
 
-    /**
-     * Validates geographic data in TIM message.
-     */
-    private List<String> validateGeography(Object timMessage) {
+    /** Validates geographic data in TIM message. */
+    private List<String> validateGeography(TravelerInformation tim) {
         List<String> issues = new ArrayList<>();
-        
+
         // TODO: Validate latitude/longitude ranges
         // TODO: Ensure road identifiers exist and reference valid roads
         // TODO: Check that extent geometries are properly formed
         // TODO: Validate lane numbers and ranges
-        
+
+        TravelerDataFrameList dataFrames = tim.getDataFrames();
+        if (dataFrames == null) {
+            return issues;
+        }
+
+        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
+            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
+            if (dataFrame == null || dataFrame.getRegions() == null) {
+                continue;
+            }
+
+            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
+            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
+                GeographicalPath region = regions.get(regionIndex);
+                if (region == null) {
+                    continue;
+                }
+
+                issues.addAll(GeometryValidator.validate(region, dataFrameIndex, regionIndex));
+            }
+        }
+
         return issues;
     }
 
-    /**
-     * Validates advisory content and completeness.
-     */
-    private List<String> validateAdvisoryContent(Object timMessage) {
+    /** Validates advisory content and completeness. */
+    private List<String> validateAdvisoryContent(TravelerInformation tim) {
         List<String> issues = new ArrayList<>();
-        
+
         // TODO: Ensure advisory messages have sufficient detail
         // TODO: Validate that message reason codes are appropriate
         // TODO: Check that all required signage frames are provided
         // TODO: Verify message language codes are valid
-        
+
         return issues;
     }
 }
