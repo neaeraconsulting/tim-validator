@@ -33,10 +33,30 @@ class ItwgTimJsonValidatorTest {
     }
 
     @Test
-    void validateJson_polygonRegionWithoutDirection_passesValidation() {
+    void validateJson_closedPathRegionWithoutDirection_throwsValidationException() {
         ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
 
-        assertDoesNotThrow(() -> itwgValidator.validateJson(validItwgTimJsonWithPolygonWithoutDirection()));
+        ValidationException ex = assertThrows(ValidationException.class,
+            () -> itwgValidator.validateJson(itwgTimJsonWithClosedPathWithoutDirection()));
+
+        assertTrue(ex.getIssues().stream().anyMatch(issue -> issue.message().contains("direction")));
+    }
+
+    @Test
+    void validateJson_closedPathRegionWithDirection_passesValidation() {
+        ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
+
+        assertDoesNotThrow(() -> itwgValidator.validateJson(validItwgTimJsonWithClosedPath()));
+    }
+
+    @Test
+    void validateJson_closedPathRegionWithThreeNodes_throwsValidationException() {
+        ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
+
+        ValidationException ex = assertThrows(ValidationException.class,
+            () -> itwgValidator.validateJson(itwgTimJsonWithThreePointClosedPath()));
+
+        assertTrue(ex.getIssues().stream().anyMatch(issue -> issue.message().contains("4")));
     }
 
     @Test
@@ -153,19 +173,13 @@ class ItwgTimJsonValidatorTest {
     }
 
     @Test
-    void validateJson_polygonRegionWithOpenPathFields_throwsValidationException() {
+    void validateJson_closedPathRegionWithOpenPathFields_throwsValidationException() {
         ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
-        String invalidJson = validItwgTimJsonWithPolygonWithoutDirection().replace(
-            """
-                          "closedPath": true,
-                          "description": {
-            """,
-            """
-                          "closedPath": true,
-                          "laneWidth": 1,
-                          "directionality": "forward",
-                          "description": {
-            """
+        String invalidJson = validItwgTimJsonWithClosedPath().replace(
+            "\"direction\": \"0000\",",
+            "\"direction\": \"0000\",\n"
+                + "                          \"laneWidth\": 1,\n"
+                + "                          \"directionality\": \"forward\","
         );
 
         ValidationException ex = assertThrows(ValidationException.class,
@@ -267,7 +281,33 @@ class ItwgTimJsonValidatorTest {
         );
     }
 
-    private static String validItwgTimJsonWithPolygonWithoutDirection() {
+    private static String validItwgTimJsonWithClosedPath() {
+        return itwgTimJsonWithClosedPathWithoutDirection().replace(
+            "\"closedPath\": true,",
+            "\"closedPath\": true,\n                          \"direction\": \"0000\","
+        );
+    }
+
+    private static String itwgTimJsonWithThreePointClosedPath() {
+        return validItwgTimJsonWithClosedPath().replace(
+            """
+                                    },
+                                    {
+                                      "delta": {
+                                        "node-XY1": {
+                                          "x": 0,
+                                          "y": -1
+                                        }
+                                      }
+                                    }
+            """,
+            """
+                                    }
+            """
+        );
+    }
+
+    private static String itwgTimJsonWithClosedPathWithoutDirection() {
         return validItwgTimJson().replace(
             """
                           "anchor": {
@@ -315,6 +355,22 @@ class ItwgTimJsonValidatorTest {
                                         "node-XY1": {
                                           "x": 1,
                                           "y": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "delta": {
+                                        "node-XY1": {
+                                          "x": 1,
+                                          "y": 0
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "delta": {
+                                        "node-XY1": {
+                                          "x": 0,
+                                          "y": -1
                                         }
                                       }
                                     }

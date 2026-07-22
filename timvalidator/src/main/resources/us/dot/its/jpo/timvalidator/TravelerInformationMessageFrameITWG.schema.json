@@ -4244,9 +4244,42 @@
                                                             ]
                                                         }
                                                     },
+                                                    "allOf": [
+                                                        {
+                                                            "properties": {
+                                                                "description": {
+                                                                    "properties": {
+                                                                        "path": {
+                                                                            "properties": {
+                                                                                "offset": {
+                                                                                    "properties": {
+                                                                                        "xy": {
+                                                                                            "properties": {
+                                                                                                "nodes": {
+                                                                                                    "minItems": 4
+                                                                                                }
+                                                                                            }
+                                                                                        },
+                                                                                        "ll": {
+                                                                                            "properties": {
+                                                                                                "nodes": {
+                                                                                                    "minItems": 4
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    ],
                                                     "required": [
                                                         "anchor",
                                                         "closedPath",
+                                                        "direction",
                                                         "description"
                                                     ],
                                                     "additionalProperties": false
