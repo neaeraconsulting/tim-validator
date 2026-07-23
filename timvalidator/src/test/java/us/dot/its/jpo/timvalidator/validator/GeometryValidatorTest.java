@@ -1,6 +1,7 @@
 package us.dot.its.jpo.timvalidator.validator;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.Elevation;
+import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
 import us.dot.its.jpo.asn.j2735.r2024.Common.LaneWidth;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Latitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Longitude;
@@ -117,14 +119,93 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPathIncludesClosingSegmentAndEndpointCorners() {
-        TravelerInformationMessageFrame message = xyMessage(15_000L, 0,
+    void validate_closedPathDoesNotApplyLaneWidthBendCheck() {
+        TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
-                xyNode(-5_000L, 8_660L));
-        firstRegion(message).setClosedPath(new Asn1Boolean(true));
+                xyNode(0L, 10_000L),
+                xyNode(-10_000L, 0L),
+                xyNode(0L, -10_000L));
+        // Best-practice validation still runs after schema validation fails, so explicitly
+        // verify that a prohibited laneWidth does not trigger an additional geometry issue.
+        firstRegion(message).setLaneWidth(new LaneWidth(32_767L));
 
-        assertTrue(containsLaneWidthIssue(validate(message)));
+        List<String> issues = validate(message);
+
+        assertFalse(containsLaneWidthIssue(issues));
+        assertFalse(containsClosedPolygonIssue(issues));
+    }
+
+    @Test
+    void validate_openPathWithRepeatedPointReportsIssue() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L),
+                xyNode(-1_000L, 0L));
+
+        List<String> issues = validate(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.contains("open path must not contain repeated points")
+                && issue.contains("indexes 0 and 2")));
+    }
+
+    @Test
+    void validate_simpleClosedPolygonDoesNotReportTopologyIssue() {
+        TravelerInformationMessageFrame message = closedXyMessage(
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L),
+                xyNode(0L, 1_000L),
+                xyNode(-1_000L, 0L),
+                xyNode(0L, -1_000L));
+
+        assertNull(firstRegion(message).getLaneWidth());
+        assertFalse(containsClosedPolygonIssue(validate(message)));
+    }
+
+    @Test
+    void validate_closedPolygonThatIntersectsItselfReportsIssue() {
+        TravelerInformationMessageFrame message = closedXyMessage(
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L),
+                xyNode(-1_000L, 1_000L),
+                xyNode(1_000L, 0L),
+                xyNode(-1_000L, -1_000L));
+
+        List<String> issues = validate(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.contains("closed polygon must not intersect itself")
+                && issue.contains("1500.00 cm, 500.00 cm")));
+    }
+
+    @Test
+    void validate_closedPolygonWhoseEndpointsDoNotCoincideReportsIssue() {
+        TravelerInformationMessageFrame message = closedXyMessage(
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L),
+                xyNode(0L, 1_000L),
+                xyNode(-1_000L, 0L),
+                xyNode(100L, -1_000L));
+
+        List<String> issues = validate(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.contains(
+                "closed polygon's first and last points must coincide")));
+    }
+
+    @Test
+    void validate_closedPolygonWithRepeatedInternalPointReportsIssue() {
+        TravelerInformationMessageFrame message = closedXyMessage(
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L),
+                xyNode(0L, 1_000L),
+                xyNode(0L, -1_000L),
+                xyNode(-1_000L, 0L));
+
+        List<String> issues = validate(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.contains(
+                "closed polygon must not contain repeated points")
+                && issue.contains("indexes 1 and 3")));
     }
 
     @Test
@@ -220,6 +301,16 @@ class GeometryValidatorTest {
         return message(region(anchor(337_545_852L, -843_986_600L), laneWidthCm, pathDescription(zoom, nodes)));
     }
 
+    private static TravelerInformationMessageFrame closedXyMessage(NodeXY... nodes) {
+        GeographicalPath region = region(
+                anchor(337_545_852L, -843_986_600L),
+                pathDescription(0, nodes));
+        region.setClosedPath(new Asn1Boolean(true));
+        region.setDirection(new HeadingSlice());
+        TravelerInformationMessageFrame message = message(region);
+        return message;
+    }
+
     private static TravelerInformationMessageFrame message(GeographicalPath region) {
         TravelerInformationMessageFrame messageFrame = new TravelerInformationMessageFrame();
         TravelerInformation tim = new TravelerInformation();
@@ -239,9 +330,16 @@ class GeometryValidatorTest {
             Position3D anchor,
             long laneWidthCm,
             GeographicalPath.DescriptionChoice description) {
+        GeographicalPath region = region(anchor, description);
+        region.setLaneWidth(new LaneWidth(laneWidthCm));
+        return region;
+    }
+
+    private static GeographicalPath region(
+            Position3D anchor,
+            GeographicalPath.DescriptionChoice description) {
         GeographicalPath region = new GeographicalPath();
         region.setAnchor(anchor);
-        region.setLaneWidth(new LaneWidth(laneWidthCm));
         region.setDescription(description);
         return region;
     }
@@ -343,5 +441,9 @@ class GeometryValidatorTest {
 
     private static boolean containsAnchorIssue(List<String> issues) {
         return issues.stream().anyMatch(issue -> issue.contains("anchor must be 10.00 m before the first path node"));
+    }
+
+    private static boolean containsClosedPolygonIssue(List<String> issues) {
+        return issues.stream().anyMatch(issue -> issue.contains("closed polygon"));
     }
 }

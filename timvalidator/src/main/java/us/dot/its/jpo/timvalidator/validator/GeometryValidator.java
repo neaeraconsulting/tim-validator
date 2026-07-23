@@ -39,8 +39,12 @@ final class GeometryValidator {
         }
 
         List<String> issues = new ArrayList<>();
+        boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
+        issues.addAll(PathTopologyValidator.validate(nodes, closedPath, dataFrameIndex, regionIndex));
         validateAnchor(issues, nodes.getFirst(), dataFrameIndex, regionIndex);
-        validateLaneWidth(issues, region, nodes, dataFrameIndex, regionIndex);
+        if (!closedPath) {
+            validateLaneWidth(issues, region, nodes, dataFrameIndex, regionIndex);
+        }
         return issues;
     }
 
@@ -73,8 +77,7 @@ final class GeometryValidator {
             return;
         }
 
-        boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
-        WidthLimit limit = maximumCenteredLaneWidth(nodes, closedPath);
+        WidthLimit limit = maximumCenteredLaneWidth(nodes);
         double laneWidthCm = laneWidth.getValue();
         if (laneWidthCm - limit.widthCm() <= WIDTH_COMPARISON_EPSILON_CM) {
             return;
@@ -99,15 +102,13 @@ final class GeometryValidator {
      * J2735 laneWidth is the complete edge-to-edge width, so the calculated
      * half-width is doubled before it is compared with laneWidth.</p>
      */
-    private static WidthLimit maximumCenteredLaneWidth(List<Coordinate> nodes, boolean closedPath) {
+    private static WidthLimit maximumCenteredLaneWidth(List<Coordinate> nodes) {
         int pointCount = nodes.size();
-        int firstCorner = closedPath ? 0 : 1;
-        int lastCorner = closedPath ? pointCount - 1 : pointCount - 2;
 
         WidthLimit limit = new WidthLimit(Double.POSITIVE_INFINITY, -1);
-        for (int pointIndex = firstCorner; pointIndex <= lastCorner; pointIndex++) {
-            int previousIndex = Math.floorMod(pointIndex - 1, pointCount);
-            int nextIndex = (pointIndex + 1) % pointCount;
+        for (int pointIndex = 1; pointIndex <= pointCount - 2; pointIndex++) {
+            int previousIndex = pointIndex - 1;
+            int nextIndex = pointIndex + 1;
             double maximumWidthCm = maximumCenteredLaneWidthAtBend(
                     nodes.get(previousIndex),
                     nodes.get(pointIndex),
