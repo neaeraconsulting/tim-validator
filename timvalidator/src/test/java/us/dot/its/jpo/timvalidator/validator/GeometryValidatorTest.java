@@ -49,10 +49,11 @@ class GeometryValidatorTest {
 
         assertFalse(containsLaneWidthIssue(issues),
                 "A 150 meter centered width should fit a right-angle bend with 100 meter segments");
+        assertFalse(containsLaneCorridorIssue(issues));
     }
 
     @Test
-    void validate_laneWidthExactlyAtLimitDoesNotReportGeometryIssue() {
+    void validate_laneWidthExactlyAtBendLimitDoesNotReportBendWidthIssue() {
         TravelerInformationMessageFrame message = xyMessage(20_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -81,6 +82,22 @@ class GeometryValidatorTest {
 
         assertFalse(containsLaneWidthIssue(validate(message)),
                 "Each three-point bend independently allows a 200 meter centered width");
+    }
+
+    @Test
+    void validate_laneCorridorWithOverlappingNonAdjacentSectionsReportsIssue() {
+        TravelerInformationMessageFrame message = xyMessage(15_000L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(10_000L, 0L),
+                xyNode(0L, 10_000L),
+                xyNode(-10_000L, 0L));
+
+        List<String> issues = validate(message);
+
+        assertFalse(containsLaneWidthIssue(issues),
+                "Each individual bend remains within the local bend-width limit");
+        assertTrue(containsLaneCorridorIssue(issues),
+                "The complete corridor must detect overlap between the two parallel sections");
     }
 
     @Test
@@ -133,6 +150,7 @@ class GeometryValidatorTest {
         List<String> issues = validate(message);
 
         assertFalse(containsLaneWidthIssue(issues));
+        assertFalse(containsLaneCorridorIssue(issues));
         assertFalse(containsClosedPolygonIssue(issues));
     }
 
@@ -147,6 +165,22 @@ class GeometryValidatorTest {
 
         assertTrue(issues.stream().anyMatch(issue -> issue.contains("open path must not contain repeated points")
                 && issue.contains("indexes 0 and 2")));
+    }
+
+    @Test
+    void validate_openPathThatIntersectsItselfReportsIssue() {
+        TravelerInformationMessageFrame message = xyMessage(1L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(10_000L, 10_000L),
+                xyNode(-10_000L, 0L),
+                xyNode(10_000L, -10_000L));
+
+        List<String> issues = validate(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.contains("open path must not intersect itself")
+                && issue.contains("6000.00 cm, 5000.00 cm")));
+        assertFalse(containsLaneCorridorIssue(issues),
+                "Corridor validation should not cascade after centerline topology fails");
     }
 
     @Test
@@ -437,6 +471,10 @@ class GeometryValidatorTest {
 
     private static boolean containsLaneWidthIssue(List<String> issues) {
         return issues.stream().anyMatch(issue -> issue.contains("laneWidth") && issue.contains("exceeds"));
+    }
+
+    private static boolean containsLaneCorridorIssue(List<String> issues) {
+        return issues.stream().anyMatch(issue -> issue.contains("lane corridor"));
     }
 
     private static boolean containsAnchorIssue(List<String> issues) {
