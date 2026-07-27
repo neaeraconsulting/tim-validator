@@ -124,7 +124,8 @@ public class BestPracticesValidator {
                     continue;
                 }
 
-                issues.addAll(GeometryValidator.validate(region, dataFrameIndex, regionIndex));
+                DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
+                issues.addAll(GeometryValidator.validate(region, indexes));
             }
         }
 

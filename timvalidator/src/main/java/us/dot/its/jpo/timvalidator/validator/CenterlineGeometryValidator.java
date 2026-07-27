@@ -26,8 +26,7 @@ final class CenterlineGeometryValidator {
     public static List<String> validate(
             List<Coordinate> nodes,
             boolean closedPath,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         List<String> issues = new ArrayList<>();
         RepeatedPoint repeatedPoint = firstRepeatedPoint(nodes, closedPath);
 
@@ -36,14 +35,12 @@ final class CenterlineGeometryValidator {
                 issues.add(repeatedPointIssue(
                         "open path",
                         repeatedPoint,
-                        dataFrameIndex,
-                        regionIndex));
+                        indexes));
             } else if (nodes.size() >= 2) {
                 validateOpenPathSelfIntersection(
                         issues,
                         nodes,
-                        dataFrameIndex,
-                        regionIndex);
+                        indexes);
             }
             return issues;
         }
@@ -54,8 +51,8 @@ final class CenterlineGeometryValidator {
                     Locale.ROOT,
                     "Data frame %d region %d closed polygon's first and last points must coincide; "
                             + "point indexes 0 and %d are %.2f cm apart",
-                    dataFrameIndex,
-                    regionIndex,
+                    indexes.dataFrameIndex(),
+                    indexes.regionIndex(),
                     nodes.size() - 1,
                     nodes.getFirst().distance(nodes.getLast())));
         }
@@ -64,12 +61,11 @@ final class CenterlineGeometryValidator {
             issues.add(repeatedPointIssue(
                     "closed polygon",
                     repeatedPoint,
-                    dataFrameIndex,
-                    regionIndex));
+                    indexes));
         }
 
         if (closedRing && repeatedPoint == null && nodes.size() >= 4) {
-            validateClosedPathSelfIntersection(issues, nodes, dataFrameIndex, regionIndex);
+            validateClosedPathSelfIntersection(issues, nodes, indexes);
         }
 
         return issues;
@@ -103,13 +99,12 @@ final class CenterlineGeometryValidator {
     private static String repeatedPointIssue(
             String geometryName,
             RepeatedPoint repeatedPoint,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         return String.format(
                 Locale.ROOT,
                 "Data frame %d region %d %s must not contain repeated points; point indexes %d and %d coincide",
-                dataFrameIndex,
-                regionIndex,
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
                 geometryName,
                 repeatedPoint.firstIndex(),
                 repeatedPoint.secondIndex());
@@ -122,12 +117,11 @@ final class CenterlineGeometryValidator {
     private static void validateOpenPathSelfIntersection(
             List<String> issues,
             List<Coordinate> nodes,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         LineString path = GEOMETRY_FACTORY.createLineString(nodes.stream()
                 .map(Coordinate::copy)
                 .toArray(Coordinate[]::new));
-        validateSelfIntersection(issues, path, "open path", dataFrameIndex, regionIndex);
+        validateSelfIntersection(issues, path, "open path", indexes);
     }
 
     /**
@@ -137,8 +131,7 @@ final class CenterlineGeometryValidator {
     private static void validateClosedPathSelfIntersection(
             List<String> issues,
             List<Coordinate> nodes,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         Coordinate[] boundaryCoordinates = nodes.stream()
                 .map(Coordinate::copy)
                 .toArray(Coordinate[]::new);
@@ -146,7 +139,7 @@ final class CenterlineGeometryValidator {
         boundaryCoordinates[boundaryCoordinates.length - 1] = boundaryCoordinates[0].copy();
 
         LineString boundary = GEOMETRY_FACTORY.createLineString(boundaryCoordinates);
-        validateSelfIntersection(issues, boundary, "closed polygon", dataFrameIndex, regionIndex);
+        validateSelfIntersection(issues, boundary, "closed polygon", indexes);
     }
 
     /**
@@ -157,8 +150,7 @@ final class CenterlineGeometryValidator {
             List<String> issues,
             LineString geometry,
             String geometryName,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         IsSimpleOp simplicity = new IsSimpleOp(geometry);
         if (simplicity.isSimple()) {
             return;
@@ -169,8 +161,8 @@ final class CenterlineGeometryValidator {
             issues.add(String.format(
                     Locale.ROOT,
                     "Data frame %d region %d %s must not intersect itself",
-                    dataFrameIndex,
-                    regionIndex,
+                    indexes.dataFrameIndex(),
+                    indexes.regionIndex(),
                     geometryName));
             return;
         }
@@ -179,8 +171,8 @@ final class CenterlineGeometryValidator {
                 Locale.ROOT,
                 "Data frame %d region %d %s must not intersect itself; "
                         + "intersection is near (%.2f cm, %.2f cm)",
-                dataFrameIndex,
-                regionIndex,
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
                 geometryName,
                 nonSimpleLocation.getX(),
                 nonSimpleLocation.getY()));

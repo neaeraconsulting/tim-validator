@@ -21,7 +21,7 @@ final class GeometryValidator {
     private GeometryValidator() {
     }
 
-    public static List<String> validate(GeographicalPath region, int dataFrameIndex, int regionIndex) {
+    public static List<String> validate(GeographicalPath region, DataFrameIndexes indexes) {
         Optional<DecodedPath> decodedPath = OffsetPathDecoder.decode(region);
         if (decodedPath.isEmpty()) {
             // Geometry choices that cannot be decoded are handled by schema validation.
@@ -36,21 +36,19 @@ final class GeometryValidator {
         List<String> issues = new ArrayList<>();
         boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
         List<String> centerlineIssues =
-                CenterlineGeometryValidator.validate(nodes, closedPath, dataFrameIndex, regionIndex);
+                CenterlineGeometryValidator.validate(nodes, closedPath, indexes);
         issues.addAll(centerlineIssues);
-        validateAnchor(issues, nodes.getFirst(), dataFrameIndex, regionIndex);
+        validateAnchor(issues, nodes.getFirst(), indexes);
         if (!closedPath) {
             issues.addAll(LaneWidthGeometryValidator.validateWidthAtBends(
                     region,
                     nodes,
-                    dataFrameIndex,
-                    regionIndex));
+                    indexes));
             if (centerlineIssues.isEmpty()) {
                 issues.addAll(LaneWidthGeometryValidator.validateCorridor(
                         region,
                         nodes,
-                        dataFrameIndex,
-                        regionIndex));
+                        indexes));
             }
         }
         return issues;
@@ -59,8 +57,7 @@ final class GeometryValidator {
     private static void validateAnchor(
             List<String> issues,
             Coordinate firstNode,
-            int dataFrameIndex,
-            int regionIndex) {
+            DataFrameIndexes indexes) {
         double distanceCm = ANCHOR.distance(firstNode);
         if (Math.abs(distanceCm - REQUIRED_ANCHOR_TO_FIRST_NODE_CM) <= ANCHOR_DISTANCE_TOLERANCE_CM) {
             return;
@@ -69,8 +66,8 @@ final class GeometryValidator {
         issues.add(String.format(
                 Locale.ROOT,
                 "Data frame %d region %d anchor must be 10.00 m before the first path node; actual distance is %.2f m",
-                dataFrameIndex,
-                regionIndex,
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
                 distanceCm / CENTIMETERS_PER_METER));
     }
 }
