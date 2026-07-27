@@ -2,9 +2,17 @@ package us.dot.its.jpo.timvalidator.validator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.CoordinateXY;
+import org.locationtech.proj4j.CRSFactory;
+import org.locationtech.proj4j.CoordinateReferenceSystem;
+import org.locationtech.proj4j.CoordinateTransform;
+import org.locationtech.proj4j.CoordinateTransformFactory;
+import org.locationtech.proj4j.Proj4jException;
+import org.locationtech.proj4j.ProjCoordinate;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.NodeListXY;
 import us.dot.its.jpo.asn.j2735.r2024.Common.NodeOffsetPointXY;
@@ -23,19 +31,23 @@ import us.dot.its.jpo.asn.runtime.types.Asn1Integer;
 /**
  * Decodes a J2735 offset path into planar JTS coordinates measured in centimeters.
  *
- * <p>JTS operates on planar coordinates, so latitude/longitude nodes are converted
- * one segment at a time to a local WGS-84 east/north displacement. Accumulating
- * those local displacements avoids treating longitude degrees as a fixed distance
- * and preserves the bend geometry needed by the best-practices checks.</p>
+ * <p>JTS operates on planar coordinates, so latitude/longitude nodes are projected
+ * into a WGS-84 Transverse Mercator coordinate system centered on the path anchor.
+ * Using one local projection for the complete path preserves the relative geometry
+ * needed by the best-practices checks.</p>
  */
 final class OffsetPathDecoder {
 
-    private static final double COORDINATE_UNITS_PER_DEGREE = 10_000_000.0;
-    private static final double CENTIMETERS_PER_METER = 100.0;
-
-    // WGS-84 ellipsoid parameters.
-    private static final double WGS84_SEMI_MAJOR_AXIS_METERS = 6_378_137.0;
-    private static final double WGS84_ECCENTRICITY_SQUARED = 6.694_379_990_14e-3;
+    private static final double DEGREES_PER_J2735_UNIT = 1e-7;
+    private static final CRSFactory CRS_FACTORY = new CRSFactory();
+    private static final CoordinateTransformFactory TRANSFORM_FACTORY = new CoordinateTransformFactory();
+    private static final CoordinateReferenceSystem WGS84 = CRS_FACTORY.createFromParameters(
+            "WGS84",
+            "+proj=longlat +datum=WGS84 +no_defs");
+    // Proj4J's tmerc implementation does not accept modern PROJ's +approx option.
+    private static final String LOCAL_TRANSVERSE_MERCATOR_PARAMETERS =
+            "+proj=tmerc +lon_0=%.10f +lat_0=%.10f +k_0=1 "
+                    + "+x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=cm +no_defs";
 
     private OffsetPathDecoder() {
     }
@@ -55,15 +67,24 @@ final class OffsetPathDecoder {
             return Optional.empty();
         }
 
+        Optional<ProjCoordinate> anchor = geographicCoordinate(region.getAnchor());
         OffsetSystem.OffsetChoice offset = path.getOffset();
         NodeListXY xy = offset.getXy();
         if (xy != null && xy.getNodes() != null) {
-            return decodeXy(xy.getNodes(), geographicPoint(region.getAnchor()), scale);
+            return decodeXy(xy.getNodes(), anchor, scale);
         }
 
         NodeListLL ll = offset.getLl();
         if (ll != null && ll.getNodes() != null) {
-            return decodeLatLon(ll.getNodes(), geographicPoint(region.getAnchor()), scale);
+            if (anchor.isEmpty()) {
+                return Optional.empty();
+            }
+            ProjCoordinate origin = anchor.orElseThrow();
+            return decodeLatLon(
+                    ll.getNodes(),
+                    origin,
+                    localTransform(origin),
+                    scale);
         }
 
         return Optional.empty();
@@ -71,10 +92,11 @@ final class OffsetPathDecoder {
 
     private static Optional<DecodedPath> decodeXy(
             NodeSetXY nodes,
-            Optional<GeographicPoint> anchor,
+            Optional<ProjCoordinate> anchor,
             double scale) {
         List<Coordinate> coordinates = new ArrayList<>(nodes.size());
-        Coordinate current = new Coordinate(0.0, 0.0);
+        Coordinate current = new CoordinateXY(0.0, 0.0);
+        CoordinateTransform projection = null;
 
         for (NodeXY node : nodes) {
             if (node == null || node.getDelta() == null) {
@@ -84,15 +106,23 @@ final class OffsetPathDecoder {
             NodeOffsetPointXY encodedPoint = node.getDelta();
             Coordinate offset = xyOffset(encodedPoint);
             if (offset != null) {
-                current = new Coordinate(
+                current = new CoordinateXY(
                         current.getX() + offset.getX() * scale,
                         current.getY() + offset.getY() * scale);
             } else if (encodedPoint.getNode_LatLon() != null && anchor.isPresent()) {
-                Optional<GeographicPoint> absolute = geographicPoint(encodedPoint.getNode_LatLon());
+                Optional<ProjCoordinate> absolute = geographicCoordinate(encodedPoint.getNode_LatLon());
                 if (absolute.isEmpty()) {
                     return Optional.empty();
                 }
-                current = displacementCm(anchor.orElseThrow(), absolute.orElseThrow());
+                if (projection == null) {
+                    projection = localTransform(anchor.orElseThrow());
+                }
+                ProjCoordinate absolutePoint = absolute.orElseThrow();
+                Optional<Coordinate> projected = project(projection, absolutePoint);
+                if (projected.isEmpty()) {
+                    return Optional.empty();
+                }
+                current = projected.orElseThrow();
             } else {
                 // A regional or otherwise unsupported choice cannot be decoded safely.
                 return Optional.empty();
@@ -106,15 +136,11 @@ final class OffsetPathDecoder {
 
     private static Optional<DecodedPath> decodeLatLon(
             NodeSetLL nodes,
-            Optional<GeographicPoint> anchor,
+            ProjCoordinate anchor,
+            CoordinateTransform localTransform,
             double scale) {
-        if (anchor.isEmpty()) {
-            return Optional.empty();
-        }
-
         List<Coordinate> coordinates = new ArrayList<>(nodes.size());
-        GeographicPoint currentGeographic = anchor.orElseThrow();
-        Coordinate currentPlanar = new Coordinate(0.0, 0.0);
+        ProjCoordinate currentGeographic = anchor;
 
         for (NodeLL node : nodes) {
             if (node == null || node.getDelta() == null) {
@@ -122,17 +148,19 @@ final class OffsetPathDecoder {
             }
 
             NodeOffsetPointLL encodedPoint = node.getDelta();
-            Optional<GeographicPoint> nextGeographic = nextLatLonPoint(encodedPoint, currentGeographic, scale);
+            Optional<ProjCoordinate> nextGeographic =
+                    nextLatLonPoint(encodedPoint, currentGeographic, scale);
             if (nextGeographic.isEmpty()) {
                 return Optional.empty();
             }
 
-            Coordinate segment = displacementCm(currentGeographic, nextGeographic.orElseThrow());
-            currentPlanar = new Coordinate(
-                    currentPlanar.getX() + segment.getX(),
-                    currentPlanar.getY() + segment.getY());
-            coordinates.add(currentPlanar.copy());
-            currentGeographic = nextGeographic.orElseThrow();
+            ProjCoordinate next = nextGeographic.orElseThrow();
+            Optional<Coordinate> projected = project(localTransform, next);
+            if (projected.isEmpty()) {
+                return Optional.empty();
+            }
+            coordinates.add(projected.orElseThrow());
+            currentGeographic = next;
         }
 
         return Optional.of(new DecodedPath(coordinates));
@@ -172,9 +200,9 @@ final class OffsetPathDecoder {
         return null;
     }
 
-    private static Optional<GeographicPoint> nextLatLonPoint(
+    private static Optional<ProjCoordinate> nextLatLonPoint(
             NodeOffsetPointLL point,
-            GeographicPoint previous,
+            ProjCoordinate previous,
             double scale) {
         if (point.getNode_LL1() != null) {
             return relativePoint(previous, point.getNode_LL1().getLon(), point.getNode_LL1().getLat(), scale);
@@ -195,13 +223,13 @@ final class OffsetPathDecoder {
             return relativePoint(previous, point.getNode_LL6().getLon(), point.getNode_LL6().getLat(), scale);
         }
         if (point.getNode_LatLon() != null) {
-            return geographicPoint(point.getNode_LatLon());
+            return geographicCoordinate(point.getNode_LatLon());
         }
         return Optional.empty();
     }
 
-    private static Optional<GeographicPoint> relativePoint(
-            GeographicPoint previous,
+    private static Optional<ProjCoordinate> relativePoint(
+            ProjCoordinate previous,
             Asn1Integer longitudeOffset,
             Asn1Integer latitudeOffset,
             double scale) {
@@ -209,60 +237,85 @@ final class OffsetPathDecoder {
             return Optional.empty();
         }
 
-        double longitude = normalizeLongitude(previous.longitudeDegrees()
-                + longitudeOffset.getValue() * scale / COORDINATE_UNITS_PER_DEGREE);
-        double latitude = previous.latitudeDegrees()
-                + latitudeOffset.getValue() * scale / COORDINATE_UNITS_PER_DEGREE;
-        return GeographicPoint.create(latitude, longitude);
+        double longitude = normalizeLongitude(previous.x + offsetDegrees(longitudeOffset, scale));
+        double latitude = previous.y + offsetDegrees(latitudeOffset, scale);
+        return geographicCoordinate(longitude, latitude);
+    }
+
+    private static double offsetDegrees(Asn1Integer offset, double scale) {
+        return offset.getValue() * scale * DEGREES_PER_J2735_UNIT;
     }
 
     private static Coordinate coordinate(Asn1Integer x, Asn1Integer y) {
         if (x == null || y == null) {
             return null;
         }
-        return new Coordinate(x.getValue(), y.getValue());
+        return new CoordinateXY(x.getValue(), y.getValue());
     }
 
-    private static Optional<GeographicPoint> geographicPoint(Position3D position) {
+    private static Optional<ProjCoordinate> geographicCoordinate(Position3D position) {
         if (position == null) {
             return Optional.empty();
         }
-        return geographicPoint(position.getLat(), position.getLong_());
+        return geographicCoordinate(position.getLong_(), position.getLat());
     }
 
-    private static Optional<GeographicPoint> geographicPoint(Node_LLmD_64b point) {
+    private static Optional<ProjCoordinate> geographicCoordinate(Node_LLmD_64b point) {
         if (point == null) {
             return Optional.empty();
         }
-        return geographicPoint(point.getLat(), point.getLon());
+        return geographicCoordinate(point.getLon(), point.getLat());
     }
 
-    private static Optional<GeographicPoint> geographicPoint(Asn1Integer latitude, Asn1Integer longitude) {
+    private static Optional<ProjCoordinate> geographicCoordinate(
+            Asn1Integer longitude,
+            Asn1Integer latitude) {
         if (latitude == null || longitude == null) {
             return Optional.empty();
         }
-        return GeographicPoint.create(
-                latitude.getValue() / COORDINATE_UNITS_PER_DEGREE,
-                longitude.getValue() / COORDINATE_UNITS_PER_DEGREE);
+        return geographicCoordinate(
+                longitude.getValue() * DEGREES_PER_J2735_UNIT,
+                latitude.getValue() * DEGREES_PER_J2735_UNIT);
     }
 
-    private static Coordinate displacementCm(GeographicPoint from, GeographicPoint to) {
-        double meanLatitudeRadians = Math.toRadians(
-                (from.latitudeDegrees() + to.latitudeDegrees()) / 2.0);
-        double sinLatitude = Math.sin(meanLatitudeRadians);
-        double w = Math.sqrt(1.0 - WGS84_ECCENTRICITY_SQUARED * sinLatitude * sinLatitude);
-        double primeVerticalRadius = WGS84_SEMI_MAJOR_AXIS_METERS / w;
-        double meridionalRadius = WGS84_SEMI_MAJOR_AXIS_METERS
-                * (1.0 - WGS84_ECCENTRICITY_SQUARED) / (w * w * w);
+    /** Creates a geographic coordinate with X as longitude and Y as latitude, in decimal degrees. */
+    private static Optional<ProjCoordinate> geographicCoordinate(
+            double longitudeDegrees,
+            double latitudeDegrees) {
+        if (!Double.isFinite(longitudeDegrees) || !Double.isFinite(latitudeDegrees)
+                || longitudeDegrees < -180.0 || longitudeDegrees > 180.0
+                || latitudeDegrees < -90.0 || latitudeDegrees > 90.0) {
+            return Optional.empty();
+        }
+        return Optional.of(new ProjCoordinate(longitudeDegrees, latitudeDegrees));
+    }
 
-        double latitudeDeltaRadians = Math.toRadians(to.latitudeDegrees() - from.latitudeDegrees());
-        double longitudeDeltaRadians = Math.toRadians(normalizeLongitude(
-                to.longitudeDegrees() - from.longitudeDegrees()));
+    private static CoordinateTransform localTransform(ProjCoordinate anchor) {
+        String parameters = String.format(
+                Locale.ROOT,
+                LOCAL_TRANSVERSE_MERCATOR_PARAMETERS,
+                anchor.x,
+                anchor.y);
+        CoordinateReferenceSystem local = CRS_FACTORY.createFromParameters(
+                "TIM local Transverse Mercator",
+                parameters);
+        return TRANSFORM_FACTORY.createTransform(WGS84, local);
+    }
 
-        double eastCm = longitudeDeltaRadians * primeVerticalRadius
-                * Math.cos(meanLatitudeRadians) * CENTIMETERS_PER_METER;
-        double northCm = latitudeDeltaRadians * meridionalRadius * CENTIMETERS_PER_METER;
-        return new Coordinate(eastCm, northCm);
+    private static Optional<Coordinate> project(
+            CoordinateTransform localTransform,
+            ProjCoordinate point) {
+        try {
+            ProjCoordinate projected = localTransform.transform(
+                    point,
+                    new ProjCoordinate());
+            if (!Double.isFinite(projected.x) || !Double.isFinite(projected.y)) {
+                return Optional.empty();
+            }
+            return Optional.of(new CoordinateXY(projected.x, projected.y));
+        } catch (Proj4jException exception) {
+            return Optional.empty();
+        }
     }
 
     private static double normalizeLongitude(double longitudeDegrees) {
@@ -282,14 +335,4 @@ final class OffsetPathDecoder {
         }
     }
 
-    private record GeographicPoint(double latitudeDegrees, double longitudeDegrees) {
-        static Optional<GeographicPoint> create(double latitudeDegrees, double longitudeDegrees) {
-            if (!Double.isFinite(latitudeDegrees) || !Double.isFinite(longitudeDegrees)
-                    || latitudeDegrees < -90.0 || latitudeDegrees > 90.0
-                    || longitudeDegrees < -180.0 || longitudeDegrees > 180.0) {
-                return Optional.empty();
-            }
-            return Optional.of(new GeographicPoint(latitudeDegrees, longitudeDegrees));
-        }
-    }
 }

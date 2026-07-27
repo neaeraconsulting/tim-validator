@@ -23,7 +23,7 @@ final class CenterlineGeometryValidator {
      * Validates repeated points and self-intersections for an open centerline,
      * or closure, repeated points, and self-intersections for a closed polygon boundary.
      */
-    static List<String> validate(
+    public static List<String> validate(
             List<Coordinate> nodes,
             boolean closedPath,
             int dataFrameIndex,

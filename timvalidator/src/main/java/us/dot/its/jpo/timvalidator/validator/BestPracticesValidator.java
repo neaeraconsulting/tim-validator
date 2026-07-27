@@ -2,6 +2,7 @@ package us.dot.its.jpo.timvalidator.validator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
@@ -32,11 +33,12 @@ public class BestPracticesValidator {
             return issues;
         }
 
-        TravelerInformation tim = travelerInformation(timMessage);
-        if (tim == null) {
+        Optional<TravelerInformation> travelerInformation = travelerInformation(timMessage);
+        if (travelerInformation.isEmpty()) {
             issues.add("TIM message is not a TravelerInformationMessageFrame");
             return issues;
         }
+        TravelerInformation tim = travelerInformation.orElseThrow();
 
         // TODO: Implement best practices checks
         // Example checks to consider:
@@ -58,21 +60,21 @@ public class BestPracticesValidator {
         return issues;
     }
 
-    private static TravelerInformation travelerInformation(Object timMessage) {
+    private static Optional<TravelerInformation> travelerInformation(Object timMessage) {
         if (timMessage instanceof TravelerInformationMessageFrame messageFrame) {
-            return messageFrame.getValue();
+            return Optional.ofNullable(messageFrame.getValue());
         }
 
         if (timMessage instanceof MessageFrame<?> messageFrame
                 && messageFrame.getValue() instanceof TravelerInformation tim) {
-            return tim;
+            return Optional.of(tim);
         }
 
         if (timMessage instanceof TravelerInformation tim) {
-            return tim;
+            return Optional.of(tim);
         }
 
-        return null;
+        return Optional.empty();
     }
 
     /** Validates that all required fields are present. */

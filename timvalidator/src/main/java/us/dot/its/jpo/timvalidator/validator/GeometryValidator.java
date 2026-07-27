@@ -21,7 +21,7 @@ final class GeometryValidator {
     private GeometryValidator() {
     }
 
-    static List<String> validate(GeographicalPath region, int dataFrameIndex, int regionIndex) {
+    public static List<String> validate(GeographicalPath region, int dataFrameIndex, int regionIndex) {
         Optional<DecodedPath> decodedPath = OffsetPathDecoder.decode(region);
         if (decodedPath.isEmpty()) {
             // Geometry choices that cannot be decoded are handled by schema validation.
