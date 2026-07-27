@@ -9,8 +9,6 @@ import java.util.Optional;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 
-import com.networknt.schema.Error;
-
 import us.dot.its.jpo.asn.j2735.r2024.ITIS.ITIScodesAndText;
 import us.dot.its.jpo.asn.j2735.r2024.ITIS.ITIScodesAndTextSequence;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
@@ -52,43 +50,49 @@ public class ItisJsonValidator extends AbstractJsonValidator {
             throw new ValidationException("Expected TravelerInformationMessageFrame payload for ITIS validation");
         }
 
-        List<ValidationIssue> warnings = new ArrayList<>();
+        List<ValidationIssue> issues = new ArrayList<>();
         if (messageFrame.getValue() == null || messageFrame.getValue().getDataFrames() == null) {
-            warnings.add(warning(
+            issues.add(warning(
                 "No data frames available for ITIS pattern validation.",
                 "/value/TravelerInformation/dataFrames"));
-            return warnings;
+            return issues;
         }
 
         int eligibleFrameCount = 0;
         int frameIndex = 0;
         for (TravelerDataFrame dataFrame : messageFrame.getValue().getDataFrames()) {
-            Optional<Map<String, Object>> normalizedContent = normalizeDataFrame(dataFrame, frameIndex, warnings);
+            Optional<Map<String, Object>> normalizedContent = normalizeDataFrame(dataFrame, frameIndex, issues);
             if (normalizedContent.isPresent()) {
                 eligibleFrameCount++;
-                super.validate(normalizedContent.get());
+                try {
+                    validateNormalizedContent(normalizedContent.get(), frameIndex);
+                } catch (ValidationException ex) {
+                    if (ex.getIssues().isEmpty()) {
+                        throw ex;
+                    }
+                    issues.addAll(ex.getIssues());
+                }
             }
             frameIndex++;
         }
 
         if (eligibleFrameCount == 0) {
-            warnings.add(warning(
+            issues.add(warning(
                 "No data frame contained numeric advisory ITIS codes eligible for ITIS pattern validation.",
                 "/value/TravelerInformation/dataFrames"));
         }
 
-        return warnings;
-    }
+        List<ValidationIssue> errors = issues.stream()
+            .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+            .toList();
+        if (!errors.isEmpty()) {
+            String message = String.join(" ", errors.stream()
+                .map(ValidationIssue::message)
+                .toList());
+            throw new ValidationException(message, issues);
+        }
 
-    /**
-     * Formats ITIS schema errors with compact field paths such as /itis.
-     */
-    @Override
-    protected String formatValidationErrors(List<Error> validationErrors) {
-        return validationErrors.stream()
-            .map(error -> error.getInstanceLocation() + ": " + error.getMessage())
-            .reduce((left, right) -> left + "; " + right)
-            .orElse("ITIS content validation failed");
+        return issues;
     }
 
     /**
@@ -135,6 +139,30 @@ public class ItisJsonValidator extends AbstractJsonValidator {
         Map<String, Object> normalizedContent = new LinkedHashMap<>();
         normalizedContent.put("itis", itisCodes);
         return Optional.of(normalizedContent);
+    }
+
+    /**
+     * Collapses the implementation-specific errors produced by the schema's
+     * {@code oneOf} branches into one domain-level issue for the source frame.
+     */
+    private void validateNormalizedContent(Map<String, Object> normalizedContent, int frameIndex)
+            throws ValidationException {
+        try {
+            super.validate(normalizedContent);
+        } catch (ValidationException ex) {
+            if (ex.getIssues().isEmpty()) {
+                throw ex;
+            }
+
+            String message = "ITIS sequence does not match any supported pattern: "
+                + normalizedContent.get("itis") + ".";
+            ValidationIssue issue = new ValidationIssue(
+                ValidationSeverity.ERROR,
+                CHECK_NAME,
+                message,
+                advisoryPath(frameIndex));
+            throw new ValidationException(message, List.of(issue));
+        }
     }
 
     @Override

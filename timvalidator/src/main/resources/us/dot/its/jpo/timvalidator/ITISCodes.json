@@ -1,21 +1,18 @@
-{
-  "$schema": "https://json-schema.org/draft/2019-09/schema",
+﻿{
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://us.dot.its.jpo/timvalidator/ITISCodes.json",
   "title": "TIM ITIS Message Content",
-  "description": "Validates normalized TIM ITIS message content.",
-  "oneOf": [
-    {
-      "title": "closed-to-traffic",
-      "description": "Matches the exact closed-to-traffic phrase token sequence and associated TIM metadata.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "itis"
-      ],
-      "properties": {
-        "itis": {
-          "description": "Matches the exact closed-to-traffic phrase token sequence.",
-          "type": "array",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "itis"
+  ],
+  "properties": {
+    "itis": {
+      "type": "array",
+      "oneOf": [
+        {
+          "title": "closed-to-traffic-local-traffic-only",
           "minItems": 3,
           "maxItems": 3,
           "items": [
@@ -29,82 +26,723 @@
               "$ref": "#/definitions/ONLY"
             }
           ]
-        }
-      }
-    },
-    {
-      "title": "gross-weight-limit",
-      "description": "Matches a gross-weight-limit phrase and associated TIM metadata.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "itis"
-      ],
-      "properties": {
-        "itis": {
-          "description": "Matches a gross-weight-limit phrase: opening token, large-number weight value, and weight unit token.",
-          "type": "array",
+        },
+        {
+          "title": "incident-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/INCIDENT"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "accident-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/ACCIDENT"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "left-lane-blocked-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/LEFT_LANE"
+            },
+            {
+              "$ref": "#/definitions/BLOCKED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "left-lanes-blocked-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/LEFT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/LANE"
+            },
+            {
+              "$ref": "#/definitions/BLOCKED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "right-lane-blocked-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/RIGHT_LANE"
+            },
+            {
+              "$ref": "#/definitions/BLOCKED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "right-lanes-blocked-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/RIGHT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/LANE"
+            },
+            {
+              "$ref": "#/definitions/BLOCKED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "wind-type-may-exceed-number-mph",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/WIND_TYPE"
+            },
+            {
+              "$ref": "#/definitions/MAY_EXCEED"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "strong-winds-high-profile-vehicles-hazardous-driving-conditions",
           "minItems": 3,
           "maxItems": 3,
           "items": [
             {
+              "$ref": "#/definitions/STRONG_WINDS"
+            },
+            {
+              "$ref": "#/definitions/HIGH_PROFILE_VEHICLES"
+            },
+            {
+              "$ref": "#/definitions/HAZARDOUS_DRIVING_CONDITIONS"
+            }
+          ]
+        },
+        {
+          "title": "caution-wind-type",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/CAUTION"
+            },
+            {
+              "$ref": "#/definitions/WIND_TYPE"
+            }
+          ]
+        },
+        {
+          "title": "strong-winds-truck-restrictions-no-high-profile-vehicles-below-gross-weight-limit-number-pounds",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": [
+            {
+              "$ref": "#/definitions/STRONG_WINDS"
+            },
+            {
+              "$ref": "#/definitions/TRUCK_RESTRICTION"
+            },
+            {
+              "$ref": "#/definitions/NO_HIGH_PROFILE_VEHICLES"
+            },
+            {
+              "$ref": "#/definitions/BELOW"
+            },
+            {
               "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
             },
             {
-              "$ref": "#/definitions/LARGE_NUMBER"
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/POUNDS"
+            }
+          ]
+        },
+        {
+          "title": "truck-restriction-gross-weight-limit-number-pounds-or-tons",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/TRUCK_RESTRICTION"
+            },
+            {
+              "$ref": "#/definitions/GROSS_WEIGHT_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
             },
             {
               "$ref": "#/definitions/WEIGHT_UNIT"
             }
           ]
-        }
-      }
-    },
-    {
-      "title": "speed-limit",
-      "description": "Matches a speed-limit phrase and associated TIM metadata.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "itis"
-      ],
-      "properties": {
-        "itis": {
-          "description": "Matches a speed-limit phrase: speed-limit token followed by a variable speed value.",
-          "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
-          "items": [
-            {
-              "$ref": "#/definitions/SPEED_LIMIT_TOKEN"
-            },
-            {
-              "$ref": "#/definitions/SMALL_NUMBER"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "title": "speed-unit-example",
-      "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour and associated TIM metadata.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "itis"
-      ],
-      "properties": {
-        "itis": {
-          "description": "Matches a phrase where the third token may be either miles-per-hour or kilometers-per-hour.",
-          "type": "array",
+        },
+        {
+          "title": "truck-restriction-length-limit-number-feet",
           "minItems": 4,
           "maxItems": 4,
           "items": [
             {
-              "$ref": "#/definitions/SPEED_LIMIT_TOKEN"
+              "$ref": "#/definitions/TRUCK_RESTRICTION"
+            },
+            {
+              "$ref": "#/definitions/LENGTH_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/FEET"
+            }
+          ]
+        },
+        {
+          "title": "wrong-way",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/WRONG_WAY"
+            }
+          ]
+        },
+        {
+          "title": "danger-ahead-vehicle-traveling-wrong-way-confirmed-report",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/DANGER"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            },
+            {
+              "$ref": "#/definitions/VEHICLE_TRAVELING_WRONG_WAY"
+            },
+            {
+              "$ref": "#/definitions/CONFIRMED_REPORT"
+            }
+          ]
+        },
+        {
+          "title": "hurricane-evacuation-route",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/HURRICANE"
+            },
+            {
+              "$ref": "#/definitions/EVACUATION_ROUTE"
+            }
+          ]
+        },
+        {
+          "title": "visibility-reduced",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/VISIBILITY_REDUCED"
+            }
+          ]
+        },
+        {
+          "title": "dense-fog-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/DENSE_FOG"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "be-prepared-to-stop",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/BE_PREPARED_TO_STOP"
+            }
+          ]
+        },
+        {
+          "title": "road-construction-be-prepared-to-stop",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/ROAD_CONSTRUCTION"
+            },
+            {
+              "$ref": "#/definitions/BE_PREPARED_TO_STOP"
+            }
+          ]
+        },
+        {
+          "title": "traffic-congestion-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/TRAFFIC_CONGESTION"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "road-construction-traffic-congestion-ahead",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/ROAD_CONSTRUCTION"
+            },
+            {
+              "$ref": "#/definitions/TRAFFIC_CONGESTION"
+            },
+            {
+              "$ref": "#/definitions/BE_PREPARED_TO_STOP"
+            }
+          ]
+        },
+        {
+          "title": "left-or-right-turn-advice-on-curve-speed-limit-number-mph",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": [
+            {
+              "$ref": "#/definitions/TURN_TYPE"
+            },
+            {
+              "$ref": "#/definitions/ADVICE"
+            },
+            {
+              "$ref": "#/definitions/ON_CURVE"
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "hairpin-left-or-right-advice-on-curve-speed-limit-number-mph",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": [
+            {
+              "$ref": "#/definitions/HAIRPIN_TYPE"
+            },
+            {
+              "$ref": "#/definitions/ADVICE"
+            },
+            {
+              "$ref": "#/definitions/ON_CURVE"
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "winding-road-left-or-right-advice-on-curve-speed-limit-number-mph",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": [
+            {
+              "$ref": "#/definitions/WINDING_ROAD_TYPE"
+            },
+            {
+              "$ref": "#/definitions/ADVICE"
+            },
+            {
+              "$ref": "#/definitions/ON_CURVE"
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "debris-on-roadway",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/DEBRIS_ON_ROADWAY"
+            }
+          ]
+        },
+        {
+          "title": "slippery-wet-pavement",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/SLIPPERY"
+            },
+            {
+              "$ref": "#/definitions/WET_PAVEMENT"
+            }
+          ]
+        },
+        {
+          "title": "surface-water-hazard",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/SURFACE_WATER_HAZARD"
+            }
+          ]
+        },
+        {
+          "title": "ice",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/ICE"
+            }
+          ]
+        },
+        {
+          "title": "severe-weather",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/SEVERE_WEATHER"
+            }
+          ]
+        },
+        {
+          "title": "blowing-snow",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/BLOWING_SNOW"
+            }
+          ]
+        },
+        {
+          "title": "flooding-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/FLOODING"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "flooding-road-closed-ahead",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/FLOODING"
+            },
+            {
+              "$ref": "#/definitions/ROAD"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "emergency-vehicles-on-roadway",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/EMERGENCY_VEHICLES_ON_ROADWAY"
+            }
+          ]
+        },
+        {
+          "title": "emergency-vehicles-at-scene",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/EMERGENCY_VEHICLES_AT_SCENE"
+            }
+          ]
+        },
+        {
+          "title": "road-construction",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/ROAD_CONSTRUCTION"
+            }
+          ]
+        },
+        {
+          "title": "road-construction-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/ROAD_CONSTRUCTION"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "left-lane-closed-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/LEFT_LANE"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "left-lanes-closed-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/LEFT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/LANE"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "right-lane-closed-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/RIGHT_LANE"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "right-lanes-closed-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/RIGHT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/LANE"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "center-lane-closed-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/CENTER_LANE"
+            },
+            {
+              "$ref": "#/definitions/CLOSED_AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "closed-to-traffic",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/CLOSED_TO_TRAFFIC"
+            }
+          ]
+        },
+        {
+          "title": "closed-for-the-season",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/CLOSED_FOR_THE_SEASON"
+            }
+          ]
+        },
+        {
+          "title": "look-out-for-workers",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/LOOK_OUT_FOR_WORKERS"
+            }
+          ]
+        },
+        {
+          "title": "do-not-enter",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/DO_NOT_ENTER"
+            }
+          ]
+        },
+        {
+          "title": "stop",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/STOP"
+            }
+          ]
+        },
+        {
+          "title": "yield",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": [
+            {
+              "$ref": "#/definitions/YIELD"
+            }
+          ]
+        },
+        {
+          "title": "advisory-speed-limit-number-mph-or-kph",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/ADVICE"
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/SPEED_UNIT"
+            }
+          ]
+        },
+        {
+          "title": "speed-limit-number-mph-or-kph",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/SPEED_UNIT"
+            }
+          ]
+        },
+        {
+          "title": "speed-limit-reduced-number-mph-or-kph-ahead",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
             },
             {
               "$ref": "#/definitions/REDUCED"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
             },
             {
               "$ref": "#/definitions/SPEED_UNIT"
@@ -113,77 +751,658 @@
               "$ref": "#/definitions/AHEAD"
             }
           ]
+        },
+        {
+          "title": "speed-limit-trucks-buses-n45-mph",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/TRUCKS"
+            },
+            {
+              "$ref": "#/definitions/BUSES"
+            },
+            {
+              "$ref": "#/definitions/N45"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "school-zone-speed-limit-number-mph-ahead",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": [
+            {
+              "$ref": "#/definitions/SCHOOL_ZONE"
+            },
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/SMALL_NUMBER"
+            },
+            {
+              "$ref": "#/definitions/SPEED_UNIT"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "speed-limit-combined-number-mph-minimum-number-mph",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": [
+            {
+              "$ref": "#/definitions/SPEED_LIMIT"
+            },
+            {
+              "$ref": "#/definitions/COMBINED"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            },
+            {
+              "$ref": "#/definitions/MINIMUM"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MPH"
+            }
+          ]
+        },
+        {
+          "title": "stop-ahead-toll-plaza",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/STOP"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            },
+            {
+              "$ref": "#/definitions/TOLL_PLAZA"
+            }
+          ]
+        },
+        {
+          "title": "exit-for-toll-plaza-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/EXIT"
+            },
+            {
+              "$ref": "#/definitions/FOR"
+            },
+            {
+              "$ref": "#/definitions/TOLL_PLAZA"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "runaway-vehicle-escape-ramp-number-miles-ahead-on-the-right-or-left",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": [
+            {
+              "$ref": "#/definitions/RUNAWAY_VEHICLES"
+            },
+            {
+              "$ref": "#/definitions/ESCAPE_RAMP"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MILES"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            },
+            {
+              "$ref": "#/definitions/ON_SIDE"
+            }
+          ]
+        },
+        {
+          "title": "truck-parking-ahead",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/TRUCKS"
+            },
+            {
+              "$ref": "#/definitions/PARKING"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "gasoline-or-diesel-ahead",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/FUEL"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "test-your-brakes-parking-area-ahead",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/TEST_YOUR_BRAKES"
+            },
+            {
+              "$ref": "#/definitions/PARKING_AREA"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "snow-chains-required-parking-area-ahead",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": [
+            {
+              "$ref": "#/definitions/SNOW_CHAINS_REQUIRED"
+            },
+            {
+              "$ref": "#/definitions/PARKING_AREA"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "snow-tires-or-chains-required-all-vehicles",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": [
+            {
+              "$ref": "#/definitions/SNOW_TIRES_OR_CHAINS_REQUIRED"
+            },
+            {
+              "$ref": "#/definitions/ALL_VEHICLES"
+            }
+          ]
+        },
+        {
+          "title": "weigh-station-number-mile-ahead",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/WEIGH_STATION"
+            },
+            {
+              "$ref": "#/definitions/NUMBER"
+            },
+            {
+              "$ref": "#/definitions/MILE"
+            },
+            {
+              "$ref": "#/definitions/AHEAD"
+            }
+          ]
+        },
+        {
+          "title": "weigh-station-open-next-right",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": [
+            {
+              "$ref": "#/definitions/WEIGH_STATION"
+            },
+            {
+              "$ref": "#/definitions/OPEN"
+            },
+            {
+              "$ref": "#/definitions/NEXT"
+            },
+            {
+              "$ref": "#/definitions/RIGHT"
+            }
+          ]
         }
-      }
+      ]
     }
-  ],
+  },
   "definitions": {
-    "SPEED_LIMIT_TOKEN": {
+    "TRAFFIC_CONGESTION": {
       "type": "integer",
-      "const": 268,
-      "description": "J2540/2 ITIS code: speed-limit"
+      "const": 263
+    },
+    "SPEED_LIMIT": {
+      "type": "integer",
+      "const": 268
+    },
+    "ACCIDENT": {
+      "type": "integer",
+      "const": 513
+    },
+    "INCIDENT": {
+      "type": "integer",
+      "const": 531
     },
     "CLOSED_TO_TRAFFIC": {
       "type": "integer",
-      "const": 769,
-      "description": "J2540/2 ITIS code: closed-to-traffic"
+      "const": 769
+    },
+    "CLOSED_AHEAD": {
+      "type": "integer",
+      "const": 771
+    },
+    "CLOSED_FOR_THE_SEASON": {
+      "type": "integer",
+      "const": 774
+    },
+    "BLOCKED_AHEAD": {
+      "type": "integer",
+      "const": 776
+    },
+    "OPEN": {
+      "type": "integer",
+      "const": 892
+    },
+    "ROAD_CONSTRUCTION": {
+      "type": "integer",
+      "const": 1025
+    },
+    "DEBRIS_ON_ROADWAY": {
+      "type": "integer",
+      "const": 1284
+    },
+    "FLOODING": {
+      "type": "integer",
+      "const": 1301
+    },
+    "VEHICLE_TRAVELING_WRONG_WAY": {
+      "type": "integer",
+      "const": 1793
+    },
+    "EMERGENCY_VEHICLES_ON_ROADWAY": {
+      "type": "integer",
+      "const": 1796
+    },
+    "TRUCK_RESTRICTION": {
+      "type": "integer",
+      "const": 2563
+    },
+    "NO_HIGH_PROFILE_VEHICLES": {
+      "type": "integer",
+      "const": 2569
+    },
+    "LENGTH_LIMIT": {
+      "type": "integer",
+      "const": 2575
     },
     "GROSS_WEIGHT_LIMIT": {
       "type": "integer",
-      "const": 2577,
-      "description": "J2540/2 ITIS code: gross-weight-limit"
+      "const": 2577
+    },
+    "CONFIRMED_REPORT": {
+      "type": "integer",
+      "const": 2822
+    },
+    "PARKING": {
+      "type": "integer",
+      "const": 4120
+    },
+    "SCHOOL_ZONE": {
+      "type": "integer",
+      "const": 4124
+    },
+    "SEVERE_WEATHER": {
+      "type": "integer",
+      "const": 4865
+    },
+    "HURRICANE": {
+      "type": "integer",
+      "const": 5122
+    },
+    "HURRICANE_FORCE_WINDS": {
+      "type": "integer",
+      "const": 5123
+    },
+    "TROPICAL_STORM": {
+      "type": "integer",
+      "const": 5124
+    },
+    "STORM_FORCE_WINDS": {
+      "type": "integer",
+      "const": 5126
+    },
+    "STRONG_WINDS": {
+      "type": "integer",
+      "const": 5127
+    },
+    "GUSTY_WINDS": {
+      "type": "integer",
+      "const": 5131
+    },
+    "DENSE_FOG": {
+      "type": "integer",
+      "const": 5377
+    },
+    "VISIBILITY_REDUCED": {
+      "type": "integer",
+      "const": 5383
+    },
+    "BLOWING_SNOW": {
+      "type": "integer",
+      "const": 5385
+    },
+    "SURFACE_WATER_HAZARD": {
+      "type": "integer",
+      "const": 5893
+    },
+    "WET_PAVEMENT": {
+      "type": "integer",
+      "const": 5895
+    },
+    "SLIPPERY": {
+      "type": "integer",
+      "const": 5897
+    },
+    "ICE": {
+      "type": "integer",
+      "const": 5906
+    },
+    "SNOW_CHAINS_REQUIRED": {
+      "type": "integer",
+      "const": 6148
+    },
+    "SNOW_TIRES_OR_CHAINS_REQUIRED": {
+      "type": "integer",
+      "const": 6156
+    },
+    "HAZARDOUS_DRIVING_CONDITIONS": {
+      "type": "integer",
+      "const": 6405
+    },
+    "DANGER": {
+      "type": "integer",
+      "const": 6917
+    },
+    "EMERGENCY_VEHICLES_AT_SCENE": {
+      "type": "integer",
+      "const": 6925
+    },
+    "LOOK_OUT_FOR_WORKERS": {
+      "type": "integer",
+      "const": 6952
+    },
+    "TEST_YOUR_BRAKES": {
+      "type": "integer",
+      "const": 7174
+    },
+    "BE_PREPARED_TO_STOP": {
+      "type": "integer",
+      "const": 7201
+    },
+    "BELOW": {
+      "type": "integer",
+      "const": 7682
+    },
+    "ADVICE": {
+      "type": "integer",
+      "const": 7712
+    },
+    "FOR": {
+      "type": "integer",
+      "const": 7721
     },
     "ONLY": {
       "type": "integer",
-      "const": 7747,
-      "description": "J2540/2 ITIS code: only"
+      "const": 7747
+    },
+    "MAY_EXCEED": {
+      "type": "integer",
+      "const": 7759
+    },
+    "ON_THE_RIGHT": {
+      "type": "integer",
+      "const": 7989
+    },
+    "ON_THE_LEFT": {
+      "type": "integer",
+      "const": 7990
+    },
+    "ON_CURVE": {
+      "type": "integer",
+      "const": 8026
+    },
+    "TOLL_PLAZA": {
+      "type": "integer",
+      "const": 8217
+    },
+    "ESCAPE_RAMP": {
+      "type": "integer",
+      "const": 8234
+    },
+    "EVACUATION_ROUTE": {
+      "type": "integer",
+      "const": 8468
+    },
+    "FEET": {
+      "type": "integer",
+      "const": 8710
+    },
+    "MILE": {
+      "type": "integer",
+      "const": 8711
+    },
+    "MILES": {
+      "type": "integer",
+      "const": 8712
     },
     "MPH": {
       "type": "integer",
-      "const": 8720,
-      "description": "J2540/2 ITIS code: mPH"
+      "const": 8720
     },
     "KPH": {
       "type": "integer",
-      "const": 8721,
-      "description": "J2540/2 ITIS code: kPH"
+      "const": 8721
     },
     "POUNDS": {
       "type": "integer",
-      "const": 8739,
-      "description": "J2540/2 ITIS code: pounds"
+      "const": 8739
     },
     "TONS": {
       "type": "integer",
-      "const": 8740,
-      "description": "J2540/2 ITIS code: tons"
+      "const": 8740
+    },
+    "ALL_VEHICLES": {
+      "type": "integer",
+      "const": 9217
+    },
+    "TRUCKS": {
+      "type": "integer",
+      "const": 9227
+    },
+    "BUSES": {
+      "type": "integer",
+      "const": 9228
+    },
+    "HIGH_PROFILE_VEHICLES": {
+      "type": "integer",
+      "const": 9233
+    },
+    "RUNAWAY_VEHICLES": {
+      "type": "integer",
+      "const": 9256
     },
     "LOCAL_TRAFFIC": {
       "type": "integer",
-      "const": 9478,
-      "description": "J2540/2 ITIS code: local-traffic"
+      "const": 9478
+    },
+    "DIESEL": {
+      "type": "integer",
+      "const": 11015
+    },
+    "GASOLINE": {
+      "type": "integer",
+      "const": 11016
+    },
+    "PARKING_AREA": {
+      "type": "integer",
+      "const": 11791
+    },
+    "WEIGH_STATION": {
+      "type": "integer",
+      "const": 11792
+    },
+    "ROAD": {
+      "type": "integer",
+      "const": 11793
+    },
+    "EXIT": {
+      "type": "integer",
+      "const": 11794
+    },
+    "STOP": {
+      "type": "integer",
+      "const": 12294
+    },
+    "YIELD": {
+      "type": "integer",
+      "const": 12295
     },
     "REDUCED": {
       "type": "integer",
-      "const": 12302,
-      "description": "J2540/2 ITIS code: reduced"
+      "const": 12302
+    },
+    "COMBINED": {
+      "type": "integer",
+      "const": 12303
+    },
+    "MINIMUM": {
+      "type": "integer",
+      "const": 12304
+    },
+    "WRONG_WAY": {
+      "type": "integer",
+      "const": 12310
+    },
+    "DO_NOT_ENTER": {
+      "type": "integer",
+      "const": 12314
+    },
+    "CAUTION": {
+      "type": "integer",
+      "const": 12330
+    },
+    "N45": {
+      "type": "integer",
+      "const": 12589
+    },
+    "RIGHT": {
+      "type": "integer",
+      "const": 13579
+    },
+    "LEFT": {
+      "type": "integer",
+      "const": 13580
+    },
+    "NEXT": {
+      "type": "integer",
+      "const": 13582
+    },
+    "LANE": {
+      "type": "integer",
+      "const": 13588
+    },
+    "LEFT_TURN": {
+      "type": "integer",
+      "const": 13594
+    },
+    "RIGHT_TURN": {
+      "type": "integer",
+      "const": 13599
+    },
+    "HAIRPIN_RIGHT": {
+      "type": "integer",
+      "const": 13617
+    },
+    "HAIRPIN_LEFT": {
+      "type": "integer",
+      "const": 13618
+    },
+    "WINDING_ROAD_TO_RIGHT": {
+      "type": "integer",
+      "const": 13640
+    },
+    "WINDING_ROAD_TO_LEFT": {
+      "type": "integer",
+      "const": 13641
     },
     "AHEAD": {
       "type": "integer",
-      "const": 13569,
-      "description": "J2540/2 ITIS code: ahead"
+      "const": 13569
+    },
+    "LEFT_LANE": {
+      "type": "integer",
+      "const": 8195
+    },
+    "RIGHT_LANE": {
+      "type": "integer",
+      "const": 8196
+    },
+    "CENTER_LANE": {
+      "type": "integer",
+      "const": 8197
     },
     "SMALL_NUMBER": {
       "type": "integer",
       "minimum": 12545,
-      "maximum": 12799,
-      "description": "J2540/2 small-number ITIS code: N1 through N255"
+      "maximum": 12799
     },
     "LARGE_NUMBER": {
       "type": "integer",
       "minimum": 11531,
-      "maximum": 11613,
-      "description": "J2540/2 large-number ITIS code: N300 through N100000"
+      "maximum": 11613
+    },
+    "NUMBER": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/SMALL_NUMBER"
+        },
+        {
+          "$ref": "#/definitions/LARGE_NUMBER"
+        }
+      ]
     },
     "SPEED_UNIT": {
       "oneOf": [
@@ -193,8 +1412,7 @@
         {
           "$ref": "#/definitions/KPH"
         }
-      ],
-      "description": "Speed unit: miles per hour or kilometers per hour."
+      ]
     },
     "WEIGHT_UNIT": {
       "oneOf": [
@@ -204,8 +1422,76 @@
         {
           "$ref": "#/definitions/TONS"
         }
-      ],
-      "description": "Weight unit"
+      ]
+    },
+    "WIND_TYPE": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HURRICANE_FORCE_WINDS"
+        },
+        {
+          "$ref": "#/definitions/TROPICAL_STORM"
+        },
+        {
+          "$ref": "#/definitions/STORM_FORCE_WINDS"
+        },
+        {
+          "$ref": "#/definitions/STRONG_WINDS"
+        },
+        {
+          "$ref": "#/definitions/GUSTY_WINDS"
+        }
+      ]
+    },
+    "TURN_TYPE": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/LEFT_TURN"
+        },
+        {
+          "$ref": "#/definitions/RIGHT_TURN"
+        }
+      ]
+    },
+    "HAIRPIN_TYPE": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/HAIRPIN_LEFT"
+        },
+        {
+          "$ref": "#/definitions/HAIRPIN_RIGHT"
+        }
+      ]
+    },
+    "WINDING_ROAD_TYPE": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/WINDING_ROAD_TO_LEFT"
+        },
+        {
+          "$ref": "#/definitions/WINDING_ROAD_TO_RIGHT"
+        }
+      ]
+    },
+    "ON_SIDE": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/ON_THE_RIGHT"
+        },
+        {
+          "$ref": "#/definitions/ON_THE_LEFT"
+        }
+      ]
+    },
+    "FUEL": {
+      "oneOf": [
+        {
+          "$ref": "#/definitions/GASOLINE"
+        },
+        {
+          "$ref": "#/definitions/DIESEL"
+        }
+      ]
     }
   }
 }
