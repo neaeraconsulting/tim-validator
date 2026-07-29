@@ -68,6 +68,50 @@ JER requests send the TIM MessageFrame JSON body. UPER requests send the UPER-en
 
 See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details and example response payloads.
 
+### Road-Heading Validation
+
+When a TIM region has a directional heading slice, the API queries nearby OpenStreetMap
+road ways through Overpass. It retains a distance-filtered set of plausible roadways at
+the region anchor and checks whether each heading range is tangent to any candidate,
+treating opposite bearings as the same road axis. Missing headings, `0000` (no heading),
+and `ffff` (all headings) do not trigger a lookup.
+
+Heading mismatches, missing road matches, and lookup failures are returned as
+non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
+identifies the region heading that was evaluated.
+
+The defaults in `timvalidator-api/src/main/resources/application.properties` use the public
+Overpass endpoint and work for local development. Configure an internally hosted or
+contracted Overpass endpoint for production-scale traffic:
+
+```properties
+timvalidator.road-geometry.enabled=true
+timvalidator.road-geometry.overpass-url=https://overpass-api.de/api/interpreter
+timvalidator.road-geometry.query-timeout=5s
+timvalidator.road-geometry.http-timeout=20s
+timvalidator.road-geometry.search-radius-meters=30
+timvalidator.road-geometry.candidate-distance-tolerance-meters=8
+timvalidator.road-geometry.user-agent=timvalidator-api/1.0
+```
+
+`query-timeout` is sent to Overpass as the query execution budget. `http-timeout`
+is the Java client's end-to-end deadline, including time spent waiting in the
+Overpass queue. The legacy `timvalidator.road-geometry.timeout` property remains
+as a fallback for both values when either new property is not configured.
+
+At intersections, each heading center may match any roadway whose distance from
+the TIM start is no more than `candidate-distance-tolerance-meters` beyond the
+closest mapped road. This retains plausible crossing roads while excluding
+unrelated roads elsewhere in the broader search radius.
+
+Each contiguous active heading range, including an even-width or north-wrapping
+range, is evaluated from its circular angular midpoint. A roadway axis is tangent
+when it is within plus or minus 22.5 degrees of that midpoint.
+
+Tests inject an in-memory `RoadGeometryProvider`; they never call the live Overpass service.
+Library consumers can opt into this check by constructing `TimValidationService` or
+`BestPracticesValidator` with a `RoadGeometryProvider`.
+
 ## Differences: J2735 Schema Vs ITWG Schema
 
 The validator runs both the generated J2735 schema and the stricter ITWG profile schema. The ITWG schema is a best-practice overlay on the generated J2735 TIM MessageFrame schema.

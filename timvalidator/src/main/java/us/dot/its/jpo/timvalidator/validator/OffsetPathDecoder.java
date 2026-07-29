@@ -39,6 +39,7 @@ import us.dot.its.jpo.asn.runtime.types.Asn1Integer;
 final class OffsetPathDecoder {
 
     private static final double DEGREES_PER_J2735_UNIT = 1e-7;
+    private static final double CENTIMETERS_PER_METER = 100.0;
     private static final CRSFactory CRS_FACTORY = new CRSFactory();
     private static final CoordinateTransformFactory TRANSFORM_FACTORY = new CoordinateTransformFactory();
     private static final CoordinateReferenceSystem WGS84 = CRS_FACTORY.createFromParameters(
@@ -88,6 +89,60 @@ final class OffsetPathDecoder {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Projects WGS-84 points into an origin-centered local coordinate system in meters.
+     *
+     * <p>The path decoder and roadway-heading validator share this projection so their
+     * planar distance and angle calculations use the same WGS-84 behavior.</p>
+     */
+    static Optional<List<Coordinate>> displacementsMeters(
+            Coordinate origin,
+            Coordinate[] points) {
+        if (origin == null || points == null) {
+            return Optional.empty();
+        }
+
+        Optional<ProjCoordinate> geographicOrigin =
+                geographicCoordinate(origin.getX(), origin.getY());
+        if (geographicOrigin.isEmpty()) {
+            return Optional.empty();
+        }
+
+        CoordinateTransform transform = localTransform(geographicOrigin.orElseThrow());
+        Optional<Coordinate> projectedOrigin =
+                project(transform, geographicOrigin.orElseThrow());
+        if (projectedOrigin.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Coordinate center = projectedOrigin.orElseThrow();
+        List<Coordinate> displacements = new ArrayList<>(points.length);
+        for (Coordinate point : points) {
+            if (point == null) {
+                return Optional.empty();
+            }
+
+            Optional<ProjCoordinate> geographicPoint =
+                    geographicCoordinate(point.getX(), point.getY());
+            if (geographicPoint.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Optional<Coordinate> projected =
+                    project(transform, geographicPoint.orElseThrow());
+            if (projected.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Coordinate localPoint = projected.orElseThrow();
+            displacements.add(new CoordinateXY(
+                    (localPoint.getX() - center.getX()) / CENTIMETERS_PER_METER,
+                    (localPoint.getY() - center.getY()) / CENTIMETERS_PER_METER));
+        }
+
+        return Optional.of(List.copyOf(displacements));
     }
 
     private static Optional<DecodedPath> decodeXy(

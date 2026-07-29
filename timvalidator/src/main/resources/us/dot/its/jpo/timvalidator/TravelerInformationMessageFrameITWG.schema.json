@@ -4432,7 +4432,6 @@
                                                         }
                                                     },
                                                     "required": [
-                                                        "anchor",
                                                         "description"
                                                     ],
                                                     "additionalProperties": false

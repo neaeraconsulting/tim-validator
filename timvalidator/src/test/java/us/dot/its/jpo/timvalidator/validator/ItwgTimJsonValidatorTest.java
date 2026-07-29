@@ -140,6 +140,63 @@ class ItwgTimJsonValidatorTest {
     }
 
     @Test
+    void validateJson_circleRegionWithoutAnchor_passesValidation() {
+        ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
+        String circleWithoutAnchor = validItwgTimJson().replace(
+            """
+                          "anchor": {
+                            "lat": 0,
+                            "long": 0,
+                            "elevation": 0
+                          },
+            """,
+            ""
+        );
+
+        assertDoesNotThrow(() -> itwgValidator.validateJson(circleWithoutAnchor));
+    }
+
+    @Test
+    void validateJson_circleRegionWithClosedPath_throwsValidationException() {
+        ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
+        String invalidJson = validItwgTimJson().replace(
+            """
+                          "description": {
+            """,
+            """
+                          "closedPath": false,
+                          "description": {
+            """
+        );
+
+        ValidationException ex = assertThrows(ValidationException.class,
+            () -> itwgValidator.validateJson(invalidJson));
+
+        assertTrue(ex.getIssues().stream().anyMatch(issue -> issue.message().contains("closedPath")));
+    }
+
+    @Test
+    void validateJson_circleGeometryWithExtent_throwsValidationException() {
+        ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
+        String invalidJson = validItwgTimJson().replace(
+            """
+                              "direction": "0000",
+                              "circle": {
+            """,
+            """
+                              "direction": "0000",
+                              "extent": "useFor100meters",
+                              "circle": {
+            """
+        );
+
+        ValidationException ex = assertThrows(ValidationException.class,
+            () -> itwgValidator.validateJson(invalidJson));
+
+        assertTrue(ex.getIssues().stream().anyMatch(issue -> issue.message().contains("extent")));
+    }
+
+    @Test
     void validateJson_circleRegionWithPathFields_throwsValidationException() {
         ItwgTimJsonValidator itwgValidator = new ItwgTimJsonValidator();
         String invalidJson = validItwgTimJson().replace(

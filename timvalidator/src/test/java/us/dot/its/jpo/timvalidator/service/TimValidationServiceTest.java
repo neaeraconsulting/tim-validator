@@ -4,7 +4,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.locationtech.jts.geom.Coordinate;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,6 +19,8 @@ import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
@@ -171,6 +176,77 @@ public class TimValidationServiceTest {
         
         assertNotNull(issues, "Issues list should not be null");
         assertFalse(issues.isEmpty(), "Should report issues for null message");
+    }
+
+    @Test
+    public void validateTimJer_headingMismatchReturnsStructuredBestPracticesWarning() throws Exception {
+        TimValidationService roadBackedService = new TimValidationService(
+            (location, radius) -> java.util.List.of(new RoadSegment(
+                202L,
+                "Broadway",
+                java.util.List.of(
+                    new Coordinate(-0.001, 0.0),
+                    new Coordinate(0.001, 0.0)))),
+            30.0);
+
+        ValidationResult result = roadBackedService.validateTimJer("""
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "description": {
+                            "geometry": {
+                              "direction": "8000",
+                              "circle": {
+                                "center": {"lat": 0, "long": 0, "elevation": 0},
+                                "radius": 1,
+                                "units": "meter"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """);
+
+        assertTrue(result.isValid(), result.getSummary());
+        assertFalse(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && issue.path().equals(
+                    "/value/TravelerInformation/dataFrames/0/regions/0/description/geometry/direction")
+                && issue.message().contains("not tangent")));
+        assertEquals(0, result.getErrors().size());
     }
 
     @Test

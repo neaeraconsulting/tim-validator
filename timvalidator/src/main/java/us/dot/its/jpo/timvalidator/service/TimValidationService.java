@@ -8,6 +8,7 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItisJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
@@ -34,12 +35,46 @@ public class TimValidationService {
     private final BestPracticesValidator bestPracticesValidator;
 
     public TimValidationService() {
+        this(new BestPracticesValidator());
+    }
+
+    /**
+     * Creates a validation service with roadway-backed heading-slice validation enabled.
+     *
+     * @param roadGeometryProvider provider used to retrieve nearby road geometry
+     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
+     */
+    public TimValidationService(
+            RoadGeometryProvider roadGeometryProvider,
+            double roadSearchRadiusMeters) {
+        this(new BestPracticesValidator(roadGeometryProvider, roadSearchRadiusMeters));
+    }
+
+    /**
+     * Creates a validation service with intersection-aware roadway heading validation.
+     *
+     * @param roadGeometryProvider provider used to retrieve nearby road geometry
+     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
+     * @param candidateDistanceToleranceMeters maximum additional distance from the
+     *        closest road for another road to remain an intersection candidate
+     */
+    public TimValidationService(
+            RoadGeometryProvider roadGeometryProvider,
+            double roadSearchRadiusMeters,
+            double candidateDistanceToleranceMeters) {
+        this(new BestPracticesValidator(
+                roadGeometryProvider,
+                roadSearchRadiusMeters,
+                candidateDistanceToleranceMeters));
+    }
+
+    private TimValidationService(BestPracticesValidator bestPracticesValidator) {
         this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
         this.jerToMessageFrameConverter = new JerToMessageFrameConverter();
         this.j2735SchemaValidator = new TimJsonValidator();
         this.itwgSchemaValidator = new ItwgTimJsonValidator();
         this.itisContentValidator = new ItisJsonValidator();
-        this.bestPracticesValidator = new BestPracticesValidator();
+        this.bestPracticesValidator = bestPracticesValidator;
     }
 
     /**
@@ -124,12 +159,17 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<String> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
+        List<ValidationIssue> bestPracticesIssues =
+                bestPracticesValidator.validateAndCollectIssues(timMessage);
+        result.addIssues(bestPracticesIssues);
         if (bestPracticesIssues.isEmpty()) {
             result.addValidationCheck("Best Practices", true, "All best practices checks passed");
         } else {
-            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesIssues));
-            bestPracticesIssues.forEach(issue -> result.addError("Best Practices", issue, null));
+            String details = bestPracticesIssues.stream()
+                    .map(ValidationIssue::message)
+                    .reduce((first, second) -> first + "; " + second)
+                    .orElse("");
+            result.addValidationCheck("Best Practices", false, details);
         }
 
         return result;
