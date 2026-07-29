@@ -28,7 +28,6 @@ import us.dot.its.jpo.timvalidator.road.RoadSegment;
 final class HeadingSliceGeometryValidator {
 
     private static final String CHECK_NAME = "Best Practices";
-    private static final double COORDINATE_UNITS_PER_DEGREE = 10_000_000.0;
     private static final double SLICE_WIDTH_DEGREES = 22.5;
     // Change this value to tune the allowed +/- difference from each range midpoint.
     private static final double ROADWAY_TANGENCY_TOLERANCE_DEGREES = 22.5;
@@ -63,15 +62,17 @@ final class HeadingSliceGeometryValidator {
         }
 
         String issuePath = regionPath(dataFrameIndex, regionIndex) + selection.pathSuffix();
-        Coordinate lookupPoint = lookupPoint(selection.position());
-        if (lookupPoint == null) {
+        Optional<Coordinate> lookupPoint =
+                OffsetPathDecoder.wgs84Coordinate(selection.position());
+        if (lookupPoint.isEmpty()) {
             // Schema validation reports missing or invalid region coordinates.
             return List.of();
         }
+        Coordinate location = lookupPoint.orElseThrow();
 
         List<RoadSegment> roads;
         try {
-            roads = roadGeometryProvider.findNearbyRoads(lookupPoint, ROAD_SEARCH_RADIUS_METERS);
+            roads = roadGeometryProvider.findNearbyRoads(location, ROAD_SEARCH_RADIUS_METERS);
         } catch (RuntimeException ex) {
             return List.of(warning(
                     String.format(
@@ -87,7 +88,7 @@ final class HeadingSliceGeometryValidator {
             roads = List.of();
         }
         List<RoadMatch> matches = roads.stream()
-                .map(road -> closestMatch(lookupPoint, road))
+                .map(road -> closestMatch(location, road))
                 .filter(match -> match != null
                         && match.distanceMeters() <= ROAD_SEARCH_RADIUS_METERS)
                 .sorted(Comparator.comparingDouble(RoadMatch::distanceMeters))
@@ -193,23 +194,6 @@ final class HeadingSliceGeometryValidator {
             }
         }
         return List.copyOf(ranges);
-    }
-
-    private Coordinate lookupPoint(Position3D position) {
-        if (position == null || position.getLat() == null || position.getLong_() == null) {
-            return null;
-        }
-
-        Coordinate point = new Coordinate(
-                position.getLong_().getValue() / COORDINATE_UNITS_PER_DEGREE,
-                position.getLat().getValue() / COORDINATE_UNITS_PER_DEGREE);
-        return point.isValid()
-                        && point.getY() >= -90.0
-                        && point.getY() <= 90.0
-                        && point.getX() >= -180.0
-                        && point.getX() <= 180.0
-                ? point
-                : null;
     }
 
     private RoadMatch closestMatch(Coordinate start, RoadSegment road) {

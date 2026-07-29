@@ -145,6 +145,15 @@ final class OffsetPathDecoder {
         return Optional.of(List.copyOf(displacements));
     }
 
+    /**
+     * Converts a J2735 position into a validated WGS-84 JTS coordinate in decimal degrees.
+     * The coordinate's x value is longitude and its y value is latitude.
+     */
+    static Optional<Coordinate> wgs84Coordinate(Position3D position) {
+        return geographicCoordinate(position)
+                .map(coordinate -> new CoordinateXY(coordinate.x, coordinate.y));
+    }
+
     private static Optional<DecodedPath> decodeXy(
             NodeSetXY nodes,
             Optional<ProjCoordinate> anchor,
