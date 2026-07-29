@@ -72,9 +72,10 @@ See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint detail
 
 When a TIM region has a directional heading slice, the API queries nearby OpenStreetMap
 road ways through Overpass. It retains a distance-filtered set of plausible roadways at
-the region anchor and checks whether each heading range is tangent to any candidate,
-treating opposite bearings as the same road axis. Missing headings, `0000` (no heading),
-and `ffff` (all headings) do not trigger a lookup.
+the region anchor, or the circle center for a circle region, and checks whether each
+heading range is tangent to any candidate, treating opposite bearings as the same road
+axis. Missing headings, `0000` (no heading), and `ffff` (all headings) do not trigger a
+lookup.
 
 Heading mismatches, missing road matches, and lookup failures are returned as
 non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
@@ -86,8 +87,12 @@ The library searches within 30 meters using the public
 a 20-second HTTP deadline, and the `timvalidator/1.0` user agent. These values are
 fixed in the library rather than exposed as Spring application properties.
 
+The Overpass query includes ordinary motor-vehicle road classes but excludes tracks,
+construction ways, area features, ways explicitly tagged as inaccessible or private,
+and service driveways and parking aisles. Ordinary service roads remain eligible.
+
 At intersections, each heading center may match any roadway whose distance from
-the TIM start is no more than 8 meters beyond the closest mapped road. This retains
+the TIM region location is no more than 8 meters beyond the closest mapped road. This retains
 plausible crossing roads while excluding unrelated roads elsewhere in the broader
 search radius.
 
@@ -228,6 +233,6 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 |---|---|---|---|
 | 0 | open path, `closedPath: false` | `anchor`, `laneWidth`, `directionality`, `closedPath`, `description` | `path` |
 | 1 | polygon, `closedPath: true` | `anchor`, `closedPath`, `description` | `path` |
-| 2 | circle geometry | `anchor`, `description` | `geometry` |
+| 2 | circle geometry | `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.

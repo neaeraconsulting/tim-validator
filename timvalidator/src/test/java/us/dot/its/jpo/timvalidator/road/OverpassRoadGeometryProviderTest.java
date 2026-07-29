@@ -1,6 +1,7 @@
 package us.dot.its.jpo.timvalidator.road;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -62,6 +63,14 @@ class OverpassRoadGeometryProviderTest {
         assertTrue(capturedQuery.get().contains("way(around:30.00,40.0000000,-105.0000000)"));
         assertTrue(capturedQuery.get().contains("[timeout:3]"));
         assertTrue(capturedQuery.get().contains("[\"highway\"~"));
+        assertFalse(capturedQuery.get().contains("|track"));
+        assertFalse(capturedQuery.get().contains("|construction"));
+        assertTrue(capturedQuery.get().contains("[\"access\"!~\"^(no|private)$\"]"));
+        assertTrue(capturedQuery.get().contains("[\"vehicle\"!~\"^(no|private)$\"]"));
+        assertTrue(capturedQuery.get().contains("[\"motor_vehicle\"!~\"^(no|private)$\"]"));
+        assertTrue(capturedQuery.get().contains("[\"area\"!~\"^yes$\"]"));
+        assertTrue(capturedQuery.get().contains(
+                "[\"service\"!~\"^(driveway|parking_aisle)$\"]"));
         assertTrue(capturedQuery.get().contains("out tags geom"));
         assertEquals(Duration.ofSeconds(7), capturedTimeout.get());
         assertEquals("test-validator/1.0", capturedUserAgent.get());
@@ -87,6 +96,64 @@ class OverpassRoadGeometryProviderTest {
                 provider.findNearbyRoads(new Coordinate(-105.0, 40.0), 30.0);
 
         assertEquals("US 36", roads.getFirst().name());
+    }
+
+    @Test
+    void findNearbyRoads_skipsMalformedNumbersAndRetainsNumericZeroCoordinates() {
+        OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
+                {
+                  "elements": [
+                    {
+                      "type":"way",
+                      "id":100,
+                      "geometry":[
+                        {"lat":0,"lon":0},
+                        {"lat":0.001,"lon":0}
+                      ]
+                    },
+                    {
+                      "type":"way",
+                      "id":"101",
+                      "geometry":[
+                        {"lat":0,"lon":0},
+                        {"lat":0.001,"lon":0}
+                      ]
+                    },
+                    {
+                      "type":"way",
+                      "id":102,
+                      "geometry":[
+                        {"lat":"unknown","lon":0},
+                        {"lat":0.001,"lon":0}
+                      ]
+                    },
+                    {
+                      "type":"way",
+                      "id":103,
+                      "geometry":[
+                        {"lat":null,"lon":0},
+                        {"lat":0.001,"lon":0}
+                      ]
+                    },
+                    {
+                      "type":"way",
+                      "id":0,
+                      "geometry":[
+                        {"lat":0,"lon":0},
+                        {"lat":0.001,"lon":0}
+                      ]
+                    }
+                  ]
+                }
+                """);
+
+        List<RoadSegment> roads =
+                provider.findNearbyRoads(new Coordinate(0.0, 0.0), 30.0);
+
+        assertEquals(1, roads.size());
+        assertEquals(100L, roads.getFirst().sourceId());
+        assertEquals(0.0, roads.getFirst().geometry().getCoordinateN(0).getX());
+        assertEquals(0.0, roads.getFirst().geometry().getCoordinateN(0).getY());
     }
 
     @Test

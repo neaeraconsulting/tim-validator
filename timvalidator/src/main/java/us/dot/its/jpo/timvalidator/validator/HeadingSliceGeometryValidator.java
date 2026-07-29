@@ -24,7 +24,7 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 
-/** Checks that each directional heading range is tangent to the physical roadway at the TIM start. */
+/** Checks that each directional heading range is tangent to the physical roadway at the TIM region. */
 final class HeadingSliceGeometryValidator {
 
     private static final String CHECK_NAME = "Best Practices";
@@ -63,15 +63,15 @@ final class HeadingSliceGeometryValidator {
         }
 
         String issuePath = regionPath(dataFrameIndex, regionIndex) + selection.pathSuffix();
-        Coordinate start = startPoint(region);
-        if (start == null) {
-            // Schema validation reports missing or invalid anchor coordinates.
+        Coordinate lookupPoint = lookupPoint(selection.position());
+        if (lookupPoint == null) {
+            // Schema validation reports missing or invalid region coordinates.
             return List.of();
         }
 
         List<RoadSegment> roads;
         try {
-            roads = roadGeometryProvider.findNearbyRoads(start, ROAD_SEARCH_RADIUS_METERS);
+            roads = roadGeometryProvider.findNearbyRoads(lookupPoint, ROAD_SEARCH_RADIUS_METERS);
         } catch (RuntimeException ex) {
             return List.of(warning(
                     String.format(
@@ -87,7 +87,7 @@ final class HeadingSliceGeometryValidator {
             roads = List.of();
         }
         List<RoadMatch> matches = roads.stream()
-                .map(road -> closestMatch(start, road))
+                .map(road -> closestMatch(lookupPoint, road))
                 .filter(match -> match != null
                         && match.distanceMeters() <= ROAD_SEARCH_RADIUS_METERS)
                 .sorted(Comparator.comparingDouble(RoadMatch::distanceMeters))
@@ -96,7 +96,7 @@ final class HeadingSliceGeometryValidator {
             return List.of(warning(
                     String.format(
                             Locale.ROOT,
-                            "Data frame %d region %d has no mapped roadway within %.1f m of the TIM start",
+                            "Data frame %d region %d has no mapped roadway within %.1f m of the TIM region location",
                             dataFrameIndex,
                             regionIndex,
                             ROAD_SEARCH_RADIUS_METERS),
@@ -119,7 +119,7 @@ final class HeadingSliceGeometryValidator {
                 String.format(
                         Locale.ROOT,
                         "Data frame %d region %d heading range center(s) %s are not tangent to any mapped "
-                                + "roadway candidate at the TIM start; candidates: %s",
+                                + "roadway candidate at the TIM region location; candidates: %s",
                         dataFrameIndex,
                         regionIndex,
                         formatRanges(mismatches),
@@ -132,7 +132,10 @@ final class HeadingSliceGeometryValidator {
             return null;
         }
         if (region.getDirection() != null) {
-            return new HeadingSelection(region.getDirection(), "/direction");
+            return new HeadingSelection(
+                    region.getDirection(),
+                    "/direction",
+                    region.getAnchor());
         }
         if (region.getDescription() == null) {
             return null;
@@ -141,7 +144,13 @@ final class HeadingSliceGeometryValidator {
         if (geometry == null || geometry.getDirection() == null) {
             return null;
         }
-        return new HeadingSelection(geometry.getDirection(), "/description/geometry/direction");
+        Position3D position = geometry.getCircle() == null
+                ? region.getAnchor()
+                : geometry.getCircle().getCenter();
+        return new HeadingSelection(
+                geometry.getDirection(),
+                "/description/geometry/direction",
+                position);
     }
 
     private List<HeadingRange> directionalRanges(HeadingSlice heading) {
@@ -186,21 +195,20 @@ final class HeadingSliceGeometryValidator {
         return List.copyOf(ranges);
     }
 
-    private Coordinate startPoint(GeographicalPath region) {
-        Position3D anchor = region.getAnchor();
-        if (anchor == null || anchor.getLat() == null || anchor.getLong_() == null) {
+    private Coordinate lookupPoint(Position3D position) {
+        if (position == null || position.getLat() == null || position.getLong_() == null) {
             return null;
         }
 
-        Coordinate start = new Coordinate(
-                anchor.getLong_().getValue() / COORDINATE_UNITS_PER_DEGREE,
-                anchor.getLat().getValue() / COORDINATE_UNITS_PER_DEGREE);
-        return start.isValid()
-                        && start.getY() >= -90.0
-                        && start.getY() <= 90.0
-                        && start.getX() >= -180.0
-                        && start.getX() <= 180.0
-                ? start
+        Coordinate point = new Coordinate(
+                position.getLong_().getValue() / COORDINATE_UNITS_PER_DEGREE,
+                position.getLat().getValue() / COORDINATE_UNITS_PER_DEGREE);
+        return point.isValid()
+                        && point.getY() >= -90.0
+                        && point.getY() <= 90.0
+                        && point.getX() >= -180.0
+                        && point.getX() <= 180.0
+                ? point
                 : null;
     }
 
@@ -280,7 +288,7 @@ final class HeadingSliceGeometryValidator {
         return candidates.stream()
                 .map(candidate -> String.format(
                         Locale.ROOT,
-                        "OSM way %d%s bearing %.2f degrees at %.2f m",
+                        "road segment %d%s bearing %.2f degrees at %.2f m",
                         candidate.road().sourceId(),
                         roadNameSuffix(candidate.road()),
                         candidate.bearingDegrees(),
@@ -304,7 +312,10 @@ final class HeadingSliceGeometryValidator {
         return "/value/TravelerInformation/dataFrames/" + dataFrameIndex + "/regions/" + regionIndex;
     }
 
-    private record HeadingSelection(HeadingSlice heading, String pathSuffix) {
+    private record HeadingSelection(
+            HeadingSlice heading,
+            String pathSuffix,
+            Position3D position) {
     }
 
     private record HeadingRange(int startIndex, int length, double centerDegrees) {

@@ -15,6 +15,7 @@ import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Latitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Longitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
@@ -70,13 +71,18 @@ class HeadingSliceGeometryValidatorTest {
         assertEquals("Best Practices", issue.checkName());
         assertEquals("/value/TravelerInformation/dataFrames/2/regions/3/direction", issue.path());
         assertTrue(issue.message().contains("not tangent"));
-        assertTrue(issue.message().contains("OSM way 202 (Broadway)"));
+        assertTrue(issue.message().contains("road segment 202 (Broadway)"));
     }
 
     @Test
-    void validate_nestedGeometricProjectionHeadingUsesNestedPath() {
+    void validate_circleHeadingUsesCircleCenterAndNestedPath() {
         GeographicalPath region = nestedGeometryRegion(heading(0));
-        HeadingSliceGeometryValidator validator = validator(eastWestRoad(202, null, 0.0));
+        HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
+                (location, radius) -> {
+                    assertEquals(LONGITUDE, location.getX());
+                    assertEquals(LATITUDE, location.getY());
+                    return List.of(eastWestRoad(202, null, 0.0));
+                });
 
         List<ValidationIssue> issues = validator.validate(region, 0, 1);
 
@@ -215,7 +221,7 @@ class HeadingSliceGeometryValidatorTest {
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains("not tangent to any mapped roadway candidate"));
-        assertTrue(issues.getFirst().message().contains("OSM way 202 (Closest Road)"));
+        assertTrue(issues.getFirst().message().contains("road segment 202 (Closest Road)"));
         assertFalse(issues.getFirst().message().contains("Road Outside Tolerance"));
     }
 
@@ -264,12 +270,14 @@ class HeadingSliceGeometryValidatorTest {
     private static GeographicalPath nestedGeometryRegion(HeadingSlice heading) {
         GeometricProjection geometry = new GeometricProjection();
         geometry.setDirection(heading);
+        Circle circle = new Circle();
+        circle.setCenter(anchor());
+        geometry.setCircle(circle);
 
         GeographicalPath.DescriptionChoice description = new GeographicalPath.DescriptionChoice();
         description.setGeometry(geometry);
 
         GeographicalPath region = new GeographicalPath();
-        region.setAnchor(anchor());
         region.setDescription(description);
         return region;
     }

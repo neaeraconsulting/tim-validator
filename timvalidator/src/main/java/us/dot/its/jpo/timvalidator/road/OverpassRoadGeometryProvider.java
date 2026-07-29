@@ -33,7 +33,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     private static final String ROAD_HIGHWAY_VALUES =
             "motorway|motorway_link|trunk|trunk_link|primary|primary_link|"
                     + "secondary|secondary_link|tertiary|tertiary_link|unclassified|"
-                    + "residential|living_street|service|road|track|construction";
+                    + "residential|living_street|service|road";
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
     private final URI endpoint;
@@ -109,7 +109,12 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 Locale.ROOT,
                 "[out:json][timeout:%d];"
                         + "way(around:%.2f,%.7f,%.7f)"
-                        + "[\"highway\"~\"^(%s)$\"];"
+                        + "[\"highway\"~\"^(%s)$\"]"
+                        + "[\"access\"!~\"^(no|private)$\"]"
+                        + "[\"vehicle\"!~\"^(no|private)$\"]"
+                        + "[\"motor_vehicle\"!~\"^(no|private)$\"]"
+                        + "[\"area\"!~\"^yes$\"]"
+                        + "[\"service\"!~\"^(driveway|parking_aisle)$\"];"
                         + "out tags geom;",
                 timeoutSeconds,
                 radiusMeters,
@@ -143,6 +148,14 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                     continue;
                 }
 
+                JsonNode idNode = element.get("id");
+                if (idNode == null
+                        || !idNode.isIntegralNumber()
+                        || !idNode.canConvertToLong()
+                        || idNode.longValue() <= 0L) {
+                    continue;
+                }
+
                 LineString geometry = parseGeometry(element.path("geometry"));
                 if (geometry == null) {
                     continue;
@@ -154,7 +167,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                     name = tags.path("ref").asText(null);
                 }
                 try {
-                    roads.add(new RoadSegment(element.path("id").asLong(), name, geometry));
+                    roads.add(new RoadSegment(idNode.longValue(), name, geometry));
                 } catch (IllegalArgumentException ex) {
                     // Ignore malformed individual ways while retaining other valid candidates.
                 }
@@ -174,12 +187,26 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
 
         List<Coordinate> geometry = new ArrayList<>();
         for (JsonNode point : geometryNode) {
-            if (!point.has("lat") || !point.has("lon")) {
+            JsonNode latitudeNode = point.get("lat");
+            JsonNode longitudeNode = point.get("lon");
+            if (latitudeNode == null
+                    || longitudeNode == null
+                    || !latitudeNode.isNumber()
+                    || !longitudeNode.isNumber()) {
                 return null;
             }
-            geometry.add(new Coordinate(
-                    point.path("lon").asDouble(),
-                    point.path("lat").asDouble()));
+
+            Coordinate coordinate = new Coordinate(
+                    longitudeNode.doubleValue(),
+                    latitudeNode.doubleValue());
+            if (!coordinate.isValid()
+                    || coordinate.getY() < -90.0
+                    || coordinate.getY() > 90.0
+                    || coordinate.getX() < -180.0
+                    || coordinate.getX() > 180.0) {
+                return null;
+            }
+            geometry.add(coordinate);
         }
         return geometry.size() < 2
                 ? null
