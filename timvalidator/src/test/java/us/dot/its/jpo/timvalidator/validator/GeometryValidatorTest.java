@@ -1,12 +1,15 @@
 package us.dot.its.jpo.timvalidator.validator;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.Elevation;
 import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
@@ -35,6 +38,9 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadSegment;
 
 class GeometryValidatorTest {
 
@@ -45,7 +51,7 @@ class GeometryValidatorTest {
                 xyNode(10_000L, 0L),
                 xyNode(0L, 10_000L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
         assertFalse(containsLaneWidthIssue(issues),
                 "A 150 meter centered width should fit a right-angle bend with 100 meter segments");
@@ -92,7 +98,7 @@ class GeometryValidatorTest {
                 xyNode(0L, 10_000L),
                 xyNode(-10_000L, 0L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
         assertFalse(containsLaneWidthIssue(issues),
                 "Each individual bend remains within the local bend-width limit");
@@ -147,7 +153,7 @@ class GeometryValidatorTest {
         // verify that a prohibited laneWidth does not trigger an additional geometry issue.
         firstRegion(message).setLaneWidth(new LaneWidth(32_767L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
         assertFalse(containsLaneWidthIssue(issues));
         assertFalse(containsLaneCorridorIssue(issues));
@@ -161,10 +167,11 @@ class GeometryValidatorTest {
                 xyNode(1_000L, 0L),
                 xyNode(-1_000L, 0L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
-        assertTrue(issues.stream().anyMatch(issue -> issue.contains("open path must not contain repeated points")
-                && issue.contains("indexes 0 and 2")));
+        assertTrue(issues.stream().anyMatch(issue ->
+                issue.message().contains("open path must not contain repeated points")
+                        && issue.message().contains("indexes 0 and 2")));
     }
 
     @Test
@@ -175,10 +182,11 @@ class GeometryValidatorTest {
                 xyNode(-10_000L, 0L),
                 xyNode(10_000L, -10_000L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
-        assertTrue(issues.stream().anyMatch(issue -> issue.contains("open path must not intersect itself")
-                && issue.contains("6000.00 cm, 5000.00 cm")));
+        assertTrue(issues.stream().anyMatch(issue ->
+                issue.message().contains("open path must not intersect itself")
+                        && issue.message().contains("6000.00 cm, 5000.00 cm")));
         assertFalse(containsLaneCorridorIssue(issues),
                 "Corridor validation should not cascade after centerline topology fails");
     }
@@ -205,10 +213,11 @@ class GeometryValidatorTest {
                 xyNode(1_000L, 0L),
                 xyNode(-1_000L, -1_000L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
-        assertTrue(issues.stream().anyMatch(issue -> issue.contains("closed polygon must not intersect itself")
-                && issue.contains("1500.00 cm, 500.00 cm")));
+        assertTrue(issues.stream().anyMatch(issue ->
+                issue.message().contains("closed polygon must not intersect itself")
+                        && issue.message().contains("1500.00 cm, 500.00 cm")));
     }
 
     @Test
@@ -220,9 +229,9 @@ class GeometryValidatorTest {
                 xyNode(-1_000L, 0L),
                 xyNode(100L, -1_000L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
-        assertTrue(issues.stream().anyMatch(issue -> issue.contains(
+        assertTrue(issues.stream().anyMatch(issue -> issue.message().contains(
                 "closed polygon's first and last points must coincide")));
     }
 
@@ -235,11 +244,11 @@ class GeometryValidatorTest {
                 xyNode(0L, -1_000L),
                 xyNode(-1_000L, 0L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
-        assertTrue(issues.stream().anyMatch(issue -> issue.contains(
+        assertTrue(issues.stream().anyMatch(issue -> issue.message().contains(
                 "closed polygon must not contain repeated points")
-                && issue.contains("indexes 1 and 3")));
+                && issue.message().contains("indexes 1 and 3")));
     }
 
     @Test
@@ -249,7 +258,7 @@ class GeometryValidatorTest {
                 xyNode(5_000L, 0L),
                 xyNode(0L, 5_000L));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
         assertFalse(containsAnchorIssue(issues), "Zoom 1 must double the encoded anchor offset");
         assertFalse(containsLaneWidthIssue(issues), "Zoom 1 must double every encoded segment offset");
@@ -311,7 +320,7 @@ class GeometryValidatorTest {
                         xyNode(10_000L, 0L),
                         xyNode(0L, 10_000L))));
 
-        List<String> issues = validate(message);
+        List<ValidationIssue> issues = validate(message);
 
         assertFalse(containsAnchorIssue(issues));
         assertFalse(containsLaneWidthIssue(issues));
@@ -327,8 +336,61 @@ class GeometryValidatorTest {
                 "A zoomed latitude offset representing about 10 meters should pass");
     }
 
-    private static List<String> validate(TravelerInformationMessageFrame message) {
+    @Test
+    void validate_headingMismatchReturnsStructuredGeometryWarning() {
+        BestPracticesValidator validator = new BestPracticesValidator(
+                (location, radius) -> List.of(new RoadSegment(
+                        202L,
+                        "Broadway",
+                        List.of(
+                                new Coordinate(-105.001, 40.0),
+                                new Coordinate(-104.999, 40.0)))));
+
+        List<ValidationIssue> issues =
+                validator.validate(messageWithHeading(0));
+
+        assertEquals(1, issues.size());
+        assertEquals(ValidationSeverity.WARNING, issues.getFirst().severity());
+        assertEquals("Best Practices", issues.getFirst().checkName());
+        assertEquals(
+                "/value/TravelerInformation/dataFrames/0/regions/0/direction",
+                issues.getFirst().path());
+        assertTrue(issues.getFirst().message().contains("not tangent"));
+    }
+
+    @Test
+    void validate_missingOptionalTimDoesNotCallRoadProvider() {
+        AtomicInteger providerCalls = new AtomicInteger();
+        BestPracticesValidator validator = new BestPracticesValidator(
+                (location, radius) -> {
+                    providerCalls.incrementAndGet();
+                    return List.of();
+                });
+
+        List<ValidationIssue> issues =
+                validator.validate(new TravelerInformationMessageFrame());
+
+        assertEquals(0, providerCalls.get());
+        assertEquals(1, issues.size());
+        assertEquals(ValidationSeverity.ERROR, issues.getFirst().severity());
+        assertEquals("Best Practices", issues.getFirst().checkName());
+        assertNull(issues.getFirst().path());
+        assertTrue(issues.getFirst().message()
+                .contains("not a TravelerInformationMessageFrame"));
+    }
+
+    private static List<ValidationIssue> validate(TravelerInformationMessageFrame message) {
         return new BestPracticesValidator().validate(message);
+    }
+
+    private static TravelerInformationMessageFrame messageWithHeading(int headingIndex) {
+        HeadingSlice heading = new HeadingSlice();
+        heading.set(headingIndex, true);
+
+        GeographicalPath region = new GeographicalPath();
+        region.setAnchor(anchor(400_000_000L, -1_050_000_000L));
+        region.setDirection(heading);
+        return message(region);
     }
 
     private static TravelerInformationMessageFrame xyMessage(long laneWidthCm, int zoom, NodeXY... nodes) {
@@ -469,19 +531,25 @@ class GeometryValidatorTest {
         return node;
     }
 
-    private static boolean containsLaneWidthIssue(List<String> issues) {
-        return issues.stream().anyMatch(issue -> issue.contains("laneWidth") && issue.contains("exceeds"));
+    private static boolean containsLaneWidthIssue(List<ValidationIssue> issues) {
+        return issues.stream().anyMatch(issue ->
+                issue.message().contains("laneWidth")
+                        && issue.message().contains("exceeds"));
     }
 
-    private static boolean containsLaneCorridorIssue(List<String> issues) {
-        return issues.stream().anyMatch(issue -> issue.contains("lane corridor"));
+    private static boolean containsLaneCorridorIssue(List<ValidationIssue> issues) {
+        return issues.stream().anyMatch(issue ->
+                issue.message().contains("lane corridor"));
     }
 
-    private static boolean containsAnchorIssue(List<String> issues) {
-        return issues.stream().anyMatch(issue -> issue.contains("anchor must be 10.00 m before the first path node"));
+    private static boolean containsAnchorIssue(List<ValidationIssue> issues) {
+        return issues.stream().anyMatch(issue ->
+                issue.message().contains(
+                        "anchor must be 10.00 m before the first path node"));
     }
 
-    private static boolean containsClosedPolygonIssue(List<String> issues) {
-        return issues.stream().anyMatch(issue -> issue.contains("closed polygon"));
+    private static boolean containsClosedPolygonIssue(List<ValidationIssue> issues) {
+        return issues.stream().anyMatch(issue ->
+                issue.message().contains("closed polygon"));
     }
 }

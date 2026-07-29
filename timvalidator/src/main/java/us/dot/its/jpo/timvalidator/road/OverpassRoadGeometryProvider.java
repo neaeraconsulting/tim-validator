@@ -25,6 +25,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public final class OverpassRoadGeometryProvider implements RoadGeometryProvider {
 
+    private static final String DEFAULT_ENDPOINT =
+            "https://overpass-api.de/api/interpreter";
+    private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration DEFAULT_HTTP_TIMEOUT = Duration.ofSeconds(20);
+    private static final String DEFAULT_USER_AGENT = "timvalidator/1.0";
     private static final String ROAD_HIGHWAY_VALUES =
             "motorway|motorway_link|trunk|trunk_link|primary|primary_link|"
                     + "secondary|secondary_link|tertiary|tertiary_link|unclassified|"
@@ -37,6 +42,17 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     private final String userAgent;
     private final ObjectMapper objectMapper;
     private final OverpassTransport transport;
+
+    /**
+     * Creates a provider using the validator library's standard Overpass settings.
+     */
+    public OverpassRoadGeometryProvider() {
+        this(
+                DEFAULT_ENDPOINT,
+                DEFAULT_QUERY_TIMEOUT,
+                DEFAULT_HTTP_TIMEOUT,
+                DEFAULT_USER_AGENT);
+    }
 
     public OverpassRoadGeometryProvider(String endpoint, Duration timeout, String userAgent) {
         this(endpoint, timeout, timeout, userAgent);

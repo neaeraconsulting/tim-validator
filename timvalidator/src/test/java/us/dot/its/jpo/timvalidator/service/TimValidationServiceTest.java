@@ -170,6 +170,12 @@ public class TimValidationServiceTest {
     }
 
     @Test
+    public void testStandardOverpassServiceInstantiation() {
+        TimValidationService validator = TimValidationService.withOverpassRoadGeometry();
+        assertNotNull(validator, "Overpass-backed service should be instantiated");
+    }
+
+    @Test
     public void testBestPracticesValidatorNullHandling() {
         BestPracticesValidator validator = new BestPracticesValidator();
         var issues = validator.validate(null);
@@ -186,8 +192,7 @@ public class TimValidationServiceTest {
                 "Broadway",
                 java.util.List.of(
                     new Coordinate(-0.001, 0.0),
-                    new Coordinate(0.001, 0.0)))),
-            30.0);
+                    new Coordinate(0.001, 0.0)))));
 
         ValidationResult result = roadBackedService.validateTimJer("""
             {

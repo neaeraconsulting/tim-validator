@@ -25,49 +25,26 @@ import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 
 /** Checks that each directional heading range is tangent to the physical roadway at the TIM start. */
-final class HeadingSliceRoadGeometryValidator {
+final class HeadingSliceGeometryValidator {
 
     private static final String CHECK_NAME = "Best Practices";
     private static final double COORDINATE_UNITS_PER_DEGREE = 10_000_000.0;
     private static final double SLICE_WIDTH_DEGREES = 22.5;
     // Change this value to tune the allowed +/- difference from each range midpoint.
     private static final double ROADWAY_TANGENCY_TOLERANCE_DEGREES = 22.5;
+    private static final double ROAD_SEARCH_RADIUS_METERS = 30.0;
+    private static final double CANDIDATE_DISTANCE_TOLERANCE_METERS = 8.0;
     // Covers insignificant local-projection convergence at a heading-slice boundary.
     private static final double ANGLE_EPSILON_DEGREES = 1.0e-3;
-    private static final double DEFAULT_CANDIDATE_DISTANCE_TOLERANCE_METERS = 8.0;
     private static final Coordinate ORIGIN = new Coordinate(0.0, 0.0);
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
     private final RoadGeometryProvider roadGeometryProvider;
-    private final double searchRadiusMeters;
-    private final double candidateDistanceToleranceMeters;
 
-    HeadingSliceRoadGeometryValidator(
-            RoadGeometryProvider roadGeometryProvider,
-            double searchRadiusMeters) {
-        this(
-                roadGeometryProvider,
-                searchRadiusMeters,
-                DEFAULT_CANDIDATE_DISTANCE_TOLERANCE_METERS);
-    }
-
-    HeadingSliceRoadGeometryValidator(
-            RoadGeometryProvider roadGeometryProvider,
-            double searchRadiusMeters,
-            double candidateDistanceToleranceMeters) {
+    HeadingSliceGeometryValidator(RoadGeometryProvider roadGeometryProvider) {
         this.roadGeometryProvider = Objects.requireNonNull(
                 roadGeometryProvider,
                 "roadGeometryProvider");
-        this.searchRadiusMeters = searchRadiusMeters;
-        this.candidateDistanceToleranceMeters = candidateDistanceToleranceMeters;
-        if (!Double.isFinite(searchRadiusMeters) || searchRadiusMeters <= 0.0) {
-            throw new IllegalArgumentException("searchRadiusMeters must be positive");
-        }
-        if (!Double.isFinite(candidateDistanceToleranceMeters)
-                || candidateDistanceToleranceMeters < 0.0) {
-            throw new IllegalArgumentException(
-                    "candidateDistanceToleranceMeters must be non-negative");
-        }
     }
 
     List<ValidationIssue> validate(
@@ -94,7 +71,7 @@ final class HeadingSliceRoadGeometryValidator {
 
         List<RoadSegment> roads;
         try {
-            roads = roadGeometryProvider.findNearbyRoads(start, searchRadiusMeters);
+            roads = roadGeometryProvider.findNearbyRoads(start, ROAD_SEARCH_RADIUS_METERS);
         } catch (RuntimeException ex) {
             return List.of(warning(
                     String.format(
@@ -111,7 +88,8 @@ final class HeadingSliceRoadGeometryValidator {
         }
         List<RoadMatch> matches = roads.stream()
                 .map(road -> closestMatch(start, road))
-                .filter(match -> match != null && match.distanceMeters() <= searchRadiusMeters)
+                .filter(match -> match != null
+                        && match.distanceMeters() <= ROAD_SEARCH_RADIUS_METERS)
                 .sorted(Comparator.comparingDouble(RoadMatch::distanceMeters))
                 .toList();
         if (matches.isEmpty()) {
@@ -121,7 +99,7 @@ final class HeadingSliceRoadGeometryValidator {
                             "Data frame %d region %d has no mapped roadway within %.1f m of the TIM start",
                             dataFrameIndex,
                             regionIndex,
-                            searchRadiusMeters),
+                            ROAD_SEARCH_RADIUS_METERS),
                     issuePath));
         }
 
@@ -249,8 +227,8 @@ final class HeadingSliceRoadGeometryValidator {
 
     private List<RoadMatch> candidateMatches(List<RoadMatch> matches) {
         double maximumCandidateDistance = Math.min(
-                searchRadiusMeters,
-                matches.getFirst().distanceMeters() + candidateDistanceToleranceMeters);
+                ROAD_SEARCH_RADIUS_METERS,
+                matches.getFirst().distanceMeters() + CANDIDATE_DISTANCE_TOLERANCE_METERS);
         return matches.stream()
                 .filter(match -> match.distanceMeters() <= maximumCandidateDistance)
                 .toList();

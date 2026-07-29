@@ -8,6 +8,7 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItisJsonValidator;
@@ -39,33 +40,21 @@ public class TimValidationService {
     }
 
     /**
-     * Creates a validation service with roadway-backed heading-slice validation enabled.
+     * Creates a validation service with the standard Overpass-backed roadway heading check.
      *
-     * @param roadGeometryProvider provider used to retrieve nearby road geometry
-     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
+     * @return a service with roadway-backed heading-slice validation enabled
      */
-    public TimValidationService(
-            RoadGeometryProvider roadGeometryProvider,
-            double roadSearchRadiusMeters) {
-        this(new BestPracticesValidator(roadGeometryProvider, roadSearchRadiusMeters));
+    public static TimValidationService withOverpassRoadGeometry() {
+        return new TimValidationService(new OverpassRoadGeometryProvider());
     }
 
     /**
-     * Creates a validation service with intersection-aware roadway heading validation.
+     * Creates a validation service with an injected roadway source.
      *
      * @param roadGeometryProvider provider used to retrieve nearby road geometry
-     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
-     * @param candidateDistanceToleranceMeters maximum additional distance from the
-     *        closest road for another road to remain an intersection candidate
      */
-    public TimValidationService(
-            RoadGeometryProvider roadGeometryProvider,
-            double roadSearchRadiusMeters,
-            double candidateDistanceToleranceMeters) {
-        this(new BestPracticesValidator(
-                roadGeometryProvider,
-                roadSearchRadiusMeters,
-                candidateDistanceToleranceMeters));
+    public TimValidationService(RoadGeometryProvider roadGeometryProvider) {
+        this(new BestPracticesValidator(roadGeometryProvider));
     }
 
     private TimValidationService(BestPracticesValidator bestPracticesValidator) {
@@ -160,7 +149,7 @@ public class TimValidationService {
         }
 
         List<ValidationIssue> bestPracticesIssues =
-                bestPracticesValidator.validateAndCollectIssues(timMessage);
+                bestPracticesValidator.validate(timMessage);
         result.addIssues(bestPracticesIssues);
         if (bestPracticesIssues.isEmpty()) {
             result.addValidationCheck("Best Practices", true, "All best practices checks passed");

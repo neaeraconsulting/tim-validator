@@ -23,9 +23,8 @@ import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
-    private static final double DEFAULT_ROAD_SEARCH_RADIUS_METERS = 30.0;
 
-    private final HeadingSliceRoadGeometryValidator headingSliceRoadGeometryValidator;
+    private final GeometryValidator geometryValidator;
 
     /**
      * Creates a validator without an external road geometry lookup.
@@ -34,7 +33,7 @@ public class BestPracticesValidator {
      * geometry provider.
      */
     public BestPracticesValidator() {
-        this.headingSliceRoadGeometryValidator = null;
+        this.geometryValidator = new GeometryValidator();
     }
 
     /**
@@ -43,89 +42,25 @@ public class BestPracticesValidator {
      * @param roadGeometryProvider provider used to retrieve nearby roadway geometry
      */
     public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
-        this(roadGeometryProvider, DEFAULT_ROAD_SEARCH_RADIUS_METERS);
+        this.geometryValidator = new GeometryValidator(roadGeometryProvider);
     }
 
     /**
-     * Creates a validator that checks heading slices against nearby roadway geometry.
-     *
-     * @param roadGeometryProvider provider used to retrieve nearby roadway geometry
-     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
-     */
-    public BestPracticesValidator(
-            RoadGeometryProvider roadGeometryProvider,
-            double roadSearchRadiusMeters) {
-        this.headingSliceRoadGeometryValidator =
-                new HeadingSliceRoadGeometryValidator(roadGeometryProvider, roadSearchRadiusMeters);
-    }
-
-    /**
-     * Creates a validator that checks heading slices against a filtered set of nearby roads.
-     *
-     * @param roadGeometryProvider provider used to retrieve nearby roadway geometry
-     * @param roadSearchRadiusMeters maximum distance from the TIM start to consider
-     * @param candidateDistanceToleranceMeters maximum additional distance from the
-     *        closest road for another road to remain an intersection candidate
-     */
-    public BestPracticesValidator(
-            RoadGeometryProvider roadGeometryProvider,
-            double roadSearchRadiusMeters,
-            double candidateDistanceToleranceMeters) {
-        this.headingSliceRoadGeometryValidator =
-                new HeadingSliceRoadGeometryValidator(
-                        roadGeometryProvider,
-                        roadSearchRadiusMeters,
-                        candidateDistanceToleranceMeters);
-    }
-
-    /**
-     * Validates a TIM message against best practices rules.
-     *
-     * @param timMessage the TIM message to validate
-     * @return list of validation issues found (empty list if all checks pass)
-     */
-    public List<String> validate(Object timMessage) {
-        return validateAndCollectIssues(timMessage).stream()
-                .map(ValidationIssue::message)
-                .toList();
-    }
-
-    /**
-     * Validates a TIM message and returns structured issues suitable for an API response.
+     * Validates a TIM message against best-practice rules.
      *
      * @param timMessage the TIM message to validate
      * @return structured validation issues (empty list if all checks pass)
      */
-    public List<ValidationIssue> validateAndCollectIssues(Object timMessage) {
-        List<ValidationIssue> structuredIssues = new ArrayList<>();
-        validateBuiltInRules(timMessage).stream()
-                .map(message -> new ValidationIssue(
-                        ValidationSeverity.ERROR,
-                        CHECK_NAME,
-                        message,
-                        null))
-                .forEach(structuredIssues::add);
-
-        Optional<TravelerInformation> tim = travelerInformation(timMessage);
-        if (headingSliceRoadGeometryValidator != null && tim.isPresent()) {
-            structuredIssues.addAll(validateHeadingSlices(tim.orElseThrow()));
-        }
-
-        return List.copyOf(structuredIssues);
-    }
-
-    private List<String> validateBuiltInRules(Object timMessage) {
-        List<String> issues = new ArrayList<>();
+    public List<ValidationIssue> validate(Object timMessage) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         if (timMessage == null) {
-            issues.add("TIM message is null");
-            return issues;
+            return List.of(error("TIM message is null"));
         }
 
         Optional<TravelerInformation> travelerInformation = travelerInformation(timMessage);
         if (travelerInformation.isEmpty()) {
-            issues.add("TIM message is not a TravelerInformationMessageFrame");
-            return issues;
+            return List.of(error("TIM message is not a TravelerInformationMessageFrame"));
         }
         TravelerInformation tim = travelerInformation.orElseThrow();
 
@@ -146,35 +81,7 @@ public class BestPracticesValidator {
         issues.addAll(validateGeography(tim));
         issues.addAll(validateAdvisoryContent(tim));
 
-        return issues;
-    }
-
-    private List<ValidationIssue> validateHeadingSlices(TravelerInformation tim) {
-        List<ValidationIssue> issues = new ArrayList<>();
-        TravelerDataFrameList dataFrames = tim.getDataFrames();
-        if (dataFrames == null) {
-            return issues;
-        }
-
-        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
-            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-
-            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
-            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
-                GeographicalPath region = regions.get(regionIndex);
-                if (region != null) {
-                    issues.addAll(headingSliceRoadGeometryValidator.validate(
-                            region,
-                            dataFrameIndex,
-                            regionIndex));
-                }
-            }
-        }
-
-        return issues;
+        return List.copyOf(issues);
     }
 
     private static Optional<TravelerInformation> travelerInformation(Object timMessage) {
@@ -195,8 +102,8 @@ public class BestPracticesValidator {
     }
 
     /** Validates that all required fields are present. */
-    private List<String> validateRequiredFields(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
+    private List<ValidationIssue> validateRequiredFields(TravelerInformation tim) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Check for required fields based on message type
 
@@ -204,8 +111,8 @@ public class BestPracticesValidator {
     }
 
     /** Validates TIM time period and duration constraints. */
-    private List<String> validateTimePeriod(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
+    private List<ValidationIssue> validateTimePeriod(TravelerInformation tim) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate start/end times, ensure they're logical
         // TODO: Check duration doesn't exceed reasonable limits (e.g., 6 months)
@@ -215,8 +122,8 @@ public class BestPracticesValidator {
     }
 
     /** Validates geographic data in TIM message. */
-    private List<String> validateGeography(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
+    private List<ValidationIssue> validateGeography(TravelerInformation tim) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges
         // TODO: Ensure road identifiers exist and reference valid roads
@@ -242,7 +149,7 @@ public class BestPracticesValidator {
                 }
 
                 DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                issues.addAll(GeometryValidator.validate(region, indexes));
+                issues.addAll(geometryValidator.validate(region, indexes));
             }
         }
 
@@ -250,8 +157,8 @@ public class BestPracticesValidator {
     }
 
     /** Validates advisory content and completeness. */
-    private List<String> validateAdvisoryContent(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
+    private List<ValidationIssue> validateAdvisoryContent(TravelerInformation tim) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Ensure advisory messages have sufficient detail
         // TODO: Validate that message reason codes are appropriate
@@ -259,5 +166,9 @@ public class BestPracticesValidator {
         // TODO: Verify message language codes are valid
 
         return issues;
+    }
+
+    private ValidationIssue error(String message) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
     }
 }
