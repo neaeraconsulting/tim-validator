@@ -451,6 +451,7 @@
                                                                                                                         "type": "object",
                                                                                                                         "title": "us.dot.its.jpo.asn.j2735.r2024.Common.NodeAttributeSetXY",
                                                                                                                         "description": "ASN.1 SEQUENCE Type",
+                                                                                                                        "minProperties": 1,
                                                                                                                         "properties": {
                                                                                                                             "localNode": {
                                                                                                                                 "type": "array",
@@ -714,12 +715,18 @@
                                                                                                                             "dWidth": {
                                                                                                                                 "type": "integer",
                                                                                                                                 "minimum": -512,
-                                                                                                                                "maximum": 511
+                                                                                                                                "maximum": 511,
+                                                                                                                                "not": {
+                                                                                                                                    "const": 0
+                                                                                                                                }
                                                                                                                             },
                                                                                                                             "dElevation": {
                                                                                                                                 "type": "integer",
                                                                                                                                 "minimum": -512,
-                                                                                                                                "maximum": 511
+                                                                                                                                "maximum": 511,
+                                                                                                                                "not": {
+                                                                                                                                    "const": 0
+                                                                                                                                }
                                                                                                                             }
                                                                                                                         },
                                                                                                                         "additionalProperties": false
@@ -1145,6 +1152,7 @@
                                                                                                                         "type": "object",
                                                                                                                         "title": "us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeAttributeSetLL",
                                                                                                                         "description": "ASN.1 SEQUENCE Type",
+                                                                                                                        "minProperties": 1,
                                                                                                                         "properties": {
                                                                                                                             "localNode": {
                                                                                                                                 "type": "array",
@@ -1408,12 +1416,18 @@
                                                                                                                             "dWidth": {
                                                                                                                                 "type": "integer",
                                                                                                                                 "minimum": -512,
-                                                                                                                                "maximum": 511
+                                                                                                                                "maximum": 511,
+                                                                                                                                "not": {
+                                                                                                                                    "const": 0
+                                                                                                                                }
                                                                                                                             },
                                                                                                                             "dElevation": {
                                                                                                                                 "type": "integer",
                                                                                                                                 "minimum": -512,
-                                                                                                                                "maximum": 511
+                                                                                                                                "maximum": 511,
+                                                                                                                                "not": {
+                                                                                                                                    "const": 0
+                                                                                                                                }
                                                                                                                             }
                                                                                                                         },
                                                                                                                         "additionalProperties": false
@@ -1887,6 +1901,7 @@
                                                                                                                                 "type": "object",
                                                                                                                                 "title": "us.dot.its.jpo.asn.j2735.r2024.Common.NodeAttributeSetXY",
                                                                                                                                 "description": "ASN.1 SEQUENCE Type",
+                                                                                                                                "minProperties": 1,
                                                                                                                                 "properties": {
                                                                                                                                     "localNode": {
                                                                                                                                         "type": "array",
@@ -2150,12 +2165,18 @@
                                                                                                                                     "dWidth": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     },
                                                                                                                                     "dElevation": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     }
                                                                                                                                 },
                                                                                                                                 "additionalProperties": false
@@ -2581,6 +2602,7 @@
                                                                                                                                 "type": "object",
                                                                                                                                 "title": "us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeAttributeSetLL",
                                                                                                                                 "description": "ASN.1 SEQUENCE Type",
+                                                                                                                                "minProperties": 1,
                                                                                                                                 "properties": {
                                                                                                                                     "localNode": {
                                                                                                                                         "type": "array",
@@ -2844,12 +2866,18 @@
                                                                                                                                     "dWidth": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     },
                                                                                                                                     "dElevation": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     }
                                                                                                                                 },
                                                                                                                                 "additionalProperties": false
@@ -3237,6 +3265,7 @@
                                                                                                                                 "type": "object",
                                                                                                                                 "title": "us.dot.its.jpo.asn.j2735.r2024.Common.NodeAttributeSetXY",
                                                                                                                                 "description": "ASN.1 SEQUENCE Type",
+                                                                                                                                "minProperties": 1,
                                                                                                                                 "properties": {
                                                                                                                                     "localNode": {
                                                                                                                                         "type": "array",
@@ -3500,12 +3529,18 @@
                                                                                                                                     "dWidth": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     },
                                                                                                                                     "dElevation": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     }
                                                                                                                                 },
                                                                                                                                 "additionalProperties": false
@@ -3931,6 +3966,7 @@
                                                                                                                                 "type": "object",
                                                                                                                                 "title": "us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeAttributeSetLL",
                                                                                                                                 "description": "ASN.1 SEQUENCE Type",
+                                                                                                                                "minProperties": 1,
                                                                                                                                 "properties": {
                                                                                                                                     "localNode": {
                                                                                                                                         "type": "array",
@@ -4194,12 +4230,18 @@
                                                                                                                                     "dWidth": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     },
                                                                                                                                     "dElevation": {
                                                                                                                                         "type": "integer",
                                                                                                                                         "minimum": -512,
-                                                                                                                                        "maximum": 511
+                                                                                                                                        "maximum": 511,
+                                                                                                                                        "not": {
+                                                                                                                                            "const": 0
+                                                                                                                                        }
                                                                                                                                     }
                                                                                                                                 },
                                                                                                                                 "additionalProperties": false
