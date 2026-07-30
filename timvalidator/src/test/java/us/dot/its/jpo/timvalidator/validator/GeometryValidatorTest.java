@@ -387,10 +387,17 @@ class GeometryValidatorTest {
         HeadingSlice heading = new HeadingSlice();
         heading.set(headingIndex, true);
 
-        GeographicalPath region = new GeographicalPath();
+        TravelerInformationMessageFrame message = closedXyMessage(
+                xyNode(1_000L, 0L),
+                xyNode(4_000L, -5_000L),
+                xyNode(0L, 10_000L),
+                xyNode(-10_000L, 0L),
+                xyNode(0L, -10_000L),
+                xyNode(6_000L, 5_000L));
+        GeographicalPath region = firstRegion(message);
         region.setAnchor(anchor(400_000_000L, -1_050_000_000L));
         region.setDirection(heading);
-        return message(region);
+        return message;
     }
 
     private static TravelerInformationMessageFrame xyMessage(long laneWidthCm, int zoom, NodeXY... nodes) {

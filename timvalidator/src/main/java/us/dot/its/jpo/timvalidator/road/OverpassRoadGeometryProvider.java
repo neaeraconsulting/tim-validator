@@ -12,16 +12,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
+import org.locationtech.jts.geom.Polygon;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Retrieves nearby motor-vehicle road ways from an OpenStreetMap Overpass endpoint.
+ * Retrieves nearby motor-vehicle roadways from an OpenStreetMap Overpass endpoint.
  */
 public final class OverpassRoadGeometryProvider implements RoadGeometryProvider {
 
@@ -30,10 +32,24 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration DEFAULT_HTTP_TIMEOUT = Duration.ofSeconds(20);
     private static final String DEFAULT_USER_AGENT = "timvalidator/1.0";
-    private static final String ROAD_HIGHWAY_VALUES =
-            "motorway|motorway_link|trunk|trunk_link|primary|primary_link|"
-                    + "secondary|secondary_link|tertiary|tertiary_link|unclassified|"
-                    + "residential|living_street|service|road";
+    private static final List<String> ALLOWED_ROAD_CLASSES = List.of(
+            "motorway",
+            "motorway_link",
+            "trunk",
+            "trunk_link",
+            "primary",
+            "primary_link",
+            "secondary",
+            "secondary_link",
+            "tertiary",
+            "tertiary_link",
+            "unclassified",
+            "residential",
+            "living_street");
+    private static final String ALLOWED_ROAD_CLASS_PATTERN =
+            String.join("|", ALLOWED_ROAD_CLASSES);
+    private static final List<String> ACCESS_TAGS =
+            List.of("access", "vehicle", "motor_vehicle");
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
     private final URI endpoint;
@@ -99,28 +115,69 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
         }
 
         String query = buildQuery(location.getY(), location.getX(), radiusMeters);
+        return executeQuery(query);
+    }
+
+    @Override
+    public List<RoadSegment> findRoadsIn(Polygon searchArea) {
+        validateSearchArea(searchArea);
+        return executeQuery(buildPolygonQuery(searchArea));
+    }
+
+    private List<RoadSegment> executeQuery(String query) {
         String response = transport.execute(endpoint, query, httpTimeout, userAgent);
         return parseRoads(response);
     }
 
     String buildQuery(double latitudeDegrees, double longitudeDegrees, double radiusMeters) {
+        return buildRoadQuery(String.format(
+                Locale.ROOT,
+                "(around:%.2f,%.7f,%.7f)",
+                radiusMeters,
+                latitudeDegrees,
+                longitudeDegrees));
+    }
+
+    String buildPolygonQuery(Polygon searchArea) {
+        validateSearchArea(searchArea);
+        Coordinate[] coordinates = searchArea.getExteriorRing().getCoordinates();
+        StringJoiner polygonCoordinates = new StringJoiner(" ");
+        // Overpass closes the polygon, so omit the duplicate JTS ring endpoint.
+        for (int index = 0; index < coordinates.length - 1; index++) {
+            Coordinate coordinate = coordinates[index];
+            polygonCoordinates.add(String.format(
+                    Locale.ROOT,
+                    "%.7f %.7f",
+                    coordinate.getY(),
+                    coordinate.getX()));
+        }
+        return buildRoadQuery("(poly:\"" + polygonCoordinates + "\")");
+    }
+
+    private String buildRoadQuery(String spatialFilter) {
         long timeoutSeconds = Math.max(1L, (queryTimeout.toMillis() + 999L) / 1_000L);
         return String.format(
                 Locale.ROOT,
-                "[out:json][timeout:%d];"
-                        + "way(around:%.2f,%.7f,%.7f)"
-                        + "[\"highway\"~\"^(%s)$\"]"
+                "[out:json][timeout:%1$d];"
+                        + "("
+                        + "way%2$s"
+                        + "[\"highway\"~\"^(%3$s)$\"]"
                         + "[\"access\"!~\"^(no|private)$\"]"
                         + "[\"vehicle\"!~\"^(no|private)$\"]"
                         + "[\"motor_vehicle\"!~\"^(no|private)$\"]"
-                        + "[\"area\"!~\"^yes$\"]"
-                        + "[\"service\"!~\"^(driveway|parking_aisle)$\"];"
+                        + "[\"area\"!~\"^yes$\"];"
+                        + "way%2$s"
+                        + "[\"highway\"=\"construction\"]"
+                        + "[\"construction\"~\"^(%3$s)$\"]"
+                        + "[\"access\"!~\"^private$\"]"
+                        + "[\"vehicle\"!~\"^private$\"]"
+                        + "[\"motor_vehicle\"!~\"^private$\"]"
+                        + "[\"area\"!~\"^yes$\"];"
+                        + ");"
                         + "out tags geom;",
                 timeoutSeconds,
-                radiusMeters,
-                latitudeDegrees,
-                longitudeDegrees,
-                ROAD_HIGHWAY_VALUES);
+                spatialFilter,
+                ALLOWED_ROAD_CLASS_PATTERN);
     }
 
     private static Duration requirePositive(Duration value, String name) {
@@ -162,6 +219,9 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 }
 
                 JsonNode tags = element.path("tags");
+                if (!isEligibleRoad(tags)) {
+                    continue;
+                }
                 String name = tags.path("name").asText(null);
                 if (name == null || name.isBlank()) {
                     name = tags.path("ref").asText(null);
@@ -221,6 +281,43 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 || location.getX() < -180.0
                 || location.getX() > 180.0) {
             throw new IllegalArgumentException("Invalid WGS-84 coordinate");
+        }
+    }
+
+    private boolean isEligibleRoad(JsonNode tags) {
+        if (!tags.isObject() || "yes".equals(tags.path("area").asText())) {
+            return false;
+        }
+
+        String highway = tags.path("highway").asText();
+        if (ALLOWED_ROAD_CLASSES.contains(highway)) {
+            return !hasRestrictedAccess(tags, true);
+        }
+        return "construction".equals(highway)
+                && ALLOWED_ROAD_CLASSES.contains(tags.path("construction").asText())
+                && !hasRestrictedAccess(tags, false);
+    }
+
+    private boolean hasRestrictedAccess(JsonNode tags, boolean rejectNoAccess) {
+        for (String accessTag : ACCESS_TAGS) {
+            String value = tags.path(accessTag).asText();
+            if ("private".equals(value) || (rejectNoAccess && "no".equals(value))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void validateSearchArea(Polygon searchArea) {
+        Objects.requireNonNull(searchArea, "searchArea");
+        if (searchArea.isEmpty()
+                || !searchArea.isValid()
+                || searchArea.getNumInteriorRing() != 0) {
+            throw new IllegalArgumentException(
+                    "searchArea must be a valid, non-empty polygon without holes");
+        }
+        for (Coordinate coordinate : searchArea.getCoordinates()) {
+            validateLocation(coordinate);
         }
     }
 

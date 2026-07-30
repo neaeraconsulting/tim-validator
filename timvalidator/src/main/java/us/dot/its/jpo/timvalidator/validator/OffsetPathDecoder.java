@@ -154,6 +154,60 @@ final class OffsetPathDecoder {
                 .map(coordinate -> new CoordinateXY(coordinate.x, coordinate.y));
     }
 
+    /**
+     * Converts anchor-relative local coordinates in meters back to WGS-84.
+     */
+    static Optional<List<Coordinate>> wgs84Coordinates(
+            Position3D origin,
+            Coordinate[] localPointsMeters) {
+        if (localPointsMeters == null) {
+            return Optional.empty();
+        }
+
+        Optional<ProjCoordinate> geographicOrigin = geographicCoordinate(origin);
+        if (geographicOrigin.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ProjCoordinate anchor = geographicOrigin.orElseThrow();
+        CoordinateReferenceSystem local = localCoordinateReferenceSystem(anchor);
+        CoordinateTransform forward = TRANSFORM_FACTORY.createTransform(WGS84, local);
+        CoordinateTransform inverse = TRANSFORM_FACTORY.createTransform(local, WGS84);
+        Optional<Coordinate> projectedOrigin = project(forward, anchor);
+        if (projectedOrigin.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Coordinate projectedAnchor = projectedOrigin.orElseThrow();
+        List<Coordinate> geographicCoordinates =
+                new ArrayList<>(localPointsMeters.length);
+        for (Coordinate localPoint : localPointsMeters) {
+            if (localPoint == null || !localPoint.isValid()) {
+                return Optional.empty();
+            }
+
+            ProjCoordinate projectedPoint = new ProjCoordinate(
+                    projectedAnchor.getX()
+                            + localPoint.getX() * CENTIMETERS_PER_METER,
+                    projectedAnchor.getY()
+                            + localPoint.getY() * CENTIMETERS_PER_METER);
+            Optional<Coordinate> geographicPoint = project(inverse, projectedPoint);
+            if (geographicPoint.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Coordinate coordinate = geographicPoint.orElseThrow();
+            Optional<ProjCoordinate> validated =
+                    geographicCoordinate(coordinate.getX(), coordinate.getY());
+            if (validated.isEmpty()) {
+                return Optional.empty();
+            }
+            ProjCoordinate value = validated.orElseThrow();
+            geographicCoordinates.add(new CoordinateXY(value.x, value.y));
+        }
+        return Optional.of(List.copyOf(geographicCoordinates));
+    }
+
     private static Optional<DecodedPath> decodeXy(
             NodeSetXY nodes,
             Optional<ProjCoordinate> anchor,
@@ -355,15 +409,21 @@ final class OffsetPathDecoder {
     }
 
     private static CoordinateTransform localTransform(ProjCoordinate anchor) {
+        return TRANSFORM_FACTORY.createTransform(
+                WGS84,
+                localCoordinateReferenceSystem(anchor));
+    }
+
+    private static CoordinateReferenceSystem localCoordinateReferenceSystem(
+            ProjCoordinate anchor) {
         String parameters = String.format(
                 Locale.ROOT,
                 LOCAL_TRANSVERSE_MERCATOR_PARAMETERS,
                 anchor.x,
                 anchor.y);
-        CoordinateReferenceSystem local = CRS_FACTORY.createFromParameters(
+        return CRS_FACTORY.createFromParameters(
                 "TIM local Transverse Mercator",
                 parameters);
-        return TRANSFORM_FACTORY.createTransform(WGS84, local);
     }
 
     private static Optional<Coordinate> project(

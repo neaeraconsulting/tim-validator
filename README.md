@@ -71,30 +71,43 @@ See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint detail
 ### Road-Heading Validation
 
 When a TIM region has a directional heading slice, the API queries nearby OpenStreetMap
-road ways through Overpass. It retains a distance-filtered set of plausible roadways at
-the region anchor, or the circle center for a circle region, and checks whether each
-heading range is tangent to any candidate, treating opposite bearings as the same road
-axis. Missing headings, `0000` (no heading), and `ffff` (all headings) do not trigger a
-lookup.
+roadways through Overpass. For a closed path, it decodes the TIM polygon and sends a
+slightly buffered version of that polygon as the Overpass search area. For a circle, it
+queries from the circle center using the encoded radius and distance unit. Missing
+headings, `0000` (no heading), and `ffff` (all headings) do not trigger a lookup.
+
+Returned roads are projected into the same local coordinate system as the TIM region.
+JTS retains only positive-length roadway portions inside the polygon or circle. Each
+heading range is checked against every retained segment bearing, treating opposite
+bearings as the same road axis. A road that only touches a region at one point does not
+qualify.
 
 Heading mismatches, missing road matches, and lookup failures are returned as
 non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
 identifies the region heading that was evaluated.
 
 The API enables this check through the library's standard Overpass configuration.
-The library searches within 30 meters using the public
-`https://overpass-api.de/api/interpreter` endpoint, a 5-second Overpass query budget,
-a 20-second HTTP deadline, and the `timvalidator/1.0` user agent. These values are
-fixed in the library rather than exposed as Spring application properties.
+The library uses the public `https://overpass-api.de/api/interpreter` endpoint, a
+5-second Overpass query budget, a 20-second HTTP deadline, and the
+`timvalidator/1.0` user agent. These values are fixed in the library rather than
+exposed as Spring application properties.
 
-The Overpass query includes ordinary motor-vehicle road classes but excludes tracks,
-construction ways, area features, ways explicitly tagged as inaccessible or private,
-and service driveways and parking aisles. Ordinary service roads remain eligible.
+The Overpass query uses an allowlist of ordinary motor-vehicle road classes from
+`motorway` through `tertiary`, along with their link classes, `unclassified`,
+`residential`, and `living_street`. Generic `service` and `road` ways are not eligible;
+neither are non-road classes such as tracks, paths, cycleways, or pedestrian ways.
+Ordinary roads explicitly tagged as inaccessible or private and all area features are
+also excluded.
 
-At intersections, each heading center may match any roadway whose distance from
-the TIM region location is no more than 8 meters beyond the closest mapped road. This retains
-plausible crossing roads while excluding unrelated roads elsewhere in the broader
-search radius.
+A way tagged `highway=construction` is eligible only when its `construction` tag names
+one of those allowed road classes. Temporary `access=no`, `vehicle=no`, or
+`motor_vehicle=no` tags are permitted for these construction ways because a closed
+work-zone road is still relevant TIM geometry; explicitly private construction ways
+and area features remain excluded.
+
+Each heading center may match any roadway segment inside the TIM region. Roads returned
+by the buffered polygon query but lying outside the original polygon are discarded
+before heading evaluation.
 
 Each contiguous active heading range, including an even-width or north-wrapping
 range, is evaluated from its circular angular midpoint. A roadway axis is tangent

@@ -6,18 +6,34 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Polygon;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.Elevation;
 import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Latitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Longitude;
+import us.dot.its.jpo.asn.j2735.r2024.Common.NodeListXY;
+import us.dot.its.jpo.asn.j2735.r2024.Common.NodeOffsetPointXY;
+import us.dot.its.jpo.asn.j2735.r2024.Common.NodeSetXY;
+import us.dot.its.jpo.asn.j2735.r2024.Common.NodeXY;
+import us.dot.its.jpo.asn.j2735.r2024.Common.Node_XY_32b;
+import us.dot.its.jpo.asn.j2735.r2024.Common.Offset_B16;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.OffsetSystem;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Radius_B12;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
+import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
@@ -81,6 +97,7 @@ class HeadingSliceGeometryValidatorTest {
                 (location, radius) -> {
                     assertEquals(LONGITUDE, location.getX());
                     assertEquals(LATITUDE, location.getY());
+                    assertEquals(30.0, radius);
                     return List.of(eastWestRoad(202, null, 0.0));
                 });
 
@@ -119,7 +136,7 @@ class HeadingSliceGeometryValidatorTest {
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
                 (location, radius) -> {
                     calls.incrementAndGet();
-                    assertEquals(30.0, radius);
+                    assertTrue(radius > 0.0);
                     return List.of(northSouthRoad(101, "Main Street", 0.0));
                 });
 
@@ -212,24 +229,25 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_roadOutsideCandidateToleranceDoesNotSatisfyHeading() {
+    void validate_roadOutsidePolygonDoesNotSatisfyHeading() {
         HeadingSliceGeometryValidator validator = validator(
                 eastWestRoad(202, "Closest Road", 0.0),
-                northSouthRoad(101, "Road Outside Tolerance", 9.0));
+                northSouthRoad(101, "Road Outside Polygon", 60.0));
 
         List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
 
         assertEquals(1, issues.size());
-        assertTrue(issues.getFirst().message().contains("not tangent to any mapped roadway candidate"));
+        assertTrue(issues.getFirst().message().contains(
+                "not tangent to any mapped roadway segment inside the TIM region"));
         assertTrue(issues.getFirst().message().contains("road segment 202 (Closest Road)"));
-        assertFalse(issues.getFirst().message().contains("Road Outside Tolerance"));
+        assertFalse(issues.getFirst().message().contains("Road Outside Polygon"));
     }
 
     @Test
-    void validate_roadWithinCandidateToleranceMaySatisfyHeading() {
+    void validate_anyRoadInsidePolygonMaySatisfyHeading() {
         HeadingSliceGeometryValidator validator = validator(
                 eastWestRoad(202, "Closest Road", 0.0),
-                northSouthRoad(101, "Cross Street", 7.0));
+                northSouthRoad(101, "Cross Street", 40.0));
 
         List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
 
@@ -237,14 +255,111 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_usesClosestRoadRatherThanFirstProviderResult() {
-        HeadingSliceGeometryValidator validator = validator(
-                eastWestRoad(202, "Distant Road", 10.0),
-                northSouthRoad(101, "Main Street", 0.0));
+    void validate_closedPathUsesPolygonInsteadOfAnchorProximity() {
+        GeographicalPath offsetPolygon = closedPathRegion(
+                heading(0),
+                xyNode(2_000L, -5_000L),
+                xyNode(2_000L, 0L),
+                xyNode(0L, 10_000L),
+                xyNode(-2_000L, 0L),
+                xyNode(0L, -10_000L));
+        RoadGeometryProvider provider = new RoadGeometryProvider() {
+            @Override
+            public List<RoadSegment> findNearbyRoads(
+                    Coordinate location,
+                    double radiusMeters) {
+                throw new AssertionError("Polygon-capable provider should receive the search polygon");
+            }
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+            @Override
+            public List<RoadSegment> findRoadsIn(Polygon searchArea) {
+                assertTrue(searchArea.getEnvelopeInternal().getMinX() > LONGITUDE);
+                return List.of(northSouthRoad(101, "Road Inside Polygon", 30.0));
+            }
+        };
+
+        List<ValidationIssue> issues =
+                new HeadingSliceGeometryValidator(provider).validate(offsetPolygon, 0, 0);
 
         assertTrue(issues.isEmpty());
+    }
+
+    @Test
+    void validate_roadTouchingPolygonAtOnlyOnePointDoesNotQualify() {
+        RoadSegment touchingRoad = localRoad(
+                101,
+                "Touching Road",
+                new Coordinate(0.0, -100.0),
+                new Coordinate(0.0, -50.0));
+
+        List<ValidationIssue> issues =
+                validator(touchingRoad).validate(region(heading(0)), 0, 0);
+
+        assertEquals(1, issues.size());
+        assertTrue(issues.getFirst().message().contains(
+                "no mapped roadway segment inside the TIM region"));
+    }
+
+    @Test
+    void validate_circleUsesRadiusAndExcludesRoadOutsideCircle() {
+        GeographicalPath circleRegion =
+                circleRegion(heading(0), 20L, DistanceUnits.METER);
+        HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
+                (location, radius) -> {
+                    assertEquals(20.0, radius);
+                    return List.of(
+                            eastWestRoad(202, "Road Through Circle", 0.0),
+                            northSouthRoad(101, "Road Outside Circle", 25.0));
+                });
+
+        List<ValidationIssue> issues = validator.validate(circleRegion, 0, 0);
+
+        assertEquals(1, issues.size());
+        assertTrue(issues.getFirst().message().contains("Road Through Circle"));
+        assertFalse(issues.getFirst().message().contains("Road Outside Circle"));
+    }
+
+    @Test
+    void validate_roadTangentToCircleAtOnlyOnePointDoesNotQualify() {
+        GeographicalPath circleRegion =
+                circleRegion(heading(4), 50L, DistanceUnits.METER);
+
+        List<ValidationIssue> issues = validator(
+                eastWestRoad(202, "Point Tangent", 50.0))
+                .validate(circleRegion, 0, 0);
+
+        assertEquals(1, issues.size());
+        assertTrue(issues.getFirst().message().contains(
+                "no mapped roadway segment inside the TIM region"));
+    }
+
+    @ParameterizedTest
+    @MethodSource("circleUnitConversions")
+    void validate_circleConvertsEncodedRadiusToMeters(
+            DistanceUnits units,
+            double expectedRadiusMeters) {
+        GeographicalPath circleRegion = circleRegion(heading(0), 2L, units);
+        HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
+                (location, radius) -> {
+                    assertEquals(expectedRadiusMeters, radius, 1.0e-9);
+                    return List.of(northSouthRoad(101, "Main Street", 0.0));
+                });
+
+        List<ValidationIssue> issues = validator.validate(circleRegion, 0, 0);
+
+        assertTrue(issues.isEmpty(), issues.toString());
+    }
+
+    private static Stream<Arguments> circleUnitConversions() {
+        return Stream.of(
+                Arguments.of(DistanceUnits.CENTIMETER, 0.02),
+                Arguments.of(DistanceUnits.CM2_5, 0.05),
+                Arguments.of(DistanceUnits.DECIMETER, 0.2),
+                Arguments.of(DistanceUnits.METER, 2.0),
+                Arguments.of(DistanceUnits.KILOMETER, 2_000.0),
+                Arguments.of(DistanceUnits.FOOT, 0.6096),
+                Arguments.of(DistanceUnits.YARD, 1.8288),
+                Arguments.of(DistanceUnits.MILE, 3_218.688));
     }
 
     private static HeadingSliceGeometryValidator validator(RoadSegment... roads) {
@@ -261,17 +376,29 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     private static GeographicalPath region(HeadingSlice heading) {
-        GeographicalPath region = new GeographicalPath();
-        region.setAnchor(anchor());
-        region.setDirection(heading);
-        return region;
+        return closedPathRegion(
+                heading,
+                xyNode(-5_000L, -5_000L),
+                xyNode(10_000L, 0L),
+                xyNode(0L, 10_000L),
+                xyNode(-10_000L, 0L),
+                xyNode(0L, -10_000L));
     }
 
     private static GeographicalPath nestedGeometryRegion(HeadingSlice heading) {
+        return circleRegion(heading, 30L, DistanceUnits.METER);
+    }
+
+    private static GeographicalPath circleRegion(
+            HeadingSlice heading,
+            long radius,
+            DistanceUnits units) {
         GeometricProjection geometry = new GeometricProjection();
         geometry.setDirection(heading);
         Circle circle = new Circle();
         circle.setCenter(anchor());
+        circle.setRadius(new Radius_B12(radius));
+        circle.setUnits(units);
         geometry.setCircle(circle);
 
         GeographicalPath.DescriptionChoice description = new GeographicalPath.DescriptionChoice();
@@ -280,6 +407,43 @@ class HeadingSliceGeometryValidatorTest {
         GeographicalPath region = new GeographicalPath();
         region.setDescription(description);
         return region;
+    }
+
+    private static GeographicalPath closedPathRegion(
+            HeadingSlice heading,
+            NodeXY... nodes) {
+        NodeSetXY nodeSet = new NodeSetXY();
+        for (NodeXY node : nodes) {
+            nodeSet.add(node);
+        }
+        NodeListXY nodeList = new NodeListXY();
+        nodeList.setNodes(nodeSet);
+        OffsetSystem.OffsetChoice offset = new OffsetSystem.OffsetChoice();
+        offset.setXy(nodeList);
+        OffsetSystem path = new OffsetSystem();
+        path.setScale(new Zoom(0L));
+        path.setOffset(offset);
+        GeographicalPath.DescriptionChoice description =
+                new GeographicalPath.DescriptionChoice();
+        description.setPath(path);
+
+        GeographicalPath region = new GeographicalPath();
+        region.setAnchor(anchor());
+        region.setClosedPath(new Asn1Boolean(true));
+        region.setDirection(heading);
+        region.setDescription(description);
+        return region;
+    }
+
+    private static NodeXY xyNode(long xCentimeters, long yCentimeters) {
+        Node_XY_32b value = new Node_XY_32b();
+        value.setX(new Offset_B16(xCentimeters));
+        value.setY(new Offset_B16(yCentimeters));
+        NodeOffsetPointXY delta = new NodeOffsetPointXY();
+        delta.setNode_XY6(value);
+        NodeXY node = new NodeXY();
+        node.setDelta(delta);
+        return node;
     }
 
     private static Position3D anchor() {
@@ -291,39 +455,40 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     private static RoadSegment northSouthRoad(long id, String name, double eastOffsetMeters) {
-        double longitudeOffset = eastOffsetMeters / 85_180.0;
-        return new RoadSegment(
+        return localRoad(
                 id,
                 name,
-                List.of(
-                        new Coordinate(LONGITUDE + longitudeOffset, LATITUDE - 0.001),
-                        new Coordinate(LONGITUDE + longitudeOffset, LATITUDE + 0.001)));
+                new Coordinate(eastOffsetMeters, -100.0),
+                new Coordinate(eastOffsetMeters, 100.0));
     }
 
     private static RoadSegment eastWestRoad(long id, String name, double northOffsetMeters) {
-        double latitudeOffset = northOffsetMeters / 111_195.0;
-        return new RoadSegment(
+        return localRoad(
                 id,
                 name,
-                List.of(
-                        new Coordinate(LONGITUDE - 0.001, LATITUDE + latitudeOffset),
-                        new Coordinate(LONGITUDE + 0.001, LATITUDE + latitudeOffset)));
+                new Coordinate(-100.0, northOffsetMeters),
+                new Coordinate(100.0, northOffsetMeters));
     }
 
     private static RoadSegment roadAtBearing(long id, String name, double bearingDegrees) {
         double radians = Math.toRadians(bearingDegrees);
         double halfLengthMeters = 100.0;
-        double latitudeOffset = halfLengthMeters * Math.cos(radians) / 111_195.0;
-        double longitudeOffset = halfLengthMeters * Math.sin(radians) / 85_180.0;
-        return new RoadSegment(
+        double eastOffset = halfLengthMeters * Math.sin(radians);
+        double northOffset = halfLengthMeters * Math.cos(radians);
+        return localRoad(
                 id,
                 name,
-                List.of(
-                        new Coordinate(
-                                LONGITUDE - longitudeOffset,
-                                LATITUDE - latitudeOffset),
-                        new Coordinate(
-                                LONGITUDE + longitudeOffset,
-                                LATITUDE + latitudeOffset)));
+                new Coordinate(-eastOffset, -northOffset),
+                new Coordinate(eastOffset, northOffset));
+    }
+
+    private static RoadSegment localRoad(
+            long id,
+            String name,
+            Coordinate... localCoordinatesMeters) {
+        List<Coordinate> wgs84Coordinates = OffsetPathDecoder.wgs84Coordinates(
+                anchor(),
+                localCoordinatesMeters).orElseThrow();
+        return new RoadSegment(id, name, wgs84Coordinates);
     }
 }

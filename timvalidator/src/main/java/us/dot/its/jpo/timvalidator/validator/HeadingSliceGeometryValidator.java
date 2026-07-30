@@ -1,49 +1,36 @@
 package us.dot.its.jpo.timvalidator.validator;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.locationtech.jts.algorithm.Angle;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LineSegment;
-import org.locationtech.jts.geom.LineString;
-import org.locationtech.jts.linearref.LinearLocation;
-import org.locationtech.jts.linearref.LocationIndexedLine;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
-import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
+import us.dot.its.jpo.timvalidator.validator.RoadwayRegionMatcher.RoadwayBearing;
 
-/** Checks that each directional heading range is tangent to the physical roadway at the TIM region. */
+/** Checks that each directional heading range is tangent to a roadway inside the TIM region. */
 final class HeadingSliceGeometryValidator {
 
     private static final String CHECK_NAME = "Best Practices";
     private static final double SLICE_WIDTH_DEGREES = 22.5;
     // Change this value to tune the allowed +/- difference from each range midpoint.
     private static final double ROADWAY_TANGENCY_TOLERANCE_DEGREES = 22.5;
-    private static final double ROAD_SEARCH_RADIUS_METERS = 30.0;
-    private static final double CANDIDATE_DISTANCE_TOLERANCE_METERS = 8.0;
     // Covers insignificant local-projection convergence at a heading-slice boundary.
     private static final double ANGLE_EPSILON_DEGREES = 1.0e-3;
-    private static final Coordinate ORIGIN = new Coordinate(0.0, 0.0);
-    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
-    private final RoadGeometryProvider roadGeometryProvider;
+    private final RoadwayRegionMatcher roadwayRegionMatcher;
 
     HeadingSliceGeometryValidator(RoadGeometryProvider roadGeometryProvider) {
-        this.roadGeometryProvider = Objects.requireNonNull(
-                roadGeometryProvider,
-                "roadGeometryProvider");
+        this.roadwayRegionMatcher = new RoadwayRegionMatcher(roadGeometryProvider);
     }
 
     List<ValidationIssue> validate(
@@ -62,17 +49,11 @@ final class HeadingSliceGeometryValidator {
         }
 
         String issuePath = regionPath(dataFrameIndex, regionIndex) + selection.pathSuffix();
-        Optional<Coordinate> lookupPoint =
-                OffsetPathDecoder.wgs84Coordinate(selection.position());
-        if (lookupPoint.isEmpty()) {
-            // Schema validation reports missing or invalid region coordinates.
-            return List.of();
-        }
-        Coordinate location = lookupPoint.orElseThrow();
-
-        List<RoadSegment> roads;
+        Optional<List<RoadwayBearing>> evaluatedCandidates;
         try {
-            roads = roadGeometryProvider.findNearbyRoads(location, ROAD_SEARCH_RADIUS_METERS);
+            evaluatedCandidates = roadwayRegionMatcher.findRoadwayBearings(
+                    region,
+                    selection.circle());
         } catch (RuntimeException ex) {
             return List.of(warning(
                     String.format(
@@ -84,27 +65,21 @@ final class HeadingSliceGeometryValidator {
                     issuePath));
         }
 
-        if (roads == null) {
-            roads = List.of();
+        if (evaluatedCandidates.isEmpty()) {
+            // Schema and local-geometry validation report incomplete or malformed regions.
+            return List.of();
         }
-        List<RoadMatch> matches = roads.stream()
-                .map(road -> closestMatch(location, road))
-                .filter(match -> match != null
-                        && match.distanceMeters() <= ROAD_SEARCH_RADIUS_METERS)
-                .sorted(Comparator.comparingDouble(RoadMatch::distanceMeters))
-                .toList();
-        if (matches.isEmpty()) {
+
+        List<RoadwayBearing> candidates = evaluatedCandidates.orElseThrow();
+        if (candidates.isEmpty()) {
             return List.of(warning(
                     String.format(
                             Locale.ROOT,
-                            "Data frame %d region %d has no mapped roadway within %.1f m of the TIM region location",
+                            "Data frame %d region %d has no mapped roadway segment inside the TIM region",
                             dataFrameIndex,
-                            regionIndex,
-                            ROAD_SEARCH_RADIUS_METERS),
+                            regionIndex),
                     issuePath));
         }
-
-        List<RoadMatch> candidates = candidateMatches(matches);
 
         List<HeadingRange> mismatches = ranges.stream()
                 .filter(range -> candidates.stream().noneMatch(
@@ -120,7 +95,7 @@ final class HeadingSliceGeometryValidator {
                 String.format(
                         Locale.ROOT,
                         "Data frame %d region %d heading range center(s) %s are not tangent to any mapped "
-                                + "roadway candidate at the TIM region location; candidates: %s",
+                                + "roadway segment inside the TIM region; candidates: %s",
                         dataFrameIndex,
                         regionIndex,
                         formatRanges(mismatches),
@@ -136,22 +111,21 @@ final class HeadingSliceGeometryValidator {
             return new HeadingSelection(
                     region.getDirection(),
                     "/direction",
-                    region.getAnchor());
+                    null);
         }
         if (region.getDescription() == null) {
             return null;
         }
         GeometricProjection geometry = region.getDescription().getGeometry();
-        if (geometry == null || geometry.getDirection() == null) {
+        if (geometry == null
+                || geometry.getCircle() == null
+                || geometry.getDirection() == null) {
             return null;
         }
-        Position3D position = geometry.getCircle() == null
-                ? region.getAnchor()
-                : geometry.getCircle().getCenter();
         return new HeadingSelection(
                 geometry.getDirection(),
                 "/description/geometry/direction",
-                position);
+                geometry.getCircle());
     }
 
     private List<HeadingRange> directionalRanges(HeadingSlice heading) {
@@ -196,36 +170,6 @@ final class HeadingSliceGeometryValidator {
         return List.copyOf(ranges);
     }
 
-    private RoadMatch closestMatch(Coordinate start, RoadSegment road) {
-        Optional<List<Coordinate>> projectedCoordinates =
-                OffsetPathDecoder.displacementsMeters(
-                        start,
-                        road.geometry().getCoordinates());
-        if (projectedCoordinates.isEmpty()) {
-            return null;
-        }
-
-        Coordinate[] localCoordinates =
-                projectedCoordinates.orElseThrow().toArray(Coordinate[]::new);
-        LineString roadLine = GEOMETRY_FACTORY.createLineString(localCoordinates);
-        LinearLocation nearestLocation = new LocationIndexedLine(roadLine).project(ORIGIN);
-        Coordinate nearestPoint = nearestLocation.getCoordinate(roadLine);
-        LineSegment tangentSegment = nearestLocation.getSegment(roadLine);
-        double bearing = normalizeDegrees(
-                90.0 - Math.toDegrees(Angle.angle(tangentSegment.p0, tangentSegment.p1)));
-
-        return new RoadMatch(road, nearestPoint.distance(ORIGIN), bearing);
-    }
-
-    private List<RoadMatch> candidateMatches(List<RoadMatch> matches) {
-        double maximumCandidateDistance = Math.min(
-                ROAD_SEARCH_RADIUS_METERS,
-                matches.getFirst().distanceMeters() + CANDIDATE_DISTANCE_TOLERANCE_METERS);
-        return matches.stream()
-                .filter(match -> match.distanceMeters() <= maximumCandidateDistance)
-                .toList();
-    }
-
     private boolean isTangent(double centerDegrees, double roadwayBearingDegrees) {
         return tangentAxisDistance(centerDegrees, roadwayBearingDegrees)
                 <= ROADWAY_TANGENCY_TOLERANCE_DEGREES + ANGLE_EPSILON_DEGREES;
@@ -268,15 +212,14 @@ final class HeadingSliceGeometryValidator {
                 : " (" + road.name() + ")";
     }
 
-    private String formatCandidates(List<RoadMatch> candidates) {
+    private String formatCandidates(List<RoadwayBearing> candidates) {
         return candidates.stream()
                 .map(candidate -> String.format(
                         Locale.ROOT,
-                        "road segment %d%s bearing %.2f degrees at %.2f m",
+                        "road segment %d%s bearing %.2f degrees",
                         candidate.road().sourceId(),
                         roadNameSuffix(candidate.road()),
-                        candidate.bearingDegrees(),
-                        candidate.distanceMeters()))
+                        candidate.bearingDegrees()))
                 .toList()
                 .toString();
     }
@@ -299,12 +242,9 @@ final class HeadingSliceGeometryValidator {
     private record HeadingSelection(
             HeadingSlice heading,
             String pathSuffix,
-            Position3D position) {
+            Circle circle) {
     }
 
     private record HeadingRange(int startIndex, int length, double centerDegrees) {
-    }
-
-    private record RoadMatch(RoadSegment road, double distanceMeters, double bearingDegrees) {
     }
 }

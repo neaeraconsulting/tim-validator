@@ -37,9 +37,10 @@ public class BestPracticesValidator {
     }
 
     /**
-     * Creates a validator that checks heading slices against nearby roadway geometry.
+     * Creates a validator that checks heading slices against roadway geometry inside
+     * the TIM region.
      *
-     * @param roadGeometryProvider provider used to retrieve nearby roadway geometry
+     * @param roadGeometryProvider provider used to retrieve roadway geometry
      */
     public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
         this.geometryValidator = new GeometryValidator(roadGeometryProvider);
