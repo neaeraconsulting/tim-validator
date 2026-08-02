@@ -11,8 +11,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.locationtech.jts.geom.Coordinate;
 
+import us.dot.its.jpo.asn.j2735.r2024.Common.ComputedLane;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Elevation;
 import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
+import us.dot.its.jpo.asn.j2735.r2024.Common.LaneID;
 import us.dot.its.jpo.asn.j2735.r2024.Common.LaneWidth;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Latitude;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Longitude;
@@ -337,6 +339,52 @@ class GeometryValidatorTest {
     }
 
     @Test
+    void validate_computedLaneReturnsReferenceLaneWarning() {
+        TravelerInformationMessageFrame message = message(region(
+                anchor(337_545_852L, -843_986_600L),
+                300L,
+                computedPathDescription(7L)));
+
+        List<ValidationIssue> issues = validate(message);
+
+        assertEquals(1, issues.size());
+        ValidationIssue issue = issues.getFirst();
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals("Best Practices", issue.checkName());
+        assertEquals(
+                "/value/TravelerInformation/dataFrames/0/regions/0/description/path/offset/xy/"
+                        + "computed/referenceLaneId",
+                issue.path());
+        assertTrue(issue.message().contains("uses a computed lane"));
+        assertTrue(issue.message().contains(
+                "referenceLaneId identify the left-most lane in the direction of traffic"));
+    }
+
+    @Test
+    void validate_explicitNodeListDoesNotReturnComputedLaneWarning() {
+        TravelerInformationMessageFrame message = xyMessage(
+                300L,
+                0,
+                xyNode(1_000L, 0L));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("uses a computed lane")));
+    }
+
+    @Test
+    void validate_missingPathChoicesDoNotReturnComputedLaneWarning() {
+        GeographicalPath.DescriptionChoice emptyDescription =
+                new GeographicalPath.DescriptionChoice();
+        TravelerInformationMessageFrame message = message(region(
+                anchor(337_545_852L, -843_986_600L),
+                300L,
+                emptyDescription));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("uses a computed lane")));
+    }
+
+    @Test
     void validate_headingMismatchReturnsStructuredGeometryWarning() {
         BestPracticesValidator validator = new BestPracticesValidator(
                 (location, radius) -> List.of(new RoadSegment(
@@ -485,6 +533,19 @@ class GeometryValidatorTest {
         OffsetSystem.OffsetChoice offsetChoice = new OffsetSystem.OffsetChoice();
         offsetChoice.setLl(nodeList);
         return pathDescription(zoom, offsetChoice);
+    }
+
+    /** Builds a path whose XY node-list choice contains a computed lane. */
+    private static GeographicalPath.DescriptionChoice computedPathDescription(long referenceLaneId) {
+        ComputedLane computedLane = new ComputedLane();
+        computedLane.setReferenceLaneId(new LaneID(referenceLaneId));
+
+        NodeListXY nodeList = new NodeListXY();
+        nodeList.setComputed(computedLane);
+
+        OffsetSystem.OffsetChoice offsetChoice = new OffsetSystem.OffsetChoice();
+        offsetChoice.setXy(nodeList);
+        return pathDescription(0, offsetChoice);
     }
 
     private static GeographicalPath.DescriptionChoice pathDescription(

@@ -37,6 +37,7 @@ final class GeometryValidator {
             GeographicalPath region,
             DataFrameIndexes indexes) {
         List<ValidationIssue> issues = new ArrayList<>();
+        validateComputedLaneReference(region, indexes).ifPresent(issues::add);
         validateLocalGeometry(region, indexes).stream()
                 .map(message -> new ValidationIssue(
                         ValidationSeverity.ERROR,
@@ -52,6 +53,40 @@ final class GeometryValidator {
                     indexes.regionIndex()));
         }
         return List.copyOf(issues);
+    }
+
+    /**
+     * Warns when a computed lane is used because its reference lane should be the
+     * left-most lane in the direction of traffic.
+     */
+    private Optional<ValidationIssue> validateComputedLaneReference(
+            GeographicalPath region,
+            DataFrameIndexes indexes) {
+        if (region.getDescription() == null
+                || region.getDescription().getPath() == null
+                || region.getDescription().getPath().getOffset() == null
+                || region.getDescription().getPath().getOffset().getXy() == null
+                || region.getDescription().getPath().getOffset().getXy().getComputed() == null) {
+            return Optional.empty();
+        }
+
+        String message = String.format(
+                Locale.ROOT,
+                "Data frame %d region %d uses a computed lane. It is recommended that referenceLaneId "
+                        + "identify the left-most lane in the direction of traffic",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex());
+        String path = String.format(
+                Locale.ROOT,
+                "/value/TravelerInformation/dataFrames/%d/regions/%d/description/path/offset/xy/"
+                        + "computed/referenceLaneId",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex());
+        return Optional.of(new ValidationIssue(
+                ValidationSeverity.WARNING,
+                CHECK_NAME,
+                message,
+                path));
     }
 
     private List<String> validateLocalGeometry(

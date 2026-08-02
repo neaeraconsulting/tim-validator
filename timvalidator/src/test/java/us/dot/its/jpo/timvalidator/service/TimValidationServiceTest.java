@@ -255,6 +255,76 @@ public class TimValidationServiceTest {
     }
 
     @Test
+    public void validateTimJer_computedLaneReturnsNonBlockingBestPracticesWarning() throws Exception {
+        ValidationResult result = validationService.validateTimJer("""
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "laneWidth": 300,
+                          "directionality": "forward",
+                          "closedPath": false,
+                          "description": {
+                            "path": {
+                              "scale": 0,
+                              "offset": {
+                                "xy": {
+                                  "computed": {
+                                    "referenceLaneId": 7,
+                                    "offsetXaxis": {"small": 0},
+                                    "offsetYaxis": {"small": 300}
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """);
+
+        assertTrue(result.isValid(), result.getSummary());
+        assertFalse(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && issue.path().equals(
+                    "/value/TravelerInformation/dataFrames/0/regions/0/description/path/offset/xy/"
+                        + "computed/referenceLaneId")
+                && issue.message().contains("left-most lane in the direction of traffic")));
+        assertEquals(0, result.getErrors().size());
+    }
+
+    @Test
     public void validateTim_itwgValidUperWithIncompleteItisPattern_returnsItisIssues() throws Exception {
         Assumptions.assumeTrue(isNativeLibraryAvailable(),
             "Native codec library not found; skipping end-to-end validation test");
