@@ -244,12 +244,12 @@ public class TimValidationServiceTest {
             """);
 
         assertTrue(result.isValid(), result.getSummary());
-        assertFalse(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
         assertTrue(result.getWarnings().stream().anyMatch(issue ->
             issue.severity() == ValidationSeverity.WARNING
                 && issue.checkName().equals("Best Practices")
-                && issue.path().equals(
-                    "/value/TravelerInformation/dataFrames/0/regions/0/description/geometry/direction")
+                && "/value/TravelerInformation/dataFrames/0/regions/0/description/geometry/direction"
+                    .equals(issue.path())
                 && issue.message().contains("not tangent")));
         assertEquals(0, result.getErrors().size());
     }
@@ -313,13 +313,12 @@ public class TimValidationServiceTest {
             """);
 
         assertTrue(result.isValid(), result.getSummary());
-        assertFalse(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
         assertTrue(result.getWarnings().stream().anyMatch(issue ->
             issue.severity() == ValidationSeverity.WARNING
                 && issue.checkName().equals("Best Practices")
-                && issue.path().equals(
-                    "/value/TravelerInformation/dataFrames/0/regions/0/description/path/offset/xy/"
-                        + "computed/referenceLaneId")
+                && ("/value/TravelerInformation/dataFrames/0/regions/0/description/path/offset/xy/"
+                    + "computed/referenceLaneId").equals(issue.path())
                 && issue.message().contains("left-most lane in the direction of traffic")));
         assertEquals(0, result.getErrors().size());
     }

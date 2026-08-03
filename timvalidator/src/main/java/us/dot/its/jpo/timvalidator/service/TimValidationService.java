@@ -8,6 +8,7 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
@@ -148,17 +149,21 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<ValidationIssue> bestPracticesIssues =
-                bestPracticesValidator.validate(timMessage);
+        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
         result.addIssues(bestPracticesIssues);
-        if (bestPracticesIssues.isEmpty()) {
+        List<String> bestPracticesErrors = bestPracticesIssues.stream()
+                .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+                .map(ValidationIssue::message)
+                .toList();
+        if (!bestPracticesErrors.isEmpty()) {
+            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesErrors));
+        } else if (bestPracticesIssues.isEmpty()) {
             result.addValidationCheck("Best Practices", true, "All best practices checks passed");
         } else {
-            String details = bestPracticesIssues.stream()
-                    .map(ValidationIssue::message)
-                    .reduce((first, second) -> first + "; " + second)
-                    .orElse("");
-            result.addValidationCheck("Best Practices", false, details);
+            result.addValidationCheck(
+                    "Best Practices",
+                    true,
+                    "Best practices validation completed with non-blocking warnings");
         }
 
         return result;

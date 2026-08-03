@@ -25,7 +25,6 @@ public class BestPracticesValidator {
     private static final String CHECK_NAME = "Best Practices";
 
     private final GeometryValidator geometryValidator;
-
     /**
      * Creates a validator without an external road geometry lookup.
      *
@@ -104,22 +103,18 @@ public class BestPracticesValidator {
 
     /** Validates that all required fields are present. */
     private List<ValidationIssue> validateRequiredFields(TravelerInformation tim) {
-        List<ValidationIssue> issues = new ArrayList<>();
-
         // TODO: Check for required fields based on message type
 
-        return issues;
+        return List.of();
     }
 
     /** Validates TIM time period and duration constraints. */
     private List<ValidationIssue> validateTimePeriod(TravelerInformation tim) {
-        List<ValidationIssue> issues = new ArrayList<>();
-
         // TODO: Validate start/end times, ensure they're logical
         // TODO: Check duration doesn't exceed reasonable limits (e.g., 6 months)
         // TODO: Ensure times are in proper sequence
 
-        return issues;
+        return List.of();
     }
 
     /** Validates geographic data in TIM message. */
@@ -154,19 +149,17 @@ public class BestPracticesValidator {
             }
         }
 
-        return issues;
+        return List.copyOf(issues);
     }
 
     /** Validates advisory content and completeness. */
     private List<ValidationIssue> validateAdvisoryContent(TravelerInformation tim) {
-        List<ValidationIssue> issues = new ArrayList<>();
-
         // TODO: Ensure advisory messages have sufficient detail
         // TODO: Validate that message reason codes are appropriate
         // TODO: Check that all required signage frames are provided
         // TODO: Verify message language codes are valid
 
-        return issues;
+        return List.of();
     }
 
     private ValidationIssue error(String message) {

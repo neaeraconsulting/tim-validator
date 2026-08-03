@@ -22,7 +22,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
-import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodedPath;
+import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
 
 /**
  * Retrieves roadway geometry for a TIM area and returns bearings of every
@@ -86,13 +86,13 @@ final class RoadwayRegionMatcher {
         }
 
         Optional<Coordinate> anchor = OffsetPathDecoder.wgs84Coordinate(region.getAnchor());
-        Optional<DecodedPath> decodedPath = OffsetPathDecoder.decode(region);
-        if (anchor.isEmpty() || decodedPath.isEmpty()) {
+        DecodeResult decodeResult = OffsetPathDecoder.decode(region);
+        if (anchor.isEmpty() || !decodeResult.decoded()) {
             return Optional.empty();
         }
 
         Optional<Polygon> decodedPolygon =
-                localPolygonMeters(decodedPath.orElseThrow().nodes());
+                localPolygonMeters(decodeResult.path().nodes());
         if (decodedPolygon.isEmpty()) {
             return Optional.empty();
         }
