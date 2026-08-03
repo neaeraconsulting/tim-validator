@@ -8,6 +8,7 @@ import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItisJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
@@ -124,12 +125,21 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<String> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
-        if (bestPracticesIssues.isEmpty()) {
+        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
+        result.addIssues(bestPracticesIssues);
+        List<String> bestPracticesErrors = bestPracticesIssues.stream()
+                .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+                .map(ValidationIssue::message)
+                .toList();
+        if (!bestPracticesErrors.isEmpty()) {
+            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesErrors));
+        } else if (bestPracticesIssues.isEmpty()) {
             result.addValidationCheck("Best Practices", true, "All best practices checks passed");
         } else {
-            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesIssues));
-            bestPracticesIssues.forEach(issue -> result.addError("Best Practices", issue, null));
+            result.addValidationCheck(
+                    "Best Practices",
+                    true,
+                    "Best practices validation completed with non-blocking warnings");
         }
 
         return result;

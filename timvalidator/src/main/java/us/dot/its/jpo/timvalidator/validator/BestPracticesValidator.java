@@ -10,6 +10,8 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 /**
  * Performs hard-coded best practices validation on TIM messages.
@@ -19,24 +21,32 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
  */
 public class BestPracticesValidator {
 
+    private static final String CHECK_NAME = "Best Practices";
+
     /**
      * Validates a TIM message against best practices rules.
      *
      * @param timMessage the TIM message to validate
      * @return list of validation issues found (empty list if all checks pass)
      */
-    public List<String> validate(Object timMessage) {
-        List<String> issues = new ArrayList<>();
+    public List<ValidationIssue> validate(Object timMessage) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         if (timMessage == null) {
-            issues.add("TIM message is null");
-            return issues;
+            return List.of(new ValidationIssue(
+                    ValidationSeverity.ERROR,
+                    CHECK_NAME,
+                    "TIM message is null",
+                    null));
         }
 
         Optional<TravelerInformation> travelerInformation = travelerInformation(timMessage);
         if (travelerInformation.isEmpty()) {
-            issues.add("TIM message is not a TravelerInformationMessageFrame");
-            return issues;
+            return List.of(new ValidationIssue(
+                    ValidationSeverity.ERROR,
+                    CHECK_NAME,
+                    "TIM message is not a TravelerInformationMessageFrame",
+                    null));
         }
         TravelerInformation tim = travelerInformation.orElseThrow();
 
@@ -57,7 +67,7 @@ public class BestPracticesValidator {
         issues.addAll(validateGeography(tim));
         issues.addAll(validateAdvisoryContent(tim));
 
-        return issues;
+        return List.copyOf(issues);
     }
 
     private static Optional<TravelerInformation> travelerInformation(Object timMessage) {
@@ -78,28 +88,24 @@ public class BestPracticesValidator {
     }
 
     /** Validates that all required fields are present. */
-    private List<String> validateRequiredFields(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
-
+    private List<ValidationIssue> validateRequiredFields(TravelerInformation tim) {
         // TODO: Check for required fields based on message type
 
-        return issues;
+        return List.of();
     }
 
     /** Validates TIM time period and duration constraints. */
-    private List<String> validateTimePeriod(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
-
+    private List<ValidationIssue> validateTimePeriod(TravelerInformation tim) {
         // TODO: Validate start/end times, ensure they're logical
         // TODO: Check duration doesn't exceed reasonable limits (e.g., 6 months)
         // TODO: Ensure times are in proper sequence
 
-        return issues;
+        return List.of();
     }
 
     /** Validates geographic data in TIM message. */
-    private List<String> validateGeography(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
+    private List<ValidationIssue> validateGeography(TravelerInformation tim) {
+        List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges
         // TODO: Ensure road identifiers exist and reference valid roads
@@ -129,18 +135,16 @@ public class BestPracticesValidator {
             }
         }
 
-        return issues;
+        return List.copyOf(issues);
     }
 
     /** Validates advisory content and completeness. */
-    private List<String> validateAdvisoryContent(TravelerInformation tim) {
-        List<String> issues = new ArrayList<>();
-
+    private List<ValidationIssue> validateAdvisoryContent(TravelerInformation tim) {
         // TODO: Ensure advisory messages have sufficient detail
         // TODO: Validate that message reason codes are appropriate
         // TODO: Check that all required signage frames are provided
         // TODO: Verify message language codes are valid
 
-        return issues;
+        return List.of();
     }
 }

@@ -3,16 +3,18 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
-
 import org.locationtech.jts.geom.Coordinate;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodedPath;
 
 /** Geometry-related best-practices checks for a TIM geographical path. */
 final class GeometryValidator {
 
+    private static final String CHECK_NAME = "Best Practices";
     private static final Coordinate ANCHOR = new Coordinate(0.0, 0.0);
     private static final double CENTIMETERS_PER_METER = 100.0;
     private static final double REQUIRED_ANCHOR_TO_FIRST_NODE_CM = 1_000.0;
@@ -21,41 +23,42 @@ final class GeometryValidator {
     private GeometryValidator() {
     }
 
-    public static List<String> validate(GeographicalPath region, DataFrameIndexes indexes) {
-        Optional<DecodedPath> decodedPath = OffsetPathDecoder.decode(region);
-        if (decodedPath.isEmpty()) {
-            // Geometry choices that cannot be decoded are handled by schema validation.
-            return List.of();
+    public static List<ValidationIssue> validate(GeographicalPath region, DataFrameIndexes indexes) {
+        DecodeResult decodeResult = OffsetPathDecoder.decode(region);
+        if (!decodeResult.decoded()) {
+            return List.of(warning(notEvaluatedWarning(indexes, decodeResult.failureReason())));
         }
 
-        List<Coordinate> nodes = decodedPath.orElseThrow().nodes();
+        DecodedPath decodedPath = decodeResult.path();
+        List<Coordinate> nodes = decodedPath.nodes();
         if (nodes.isEmpty()) {
-            return List.of();
+            return List.of(warning(notEvaluatedWarning(indexes, "an empty path")));
         }
 
-        List<String> issues = new ArrayList<>();
+        List<ValidationIssue> issues = new ArrayList<>();
         boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
         List<String> centerlineIssues =
                 CenterlineGeometryValidator.validate(nodes, closedPath, indexes);
-        issues.addAll(centerlineIssues);
-        validateAnchor(issues, nodes.getFirst(), indexes);
+        addErrors(issues, centerlineIssues);
+        validateAnchorDistance(issues, nodes.getFirst(), indexes);
+        validateAnchorApproach(issues, nodes, indexes);
         if (!closedPath) {
-            issues.addAll(LaneWidthGeometryValidator.validateWidthAtBends(
+            addErrors(issues, LaneWidthGeometryValidator.validateWidthAtBends(
                     region,
                     nodes,
                     indexes));
             if (centerlineIssues.isEmpty()) {
-                issues.addAll(LaneWidthGeometryValidator.validateCorridor(
+                addErrors(issues, LaneWidthGeometryValidator.validateCorridor(
                         region,
                         nodes,
                         indexes));
             }
         }
-        return issues;
+        return List.copyOf(issues);
     }
 
-    private static void validateAnchor(
-            List<String> issues,
+    private static void validateAnchorDistance(
+            List<ValidationIssue> issues,
             Coordinate firstNode,
             DataFrameIndexes indexes) {
         double distanceCm = ANCHOR.distance(firstNode);
@@ -63,11 +66,78 @@ final class GeometryValidator {
             return;
         }
 
-        issues.add(String.format(
+        issues.add(error(String.format(
                 Locale.ROOT,
                 "Data frame %d region %d anchor must be 10.00 m before the first path node; actual distance is %.2f m",
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
-                distanceCm / CENTIMETERS_PER_METER));
+                distanceCm / CENTIMETERS_PER_METER)));
+    }
+
+    /**
+     * Checks that the anchor is before the first node relative to the first segment.
+     *
+     * <p>The decoded anchor is the origin. For anchor A, first node P0, and second
+     * node P1, a positive dot product between {@code P0 - A} and {@code P1 - P0}
+     * places A in the backward half-plane of P0. This deliberately does not require
+     * the anchor to lie on the first segment's backward extension, since that would
+     * incorrectly reject curved approaches.</p>
+     */
+    private static void validateAnchorApproach(
+            List<ValidationIssue> issues,
+            List<Coordinate> nodes,
+            DataFrameIndexes indexes) {
+        if (nodes.size() < 2) {
+            issues.add(warning(notEvaluatedWarning(indexes,
+                    "fewer than two path nodes for the anchor approach check")));
+            return;
+        }
+
+        Coordinate firstNode = nodes.get(0);
+        Coordinate secondNode = nodes.get(1);
+        double approachX = secondNode.getX() - firstNode.getX();
+        double approachY = secondNode.getY() - firstNode.getY();
+        double approachLengthCm = Math.hypot(approachX, approachY);
+        if (approachLengthCm == 0.0) {
+            issues.add(warning(notEvaluatedWarning(indexes,
+                    "a zero-length first segment for the anchor approach check")));
+            return;
+        }
+
+        double anchorToFirstX = firstNode.getX() - ANCHOR.getX();
+        double anchorToFirstY = firstNode.getY() - ANCHOR.getY();
+        double directionDotProduct = anchorToFirstX * approachX + anchorToFirstY * approachY;
+        if (directionDotProduct > 0.0) {
+            return;
+        }
+
+        issues.add(warning(String.format(
+                Locale.ROOT,
+                "Data frame %d region %d anchor must be before the first path node relative to the first path segment's direction",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex())));
+    }
+
+    private static String notEvaluatedWarning(DataFrameIndexes indexes, String reason) {
+        return String.format(
+                Locale.ROOT,
+                "Data frame %d region %d geometry not evaluated due to %s",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
+                reason);
+    }
+
+    private static void addErrors(List<ValidationIssue> issues, List<String> messages) {
+        messages.stream()
+                .map(GeometryValidator::error)
+                .forEach(issues::add);
+    }
+
+    private static ValidationIssue error(String message) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
+    }
+
+    private static ValidationIssue warning(String message) {
+        return new ValidationIssue(ValidationSeverity.WARNING, CHECK_NAME, message, null);
     }
 }

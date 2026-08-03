@@ -35,8 +35,32 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 class GeometryValidatorTest {
+
+    @Test
+    void validate_emptyPathReportsGeometryNotEvaluatedWarning() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0);
+
+        List<ValidationIssue> issues = validateStructured(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
+                && issue.message().contains("geometry not evaluated due to an empty path")));
+    }
+
+    @Test
+    void validate_undecodablePathReportsReasonAsWarning() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0,
+                xyNode(new NodeOffsetPointXY()));
+
+        List<ValidationIssue> issues = validateStructured(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
+                && issue.message().contains("geometry not evaluated due to")
+                && issue.message().contains("unsupported offset choice")));
+    }
 
     @Test
     void validate_rightAngleLaneWidthWithinLimitDoesNotReportGeometryIssue() {
@@ -288,6 +312,39 @@ class GeometryValidatorTest {
                 xyNode(0L, 0L));
 
         assertTrue(containsAnchorIssue(validate(message)));
+        assertTrue(validateStructured(message).stream()
+                .anyMatch(issue -> issue.severity() == ValidationSeverity.ERROR
+                        && issue.message().contains("actual distance is 0.00 m")));
+    }
+
+    @Test
+    void validate_anchorOnApproachTrajectoryDoesNotReportDirectionWarning() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L));
+
+        assertFalse(containsAnchorDirectionIssue(validate(message)));
+    }
+
+    @Test
+    void validate_anchorBehindButNotOnApproachLineDoesNotReportDirectionWarning() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(1L, 1_000L));
+
+        assertFalse(containsAnchorDirectionIssue(validate(message)));
+    }
+
+    @Test
+    void validate_anchorAheadOfFirstSegmentReportsWarning() {
+        TravelerInformationMessageFrame message = xyMessage(0L, 0,
+                xyNode(1_000L, 0L),
+                xyNode(-500L, 0L));
+
+        List<ValidationIssue> issues = validateStructured(message);
+
+        assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
+                && issue.message().contains("anchor must be before the first path node")));
     }
 
     @Test
@@ -328,6 +385,12 @@ class GeometryValidatorTest {
     }
 
     private static List<String> validate(TravelerInformationMessageFrame message) {
+        return new BestPracticesValidator().validate(message).stream()
+                .map(ValidationIssue::message)
+                .toList();
+    }
+
+    private static List<ValidationIssue> validateStructured(TravelerInformationMessageFrame message) {
         return new BestPracticesValidator().validate(message);
     }
 
@@ -479,6 +542,10 @@ class GeometryValidatorTest {
 
     private static boolean containsAnchorIssue(List<String> issues) {
         return issues.stream().anyMatch(issue -> issue.contains("anchor must be 10.00 m before the first path node"));
+    }
+
+    private static boolean containsAnchorDirectionIssue(List<String> issues) {
+        return issues.stream().anyMatch(issue -> issue.contains("anchor must be before the first path node"));
     }
 
     private static boolean containsClosedPolygonIssue(List<String> issues) {
