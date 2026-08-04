@@ -32,33 +32,42 @@ final class GeometryValidator {
         }
 
         DecodeResult decodeResult = OffsetPathDecoder.decode(region);
+        String regionPath = regionPath(indexes);
         if (!decodeResult.decoded()) {
-            return List.of(warning(notEvaluatedWarning(indexes, decodeResult.failureReason())));
+            return List.of(warning(
+                    notEvaluatedWarning(indexes, decodeResult.failureReason()),
+                    regionPath + decodeResult.failurePathSuffix()));
         }
 
         DecodedPath decodedPath = decodeResult.path();
         List<Coordinate> nodes = decodedPath.nodes();
+        String nodesPath = regionPath + decodedPath.nodesPathSuffix();
         if (nodes.isEmpty()) {
-            return List.of(warning(notEvaluatedWarning(indexes, "an empty path")));
+            return List.of(warning(notEvaluatedWarning(indexes, "an empty path"), nodesPath));
         }
 
         List<ValidationIssue> issues = new ArrayList<>();
         boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
-        List<String> centerlineIssues =
-                CenterlineGeometryValidator.validate(nodes, closedPath, indexes);
-        addErrors(issues, centerlineIssues);
-        validateAnchorDistance(issues, nodes.getFirst(), indexes);
-        validateAnchorApproach(issues, nodes, indexes);
+        List<ValidationIssue> centerlineIssues =
+                CenterlineGeometryValidator.validate(nodes, closedPath, indexes, nodesPath);
+        issues.addAll(centerlineIssues);
+        String anchorPath = regionPath + "/anchor";
+        validateAnchorDistance(issues, nodes.getFirst(), indexes, anchorPath);
+        validateAnchorApproach(issues, nodes, indexes, anchorPath, nodesPath);
         if (!closedPath) {
-            addErrors(issues, LaneWidthGeometryValidator.validateWidthAtBends(
+            String laneWidthPath = regionPath + "/laneWidth";
+            issues.addAll(LaneWidthGeometryValidator.validateWidthAtBends(
                     region,
                     nodes,
-                    indexes));
+                    indexes,
+                    laneWidthPath));
             if (centerlineIssues.isEmpty()) {
-                addErrors(issues, LaneWidthGeometryValidator.validateCorridor(
+                issues.addAll(LaneWidthGeometryValidator.validateCorridor(
                         region,
                         nodes,
-                        indexes));
+                        indexes,
+                        laneWidthPath,
+                        nodesPath));
             }
         }
         return List.copyOf(issues);
@@ -67,7 +76,8 @@ final class GeometryValidator {
     private static void validateAnchorDistance(
             List<ValidationIssue> issues,
             Coordinate firstNode,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            String anchorPath) {
         double distanceCm = ANCHOR.distance(firstNode);
         if (Math.abs(distanceCm - REQUIRED_ANCHOR_TO_FIRST_NODE_CM) <= ANCHOR_DISTANCE_TOLERANCE_CM) {
             return;
@@ -78,7 +88,7 @@ final class GeometryValidator {
                 "Data frame %d region %d anchor must be 10.00 m before the first path node; actual distance is %.2f m",
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
-                distanceCm / CENTIMETERS_PER_METER)));
+                distanceCm / CENTIMETERS_PER_METER), anchorPath));
     }
 
     /**
@@ -93,10 +103,12 @@ final class GeometryValidator {
     private static void validateAnchorApproach(
             List<ValidationIssue> issues,
             List<Coordinate> nodes,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            String anchorPath,
+            String nodesPath) {
         if (nodes.size() < 2) {
             issues.add(warning(notEvaluatedWarning(indexes,
-                    "fewer than two path nodes for the anchor approach check")));
+                    "fewer than two path nodes for the anchor approach check"), nodesPath));
             return;
         }
 
@@ -107,7 +119,7 @@ final class GeometryValidator {
         double approachLengthCm = Math.hypot(approachX, approachY);
         if (approachLengthCm == 0.0) {
             issues.add(warning(notEvaluatedWarning(indexes,
-                    "a zero-length first segment for the anchor approach check")));
+                    "a zero-length first segment for the anchor approach check"), nodesPath + "/1"));
             return;
         }
 
@@ -122,7 +134,7 @@ final class GeometryValidator {
                 Locale.ROOT,
                 "Data frame %d region %d anchor must be before the first path node relative to the first path segment's direction",
                 indexes.dataFrameIndex(),
-                indexes.regionIndex())));
+                indexes.regionIndex()), anchorPath));
     }
 
     private static String notEvaluatedWarning(DataFrameIndexes indexes, String reason) {
@@ -134,17 +146,19 @@ final class GeometryValidator {
                 reason);
     }
 
-    private static void addErrors(List<ValidationIssue> issues, List<String> messages) {
-        messages.stream()
-                .map(GeometryValidator::error)
-                .forEach(issues::add);
+    private static String regionPath(DataFrameIndexes indexes) {
+        return String.format(
+                Locale.ROOT,
+                "/value/TravelerInformation/dataFrames/%d/regions/%d",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex());
     }
 
-    private static ValidationIssue error(String message) {
-        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
+    private static ValidationIssue error(String message, String path) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, path);
     }
 
-    private static ValidationIssue warning(String message) {
-        return new ValidationIssue(ValidationSeverity.WARNING, CHECK_NAME, message, null);
+    private static ValidationIssue warning(String message, String path) {
+        return new ValidationIssue(ValidationSeverity.WARNING, CHECK_NAME, message, path);
     }
 }

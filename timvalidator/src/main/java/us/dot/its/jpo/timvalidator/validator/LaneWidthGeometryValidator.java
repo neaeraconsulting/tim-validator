@@ -20,6 +20,8 @@ import org.locationtech.jts.operation.valid.TopologyValidationError;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.LaneWidth;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 /**
  * Validates the local and complete geometric effects of laneWidth on an open path.
@@ -29,6 +31,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
  */
 final class LaneWidthGeometryValidator {
 
+    private static final String CHECK_NAME = "Best Practices";
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
     private static final double MINIMUM_CORRIDOR_AREA_SQUARE_CM = 1.0e-6;
     private static final double ANGLE_EPSILON_RADIANS = 1.0e-12;
@@ -42,10 +45,11 @@ final class LaneWidthGeometryValidator {
      * Validates that the complete lane width does not exceed the local geometric
      * limit imposed by any three-point bend in the centerline.
      */
-    static List<String> validateWidthAtBends(
+    static List<ValidationIssue> validateWidthAtBends(
             GeographicalPath region,
             List<Coordinate> nodes,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            String laneWidthPath) {
         LaneWidth laneWidth = region.getLaneWidth();
         if (laneWidth == null || laneWidth.getValue() <= 0 || nodes.size() < 3) {
             return List.of();
@@ -57,7 +61,7 @@ final class LaneWidthGeometryValidator {
             return List.of();
         }
 
-        return List.of(String.format(
+        return List.of(error(String.format(
                 Locale.ROOT,
                 "Data frame %d region %d laneWidth %.2f cm exceeds maximum allowable centered path width %.2f cm "
                         + "at point index %d",
@@ -65,17 +69,19 @@ final class LaneWidthGeometryValidator {
                 indexes.regionIndex(),
                 laneWidthCm,
                 limit.widthCm(),
-                limit.pointIndex()));
+                limit.pointIndex()), laneWidthPath));
     }
 
     /**
      * Expands the complete centerline into a lane corridor, then validates that
      * the corridor does not overlap itself.
      */
-    static List<String> validateCorridor(
+    static List<ValidationIssue> validateCorridor(
             GeographicalPath region,
             List<Coordinate> nodes,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            String laneWidthPath,
+            String nodesPath) {
         LaneWidth laneWidth = region.getLaneWidth();
         if (laneWidth == null || laneWidth.getValue() <= 0 || nodes.size() < 2) {
             return List.of();
@@ -95,15 +101,15 @@ final class LaneWidthGeometryValidator {
             Coordinate[] leftCoordinates = OffsetCurve.rawOffset(centerline, halfWidthCm, parameters);
             Coordinate[] rightCoordinates = OffsetCurve.rawOffset(centerline, -halfWidthCm, parameters);
             if (leftCoordinates.length < 2 || rightCoordinates.length < 2) {
-                return List.of(unusableCorridorIssue(indexes));
+                return List.of(error(unusableCorridorIssue(indexes), laneWidthPath));
             }
 
             LineString leftBoundary = GEOMETRY_FACTORY.createLineString(leftCoordinates);
             LineString rightBoundary = GEOMETRY_FACTORY.createLineString(rightCoordinates);
 
-            List<String> issues = new ArrayList<>();
-            validateBoundary(issues, "left", leftBoundary, indexes);
-            validateBoundary(issues, "right", rightBoundary, indexes);
+            List<ValidationIssue> issues = new ArrayList<>();
+            validateBoundary(issues, "left", leftBoundary, indexes, nodesPath);
+            validateBoundary(issues, "right", rightBoundary, indexes, nodesPath);
             if (!issues.isEmpty()) {
                 return issues;
             }
@@ -111,12 +117,12 @@ final class LaneWidthGeometryValidator {
             Geometry boundaryIntersection = leftBoundary.intersection(rightBoundary);
             if (!boundaryIntersection.isEmpty()) {
                 Coordinate intersection = boundaryIntersection.getCoordinate();
-                issues.add(String.format(
+                issues.add(error(String.format(
                         Locale.ROOT,
                         "Data frame %d region %d lane corridor's left and right boundaries must not intersect%s",
                         indexes.dataFrameIndex(),
                         indexes.regionIndex(),
-                        coordinateSuffix(intersection)));
+                        coordinateSuffix(intersection)), nodesPath));
                 return issues;
             }
 
@@ -126,25 +132,25 @@ final class LaneWidthGeometryValidator {
                 TopologyValidationError error = validity.getValidationError();
                 Coordinate errorCoordinate = error == null ? null : error.getCoordinate();
                 String detail = error == null ? "invalid corridor geometry" : error.getMessage();
-                issues.add(String.format(
+                issues.add(error(String.format(
                         Locale.ROOT,
                         "Data frame %d region %d lane corridor must form a valid polygon: %s%s",
                         indexes.dataFrameIndex(),
                         indexes.regionIndex(),
                         detail,
-                        coordinateSuffix(errorCoordinate)));
+                        coordinateSuffix(errorCoordinate)), nodesPath));
             } else if (corridor.getArea() <= MINIMUM_CORRIDOR_AREA_SQUARE_CM) {
-                issues.add(unusableCorridorIssue(indexes));
+                issues.add(error(unusableCorridorIssue(indexes), laneWidthPath));
             }
 
             return issues;
         } catch (IllegalArgumentException | TopologyException ex) {
-            return List.of(String.format(
+            return List.of(error(String.format(
                     Locale.ROOT,
                     "Data frame %d region %d lane corridor could not be constructed: %s",
                     indexes.dataFrameIndex(),
                     indexes.regionIndex(),
-                    ex.getMessage()));
+                    ex.getMessage()), nodesPath));
         }
     }
 
@@ -202,22 +208,23 @@ final class LaneWidthGeometryValidator {
 
     /** Validates that one generated lane boundary does not intersect itself. */
     private static void validateBoundary(
-            List<String> issues,
+            List<ValidationIssue> issues,
             String boundaryName,
             LineString boundary,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            String nodesPath) {
         IsSimpleOp simplicity = new IsSimpleOp(boundary);
         if (simplicity.isSimple()) {
             return;
         }
 
-        issues.add(String.format(
+        issues.add(error(String.format(
                 Locale.ROOT,
                 "Data frame %d region %d lane corridor's %s boundary must not intersect itself%s",
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
                 boundaryName,
-                coordinateSuffix(simplicity.getNonSimpleLocation())));
+                coordinateSuffix(simplicity.getNonSimpleLocation())), nodesPath));
     }
 
     /**
@@ -255,6 +262,10 @@ final class LaneWidthGeometryValidator {
                 "; intersection is near (%.2f cm, %.2f cm)",
                 coordinate.getX(),
                 coordinate.getY());
+    }
+
+    private static ValidationIssue error(String message, String path) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, path);
     }
 
     private record WidthLimit(double widthCm, int pointIndex) {
