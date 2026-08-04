@@ -24,6 +24,13 @@ final class GeometryValidator {
     }
 
     public static List<ValidationIssue> validate(GeographicalPath region, DataFrameIndexes indexes) {
+        // Geometric projections such as circles do not contain offset paths.
+        if (region != null
+                && region.getDescription() != null
+                && region.getDescription().getGeometry() != null) {
+            return List.of();
+        }
+
         DecodeResult decodeResult = OffsetPathDecoder.decode(region);
         if (!decodeResult.decoded()) {
             return List.of(warning(notEvaluatedWarning(indexes, decodeResult.failureReason())));
