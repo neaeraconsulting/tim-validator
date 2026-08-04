@@ -57,11 +57,7 @@ final class GeometryValidator {
     private Optional<ValidationIssue> validateComputedLaneReference(
             GeographicalPath region,
             DataFrameIndexes indexes) {
-        if (region.getDescription() == null
-                || region.getDescription().getPath() == null
-                || region.getDescription().getPath().getOffset() == null
-                || region.getDescription().getPath().getOffset().getXy() == null
-                || region.getDescription().getPath().getOffset().getXy().getComputed() == null) {
+        if (!hasComputedLane(region)) {
             return Optional.empty();
         }
 
@@ -88,6 +84,9 @@ final class GeometryValidator {
     private List<ValidationIssue> validateLocalGeometry(
             GeographicalPath region,
             DataFrameIndexes indexes) {
+        if (hasComputedLane(region)) {
+            return List.of();
+        }
         if (region != null
                 && region.getDescription() != null
                 && region.getDescription().getGeometry() != null) {
@@ -134,6 +133,15 @@ final class GeometryValidator {
             }
         }
         return List.copyOf(issues);
+    }
+
+    private static boolean hasComputedLane(GeographicalPath region) {
+        return region != null
+                && region.getDescription() != null
+                && region.getDescription().getPath() != null
+                && region.getDescription().getPath().getOffset() != null
+                && region.getDescription().getPath().getOffset().getXy() != null
+                && region.getDescription().getPath().getOffset().getXy().getComputed() != null;
     }
 
     /** Checks that the first path node is approximately ten meters from the anchor. */

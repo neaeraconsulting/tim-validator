@@ -459,6 +459,8 @@ class GeometryValidatorTest {
         assertTrue(issue.message().contains("uses a computed lane"));
         assertTrue(issue.message().contains(
                 "referenceLaneId identify the left-most lane in the direction of traffic"));
+        assertTrue(issues.stream().noneMatch(candidate ->
+                candidate.message().contains("geometry not evaluated")));
     }
 
     @Test
