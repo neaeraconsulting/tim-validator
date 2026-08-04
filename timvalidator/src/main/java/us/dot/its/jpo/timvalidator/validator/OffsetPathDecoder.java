@@ -57,26 +57,31 @@ final class OffsetPathDecoder {
         try {
             return decodePath(region);
         } catch (RuntimeException exception) {
-            return DecodeResult.failure("a coordinate decoding failure");
+            return DecodeResult.failure("a coordinate decoding failure", "/description/path");
         }
     }
 
     private static DecodeResult decodePath(GeographicalPath region) {
         if (region == null) {
-            return DecodeResult.failure("a missing geographical path");
+            return DecodeResult.failure("a missing geographical path", "");
         }
-        if (region.getDescription() == null || region.getDescription().getPath() == null) {
-            return DecodeResult.failure("a missing offset path description");
+        if (region.getDescription() == null) {
+            return DecodeResult.failure("a missing offset path description", "/description");
+        }
+        if (region.getDescription().getPath() == null) {
+            return DecodeResult.failure("a missing offset path description", "/description/path");
         }
 
         OffsetSystem path = region.getDescription().getPath();
         if (path.getOffset() == null) {
-            return DecodeResult.failure("a missing path offset choice");
+            return DecodeResult.failure("a missing path offset choice", "/description/path/offset");
         }
 
         double scale = offsetScale(path);
         if (!Double.isFinite(scale)) {
-            return DecodeResult.failure("a path scale outside the supported range 0 through 15");
+            return DecodeResult.failure(
+                    "a path scale outside the supported range 0 through 15",
+                    "/description/path/scale");
         }
 
         Optional<ProjCoordinate> anchor = geographicCoordinate(region.getAnchor());
@@ -89,7 +94,9 @@ final class OffsetPathDecoder {
         NodeListLL ll = offset.getLl();
         if (ll != null && ll.getNodes() != null) {
             if (anchor.isEmpty()) {
-                return DecodeResult.failure("a latitude/longitude path without a valid anchor");
+                return DecodeResult.failure(
+                        "a latitude/longitude path without a valid anchor",
+                        "/anchor");
             }
             ProjCoordinate origin = anchor.orElseThrow();
             return decodeLatLon(
@@ -99,7 +106,9 @@ final class OffsetPathDecoder {
                     scale);
         }
 
-        return DecodeResult.failure("the absence of a supported XY or latitude/longitude node list");
+        return DecodeResult.failure(
+                "the absence of a supported XY or latitude/longitude node list",
+                "/description/path/offset");
     }
 
     /**
@@ -230,7 +239,9 @@ final class OffsetPathDecoder {
         for (int nodeIndex = 0; nodeIndex < nodes.size(); nodeIndex++) {
             NodeXY node = nodes.get(nodeIndex);
             if (node == null || node.getDelta() == null) {
-                return DecodeResult.failure("XY path node " + nodeIndex + " having no offset");
+                return DecodeResult.failure(
+                        "XY path node " + nodeIndex + " having no offset",
+                        xyNodePath(nodeIndex));
             }
 
             NodeOffsetPointXY encodedPoint = node.getDelta();
@@ -243,7 +254,8 @@ final class OffsetPathDecoder {
                 Optional<ProjCoordinate> absolute = geographicCoordinate(encodedPoint.getNode_LatLon());
                 if (absolute.isEmpty()) {
                     return DecodeResult.failure(
-                            "XY path node " + nodeIndex + " having an invalid absolute latitude/longitude");
+                            "XY path node " + nodeIndex + " having an invalid absolute latitude/longitude",
+                            xyNodePath(nodeIndex));
                 }
                 if (projection == null) {
                     projection = localTransform(anchor.orElseThrow());
@@ -252,19 +264,21 @@ final class OffsetPathDecoder {
                 Optional<Coordinate> projected = project(projection, absolutePoint);
                 if (projected.isEmpty()) {
                     return DecodeResult.failure(
-                            "XY path node " + nodeIndex + " failing projection relative to the anchor");
+                            "XY path node " + nodeIndex + " failing projection relative to the anchor",
+                            xyNodePath(nodeIndex));
                 }
                 current = projected.orElseThrow();
             } else {
                 // A regional or otherwise unsupported choice cannot be decoded safely.
                 return DecodeResult.failure(
-                        "XY path node " + nodeIndex + " using an unsupported offset choice");
+                        "XY path node " + nodeIndex + " using an unsupported offset choice",
+                        xyNodePath(nodeIndex));
             }
 
             coordinates.add(current.copy());
         }
 
-        return DecodeResult.success(coordinates);
+        return DecodeResult.success(coordinates, "/description/path/offset/xy/nodes");
     }
 
     private static DecodeResult decodeLatLon(
@@ -278,7 +292,9 @@ final class OffsetPathDecoder {
         for (int nodeIndex = 0; nodeIndex < nodes.size(); nodeIndex++) {
             NodeLL node = nodes.get(nodeIndex);
             if (node == null || node.getDelta() == null) {
-                return DecodeResult.failure("latitude/longitude path node " + nodeIndex + " having no offset");
+                return DecodeResult.failure(
+                        "latitude/longitude path node " + nodeIndex + " having no offset",
+                        llNodePath(nodeIndex));
             }
 
             NodeOffsetPointLL encodedPoint = node.getDelta();
@@ -286,20 +302,30 @@ final class OffsetPathDecoder {
                     nextLatLonPoint(encodedPoint, currentGeographic, scale);
             if (nextGeographic.isEmpty()) {
                 return DecodeResult.failure(
-                        "latitude/longitude path node " + nodeIndex + " having an invalid or unsupported offset");
+                        "latitude/longitude path node " + nodeIndex + " having an invalid or unsupported offset",
+                        llNodePath(nodeIndex));
             }
 
             ProjCoordinate next = nextGeographic.orElseThrow();
             Optional<Coordinate> projected = project(localTransform, next);
             if (projected.isEmpty()) {
                 return DecodeResult.failure(
-                        "latitude/longitude path node " + nodeIndex + " failing projection relative to the anchor");
+                        "latitude/longitude path node " + nodeIndex + " failing projection relative to the anchor",
+                        llNodePath(nodeIndex));
             }
             coordinates.add(projected.orElseThrow());
             currentGeographic = next;
         }
 
-        return DecodeResult.success(coordinates);
+        return DecodeResult.success(coordinates, "/description/path/offset/ll/nodes");
+    }
+
+    private static String xyNodePath(int nodeIndex) {
+        return "/description/path/offset/xy/nodes/" + nodeIndex + "/delta";
+    }
+
+    private static String llNodePath(int nodeIndex) {
+        return "/description/path/offset/ll/nodes/" + nodeIndex + "/delta";
     }
 
     private static double offsetScale(OffsetSystem path) {
@@ -471,19 +497,19 @@ final class OffsetPathDecoder {
         return normalized;
     }
 
-    record DecodedPath(List<Coordinate> nodes) {
+    record DecodedPath(List<Coordinate> nodes, String nodesPathSuffix) {
         DecodedPath {
             nodes = List.copyOf(nodes);
         }
     }
 
-    record DecodeResult(DecodedPath path, String failureReason) {
-        static DecodeResult success(List<Coordinate> nodes) {
-            return new DecodeResult(new DecodedPath(nodes), null);
+    record DecodeResult(DecodedPath path, String failureReason, String failurePathSuffix) {
+        static DecodeResult success(List<Coordinate> nodes, String nodesPathSuffix) {
+            return new DecodeResult(new DecodedPath(nodes, nodesPathSuffix), null, null);
         }
 
-        static DecodeResult failure(String reason) {
-            return new DecodeResult(null, reason);
+        static DecodeResult failure(String reason, String pathSuffix) {
+            return new DecodeResult(null, reason, pathSuffix);
         }
 
         boolean decoded() {

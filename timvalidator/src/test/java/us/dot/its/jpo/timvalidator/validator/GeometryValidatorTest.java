@@ -48,6 +48,11 @@ import us.dot.its.jpo.timvalidator.road.RoadSegment;
 
 class GeometryValidatorTest {
 
+    private static final String REGION_PATH =
+            "/value/TravelerInformation/dataFrames/0/regions/0";
+    private static final String XY_NODES_PATH =
+            REGION_PATH + "/description/path/offset/xy/nodes";
+
     @Test
     void validate_circleDoesNotReportMissingOffsetPathWarning() {
         GeometricProjection geometry = new GeometricProjection();
@@ -73,6 +78,7 @@ class GeometryValidatorTest {
 
         assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
                 && issue.message().contains("geometry not evaluated due to an empty path")));
+        assertEquals(XY_NODES_PATH, findIssue(issues, "empty path").path());
     }
 
     @Test
@@ -85,6 +91,8 @@ class GeometryValidatorTest {
         assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
                 && issue.message().contains("geometry not evaluated due to")
                 && issue.message().contains("unsupported offset choice")));
+        assertEquals(XY_NODES_PATH + "/0/delta",
+                findIssue(issues, "unsupported offset choice").path());
     }
 
     @Test
@@ -119,6 +127,8 @@ class GeometryValidatorTest {
                 xyNode(0L, 10_000L));
 
         assertTrue(containsLaneWidthIssue(validate(message)));
+        assertEquals(REGION_PATH + "/laneWidth",
+                findIssue(validate(message), "exceeds maximum allowable").path());
     }
 
     @Test
@@ -147,6 +157,8 @@ class GeometryValidatorTest {
                 "Each individual bend remains within the local bend-width limit");
         assertTrue(containsLaneCorridorIssue(issues),
                 "The complete corridor must detect overlap between the two parallel sections");
+        assertEquals(XY_NODES_PATH,
+                findIssue(validate(message), "lane corridor").path());
     }
 
     @Test
@@ -215,6 +227,8 @@ class GeometryValidatorTest {
         assertTrue(issues.stream().anyMatch(issue ->
                 issue.message().contains("open path must not contain repeated points")
                         && issue.message().contains("indexes 0 and 2")));
+        assertEquals(XY_NODES_PATH + "/2",
+                findIssue(issues, "open path must not contain repeated points").path());
     }
 
     @Test
@@ -232,6 +246,8 @@ class GeometryValidatorTest {
                         && issue.message().contains("6000.00 cm, 5000.00 cm")));
         assertFalse(containsLaneCorridorIssue(issues),
                 "Corridor validation should not cascade after centerline topology fails");
+        assertEquals(XY_NODES_PATH,
+                findIssue(validate(message), "open path must not intersect itself").path());
     }
 
     @Test
@@ -276,6 +292,8 @@ class GeometryValidatorTest {
 
         assertTrue(issues.stream().anyMatch(issue -> issue.message().contains(
                 "closed polygon's first and last points must coincide")));
+        assertEquals(XY_NODES_PATH + "/4",
+                findIssue(validate(message), "first and last points must coincide").path());
     }
 
     @Test
@@ -343,6 +361,8 @@ class GeometryValidatorTest {
         assertTrue(validate(message).stream()
                 .anyMatch(issue -> issue.severity() == ValidationSeverity.ERROR
                         && issue.message().contains("actual distance is 0.00 m")));
+        assertEquals(REGION_PATH + "/anchor",
+                findIssue(validate(message), "actual distance is 0.00 m").path());
     }
 
     @Test
@@ -373,6 +393,8 @@ class GeometryValidatorTest {
 
         assertTrue(issues.stream().anyMatch(issue -> issue.severity() == ValidationSeverity.WARNING
                 && issue.message().contains("anchor must be before the first path node")));
+        assertEquals(REGION_PATH + "/anchor",
+                findIssue(issues, "anchor must be before the first path node").path());
     }
 
     @Test
@@ -525,6 +547,13 @@ class GeometryValidatorTest {
         region.setAnchor(anchor(400_000_000L, -1_050_000_000L));
         region.setDirection(heading);
         return message;
+    }
+
+    private static ValidationIssue findIssue(List<ValidationIssue> issues, String messagePart) {
+        return issues.stream()
+                .filter(issue -> issue.message().contains(messagePart))
+                .findFirst()
+                .orElseThrow();
     }
 
     private static TravelerInformationMessageFrame xyMessage(long laneWidthCm, int zoom, NodeXY... nodes) {
