@@ -26,7 +26,9 @@ import us.dot.its.jpo.asn.j2735.r2024.Common.Node_LLmD_64b;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Node_XY_32b;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Offset_B16;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeLL;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeListLL;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeOffsetPointLL;
@@ -45,6 +47,23 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 
 class GeometryValidatorTest {
+
+    @Test
+    void validate_circleDoesNotReportMissingOffsetPathWarning() {
+        GeometricProjection geometry = new GeometricProjection();
+        geometry.setCircle(new Circle());
+        GeographicalPath.DescriptionChoice description =
+                new GeographicalPath.DescriptionChoice();
+        description.setGeometry(geometry);
+        TravelerInformationMessageFrame message = message(region(
+                anchor(337_545_852L, -843_986_600L),
+                description));
+
+        List<ValidationIssue> issues = validate(message);
+
+        assertFalse(issues.stream().anyMatch(issue ->
+                issue.message().contains("missing offset path description")));
+    }
 
     @Test
     void validate_emptyPathReportsGeometryNotEvaluatedWarning() {
