@@ -251,6 +251,8 @@ public class TimValidationServiceTest {
                 && "/value/TravelerInformation/dataFrames/0/regions/0/description/geometry/direction"
                     .equals(issue.path())
                 && issue.message().contains("not tangent")));
+        assertFalse(result.getWarnings().stream().anyMatch(issue ->
+            issue.message().contains("missing offset path description")));
         assertEquals(0, result.getErrors().size());
     }
 

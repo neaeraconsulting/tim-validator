@@ -84,10 +84,16 @@ final class GeometryValidator {
                 path));
     }
 
-    /** Validates geometry that can be decoded locally from the TIM region. */
+    /** Validates locally decodable offset paths and skips other description choices. */
     private List<ValidationIssue> validateLocalGeometry(
             GeographicalPath region,
             DataFrameIndexes indexes) {
+        if (region != null
+                && region.getDescription() != null
+                && region.getDescription().getGeometry() != null) {
+            return List.of();
+        }
+
         DecodeResult decodeResult = OffsetPathDecoder.decode(region);
         if (!decodeResult.decoded()) {
             return List.of(warning(notEvaluatedWarning(indexes, decodeResult.failureReason())));
