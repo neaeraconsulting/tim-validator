@@ -27,6 +27,7 @@ import us.dot.its.jpo.asn.j2735.r2024.Common.Node_XY_32b;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Offset_B16;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.NodeLL;
@@ -68,6 +69,143 @@ class GeometryValidatorTest {
 
         assertFalse(issues.stream().anyMatch(issue ->
                 issue.message().contains("missing offset path description")));
+    }
+
+    @Test
+    void validate_imperialCircleUnitsReportMetricRecommendation() {
+        TravelerInformationMessageFrame message = circleMessage(DistanceUnits.FOOT);
+
+        ValidationIssue issue = findIssue(validate(message), "metric units are recommended");
+
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals(REGION_PATH + "/description/geometry/circle/units", issue.path());
+    }
+
+    @Test
+    void validate_metricCircleUnitsDoNotReportMetricRecommendation() {
+        TravelerInformationMessageFrame message = circleMessage(DistanceUnits.METER);
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("metric units are recommended")));
+    }
+
+    @Test
+    void validate_laneWidthAtSuspiciousThresholdReportsUnitWarning() {
+        TravelerInformationMessageFrame message = xyMessage(
+                20L,
+                0,
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L));
+
+        ValidationIssue issue = findIssue(validate(message), "suspiciously small");
+
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals(REGION_PATH + "/laneWidth", issue.path());
+        assertTrue(issue.message().contains("expressed in centimeters"));
+    }
+
+    @Test
+    void validate_laneWidthAboveSuspiciousThresholdDoesNotReportUnitWarning() {
+        TravelerInformationMessageFrame message = xyMessage(
+                21L,
+                0,
+                xyNode(1_000L, 0L),
+                xyNode(1_000L, 0L));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("suspiciously small")));
+    }
+
+    @Test
+    void validate_xyPathAtMaximumRecommendedSeparationDoesNotReportEncodingWarning() {
+        TravelerInformationMessageFrame message = xyMessage(
+                300L,
+                0,
+                xyNode(1_000L, 0L),
+                xyNode(32_767L, 0L));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("nodes are recommended because")));
+    }
+
+    @Test
+    void validate_xyPathBeyondMaximumRecommendedSeparationRecommendsLlOffsets() {
+        TravelerInformationMessageFrame message = xyMessage(
+                300L,
+                0,
+                xyNode(1_000L, 0L),
+                xyNode(32_767L, 0L),
+                xyNode(1L, 0L));
+
+        ValidationIssue issue = findIssue(validate(message),
+                "latitude/longitude offset nodes are recommended");
+
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals(REGION_PATH + "/description/path/offset", issue.path());
+        assertTrue(issue.message().contains("327.68 m"));
+    }
+
+    @Test
+    void validate_shortLlPathRecommendsXyOffsets() {
+        TravelerInformationMessageFrame message = message(region(
+                anchor(0L, 0L),
+                300L,
+                latLonPathDescription(
+                        0,
+                        llNode(898L, 0L),
+                        llNode(898L, 0L))));
+
+        ValidationIssue issue = findIssue(validate(message), "XY offset nodes are recommended");
+
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals(REGION_PATH + "/description/path/offset", issue.path());
+    }
+
+    @Test
+    void validate_longLlPathDoesNotReportEncodingWarning() {
+        TravelerInformationMessageFrame message = message(region(
+                anchor(0L, 0L),
+                300L,
+                latLonPathDescription(
+                        0,
+                        llNode(898L, 0L),
+                        llNode(40_000L, 0L))));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("nodes are recommended because")));
+    }
+
+    @Test
+    void validate_llPathAtMaximumComponentSeparationDoesNotReportEncodingWarning() {
+        TravelerInformationMessageFrame message = message(region(
+                anchor(0L, 0L),
+                300L,
+                latLonPathDescription(
+                        0,
+                        llNode(898L, 0L),
+                        llNode(8_388_607L, 0L))));
+
+        assertTrue(validate(message).stream().noneMatch(issue ->
+                issue.message().contains("nodes are recommended because")));
+    }
+
+    @Test
+    void validate_llPathBeyondMaximumComponentSeparationRecommendsAbsoluteNodes() {
+        TravelerInformationMessageFrame message = message(region(
+                anchor(0L, 0L),
+                300L,
+                latLonPathDescription(
+                        0,
+                        llNode(898L, 0L),
+                        llNode(8_388_607L, 0L),
+                        llNode(1L, 0L))));
+
+        ValidationIssue issue = findIssue(validate(message),
+                "absolute latitude/longitude nodes are recommended");
+
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals(REGION_PATH + "/description/path/offset", issue.path());
+        assertTrue(issue.message().contains("greater than 0.8388607 degrees"));
     }
 
     @Test
@@ -549,6 +687,16 @@ class GeometryValidatorTest {
         region.setAnchor(anchor(400_000_000L, -1_050_000_000L));
         region.setDirection(heading);
         return message;
+    }
+
+    private static TravelerInformationMessageFrame circleMessage(DistanceUnits units) {
+        Circle circle = new Circle();
+        circle.setUnits(units);
+        GeometricProjection geometry = new GeometricProjection();
+        geometry.setCircle(circle);
+        GeographicalPath.DescriptionChoice description = new GeographicalPath.DescriptionChoice();
+        description.setGeometry(geometry);
+        return message(region(anchor(337_545_852L, -843_986_600L), description));
     }
 
     private static ValidationIssue findIssue(List<ValidationIssue> issues, String messagePart) {
