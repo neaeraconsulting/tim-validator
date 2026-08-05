@@ -228,6 +228,46 @@ final class OffsetPathDecoder {
         return Optional.of(List.copyOf(geographicCoordinates));
     }
 
+    /**
+     * Reprojects anchor-relative decoded path nodes into a planar coordinate system
+     * shared by multiple TIM regions.
+     *
+     * <p>{@link #decode(GeographicalPath)} returns centimeters in a projection centered
+     * on that region's anchor. Those coordinates cannot be compared directly with a
+     * path decoded around another anchor. This method converts the decoded nodes back
+     * to WGS-84, then projects them around the supplied common origin. The returned
+     * coordinates are measured in meters.</p>
+     */
+    static Optional<List<Coordinate>> sharedCoordinatesMeters(
+            GeographicalPath region,
+            List<Coordinate> localNodesCentimeters,
+            Coordinate sharedOriginWgs84) {
+        if (region == null || localNodesCentimeters == null || sharedOriginWgs84 == null) {
+            return Optional.empty();
+        }
+
+        Coordinate[] localNodesMeters = new Coordinate[localNodesCentimeters.size()];
+        for (int index = 0; index < localNodesCentimeters.size(); index++) {
+            Coordinate node = localNodesCentimeters.get(index);
+            if (node == null || !node.isValid()) {
+                return Optional.empty();
+            }
+            localNodesMeters[index] = new CoordinateXY(
+                    node.getX() / CENTIMETERS_PER_METER,
+                    node.getY() / CENTIMETERS_PER_METER);
+        }
+
+        Optional<List<Coordinate>> geographicNodes =
+                wgs84Coordinates(region.getAnchor(), localNodesMeters);
+        if (geographicNodes.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return displacementsMeters(
+                sharedOriginWgs84,
+                geographicNodes.orElseThrow().toArray(Coordinate[]::new));
+    }
+
     private static DecodeResult decodeXy(
             NodeSetXY nodes,
             Optional<ProjCoordinate> anchor,

@@ -149,6 +149,8 @@ public class BestPracticesValidator {
             }
         }
 
+        issues.addAll(LaneCrossingGeometryValidator.validate(dataFrames));
+
         return List.copyOf(issues);
     }
 
