@@ -43,6 +43,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
@@ -645,6 +646,24 @@ class GeometryValidatorTest {
                 "/value/TravelerInformation/dataFrames/0/regions/0/direction",
                 issues.getFirst().path());
         assertTrue(issues.getFirst().message().contains("not tangent"));
+    }
+
+    @Test
+    void validate_disabledHeadingCheckDoesNotCallRoadProvider() {
+        AtomicInteger providerCalls = new AtomicInteger();
+        BestPracticesValidator validator = new BestPracticesValidator(
+                (location, radius) -> {
+                    providerCalls.incrementAndGet();
+                    return List.of();
+                });
+
+        List<ValidationIssue> issues = validator.validate(
+                messageWithHeading(0),
+                ValidationOptions.networkFree());
+
+        assertEquals(0, providerCalls.get());
+        assertTrue(issues.stream().noneMatch(issue ->
+                issue.message().contains("roadway heading")));
     }
 
     @Test

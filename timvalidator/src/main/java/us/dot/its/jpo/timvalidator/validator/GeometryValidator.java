@@ -27,10 +27,6 @@ final class GeometryValidator {
 
     private final HeadingSliceGeometryValidator headingSliceGeometryValidator;
 
-    GeometryValidator() {
-        this.headingSliceGeometryValidator = null;
-    }
-
     GeometryValidator(RoadGeometryProvider roadGeometryProvider) {
         this.headingSliceGeometryValidator =
                 new HeadingSliceGeometryValidator(roadGeometryProvider);
@@ -38,14 +34,15 @@ final class GeometryValidator {
 
     List<ValidationIssue> validate(
             GeographicalPath region,
-            DataFrameIndexes indexes) {
+            DataFrameIndexes indexes,
+            boolean roadwayHeadingEnabled) {
         List<ValidationIssue> issues = new ArrayList<>();
         validateComputedLaneReference(region, indexes).ifPresent(issues::add);
         validateSuspiciousLaneWidth(region, indexes).ifPresent(issues::add);
         validateCircleUnits(region, indexes).ifPresent(issues::add);
         issues.addAll(validateLocalGeometry(region, indexes));
 
-        if (headingSliceGeometryValidator != null) {
+        if (roadwayHeadingEnabled) {
             issues.addAll(headingSliceGeometryValidator.validate(
                     region,
                     indexes.dataFrameIndex(),

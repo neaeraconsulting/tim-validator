@@ -49,6 +49,10 @@ Accept: application/json
 
 Send the TIM MessageFrame as JER JSON in the raw request body. The endpoint accepts either an unwrapped MessageFrame JSON object or a wrapper shaped like `{ "MessageFrame": { ... } }`.
 
+Add `?roadwayHeading=true` to enable the optional OpenStreetMap roadway-heading check for
+this request. Omitting the parameter, or setting it to `false`, performs no roadway
+provider calls under the default configuration.
+
 ## UPER Validation Endpoint
 
 ```http
@@ -58,6 +62,19 @@ Accept: application/json
 ```
 
 Send the UPER-encoded TIM MessageFrame as a hexadecimal string in the raw request body.
+
+The UPER endpoint supports the same optional `?roadwayHeading=true|false` parameter.
+
+## Roadway Heading Configuration
+
+The API is network-free by default while still allowing clients to opt in:
+
+```properties
+timvalidator.roadway-heading.enabled-by-default=false
+```
+
+Set `enabled-by-default=true` when requests that omit the query parameter should run the
+external check. An explicit `roadwayHeading=false` always opts out.
 
 ## Response Shape
 
@@ -90,6 +107,7 @@ Send the UPER-encoded TIM MessageFrame as a hexadecimal string in the raw reques
       "details": "Schema validation failed: ..."
     }
   ],
+  "roadwayHeadingValidationEnabled": false,
   "validationTimestamp": "2026-06-23T19:00:00Z",
   "validationDurationMs": 42
 }

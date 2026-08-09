@@ -2,6 +2,7 @@ package us.dot.its.jpo.timvalidator.validator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
@@ -10,8 +11,10 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
@@ -25,6 +28,7 @@ public class BestPracticesValidator {
     private static final String CHECK_NAME = "Best Practices";
 
     private final GeometryValidator geometryValidator;
+    private final ValidationOptions defaultOptions;
     /**
      * Creates a validator without an external road geometry lookup.
      *
@@ -32,7 +36,7 @@ public class BestPracticesValidator {
      * geometry provider.
      */
     public BestPracticesValidator() {
-        this.geometryValidator = new GeometryValidator();
+        this(new OverpassRoadGeometryProvider(), ValidationOptions.networkFree());
     }
 
     /**
@@ -42,7 +46,16 @@ public class BestPracticesValidator {
      * @param roadGeometryProvider provider used to retrieve roadway geometry
      */
     public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
-        this.geometryValidator = new GeometryValidator(roadGeometryProvider);
+        this(roadGeometryProvider, ValidationOptions.withRoadwayHeading());
+    }
+
+    private BestPracticesValidator(
+            RoadGeometryProvider roadGeometryProvider,
+            ValidationOptions defaultOptions) {
+        this.geometryValidator = new GeometryValidator(Objects.requireNonNull(
+                roadGeometryProvider,
+                "roadGeometryProvider"));
+        this.defaultOptions = defaultOptions;
     }
 
     /**
@@ -52,6 +65,20 @@ public class BestPracticesValidator {
      * @return structured validation issues (empty list if all checks pass)
      */
     public List<ValidationIssue> validate(Object timMessage) {
+        return validate(timMessage, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message and controls whether external roadway geometry is used.
+     *
+     * @param timMessage the TIM message to validate
+     * @param options checks to perform for this validation
+     * @return structured validation issues (empty list if all checks pass)
+     */
+    public List<ValidationIssue> validate(
+            Object timMessage,
+            ValidationOptions options) {
+        Objects.requireNonNull(options, "options");
         List<ValidationIssue> issues = new ArrayList<>();
 
         if (timMessage == null) {
@@ -78,7 +105,7 @@ public class BestPracticesValidator {
 
         issues.addAll(validateRequiredFields(tim));
         issues.addAll(validateTimePeriod(tim));
-        issues.addAll(validateGeography(tim));
+        issues.addAll(validateGeography(tim, options.roadwayHeadingEnabled()));
         issues.addAll(validateAdvisoryContent(tim));
 
         return List.copyOf(issues);
@@ -118,7 +145,9 @@ public class BestPracticesValidator {
     }
 
     /** Validates geographic data in TIM message. */
-    private List<ValidationIssue> validateGeography(TravelerInformation tim) {
+    private List<ValidationIssue> validateGeography(
+            TravelerInformation tim,
+            boolean roadwayHeadingEnabled) {
         List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges
@@ -145,7 +174,10 @@ public class BestPracticesValidator {
                 }
 
                 DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                issues.addAll(geometryValidator.validate(region, indexes));
+                issues.addAll(geometryValidator.validate(
+                        region,
+                        indexes,
+                        roadwayHeadingEnabled));
             }
         }
 

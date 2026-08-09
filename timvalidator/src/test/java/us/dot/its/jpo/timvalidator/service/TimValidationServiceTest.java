@@ -3,6 +3,7 @@ package us.dot.its.jpo.timvalidator.service;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.locationtech.jts.geom.Coordinate;
 
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
@@ -186,15 +188,19 @@ public class TimValidationServiceTest {
 
     @Test
     public void validateTimJer_headingMismatchReturnsStructuredBestPracticesWarning() throws Exception {
+        AtomicInteger providerCalls = new AtomicInteger();
         TimValidationService roadBackedService = new TimValidationService(
-            (location, radius) -> java.util.List.of(new RoadSegment(
-                202L,
-                "Broadway",
-                java.util.List.of(
-                    new Coordinate(-0.001, 0.0),
-                    new Coordinate(0.001, 0.0)))));
+            (location, radius) -> {
+                providerCalls.incrementAndGet();
+                return java.util.List.of(new RoadSegment(
+                    202L,
+                    "Broadway",
+                    java.util.List.of(
+                        new Coordinate(-0.001, 0.0),
+                        new Coordinate(0.001, 0.0))));
+            });
 
-        ValidationResult result = roadBackedService.validateTimJer("""
+        String headingJer = """
             {
               "messageId": 31,
               "value": {
@@ -241,8 +247,24 @@ public class TimValidationServiceTest {
                 }
               }
             }
-            """);
+            """;
 
+        ValidationResult networkFreeResult = roadBackedService.validateTimJer(
+            headingJer,
+            ValidationOptions.networkFree());
+
+        assertEquals(0, providerCalls.get(),
+            "Disabled roadway heading validation must not call the provider");
+        assertFalse(networkFreeResult.isRoadwayHeadingValidationEnabled());
+        assertTrue(networkFreeResult.getWarnings().stream().noneMatch(issue ->
+            issue.message().contains("not tangent")));
+
+        ValidationResult result = roadBackedService.validateTimJer(
+            headingJer,
+            ValidationOptions.withRoadwayHeading());
+
+        assertEquals(1, providerCalls.get());
+        assertTrue(result.isRoadwayHeadingValidationEnabled());
         assertTrue(result.isValid(), result.getSummary());
         assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
         assertTrue(result.getWarnings().stream().anyMatch(issue ->
@@ -254,6 +276,15 @@ public class TimValidationServiceTest {
         assertFalse(result.getWarnings().stream().anyMatch(issue ->
             issue.message().contains("missing offset path description")));
         assertEquals(0, result.getErrors().size());
+    }
+
+    @Test
+    public void validateTimJer_defaultServiceSupportsEnabledRoadwayHeading() throws Exception {
+        ValidationResult result = validationService.validateTimJer(
+            "{\"messageId\":31}",
+            ValidationOptions.withRoadwayHeading());
+
+        assertTrue(result.isRoadwayHeadingValidationEnabled());
     }
 
     @Test

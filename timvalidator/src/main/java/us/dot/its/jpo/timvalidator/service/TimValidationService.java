@@ -1,8 +1,10 @@
 package us.dot.its.jpo.timvalidator.service;
 
 import java.util.List;
+import java.util.Objects;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
@@ -35,9 +37,11 @@ public class TimValidationService {
     private final ItwgTimJsonValidator itwgSchemaValidator;
     private final ItisJsonValidator itisContentValidator;
     private final BestPracticesValidator bestPracticesValidator;
+    private final ValidationOptions defaultOptions;
 
+    /** Creates a service whose default validation is network-free. */
     public TimValidationService() {
-        this(new BestPracticesValidator());
+        this(new BestPracticesValidator(), ValidationOptions.defaults());
     }
 
     /**
@@ -55,16 +59,23 @@ public class TimValidationService {
      * @param roadGeometryProvider provider used to retrieve nearby road geometry
      */
     public TimValidationService(RoadGeometryProvider roadGeometryProvider) {
-        this(new BestPracticesValidator(roadGeometryProvider));
+        this(
+                new BestPracticesValidator(Objects.requireNonNull(
+                        roadGeometryProvider,
+                        "roadGeometryProvider")),
+                ValidationOptions.withRoadwayHeading());
     }
 
-    private TimValidationService(BestPracticesValidator bestPracticesValidator) {
+    private TimValidationService(
+            BestPracticesValidator bestPracticesValidator,
+            ValidationOptions defaultOptions) {
         this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
         this.jerToMessageFrameConverter = new JerToMessageFrameConverter();
         this.j2735SchemaValidator = new TimJsonValidator();
         this.itwgSchemaValidator = new ItwgTimJsonValidator();
         this.itisContentValidator = new ItisJsonValidator();
         this.bestPracticesValidator = bestPracticesValidator;
+        this.defaultOptions = defaultOptions;
     }
 
     /**
@@ -75,9 +86,25 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTim(String uperString) throws ValidationException {
+        return validateTim(uperString, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message from UPER format using per-call options.
+     *
+     * @param uperString the UPER encoded TIM message
+     * @param options checks to perform for this validation
+     * @return ValidationResult containing validation status and details
+     * @throws ValidationException if validation fails critically
+     */
+    public ValidationResult validateTim(
+            String uperString,
+            ValidationOptions options) throws ValidationException {
+        ValidationOptions validatedOptions = Objects.requireNonNull(options, "options");
         long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setUperInput(uperString);
+        result.setRoadwayHeadingValidationEnabled(validatedOptions.roadwayHeadingEnabled());
 
         try {
             String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
@@ -86,7 +113,7 @@ public class TimValidationService {
             TravelerInformationMessageFrame timMessage = uperToMessageFrameConverter.deserialize(xerFormat);
             result.setTimMessage(timMessage);
 
-            return validateTimMessage(result, timMessage);
+            return validateTimMessage(result, timMessage, validatedOptions);
         } catch (Exception e) {
             throw buildValidationException(result, e);
         } finally {
@@ -102,15 +129,31 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTimJer(String jerString) throws ValidationException {
+        return validateTimJer(jerString, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message from JER/JSON format using per-call options.
+     *
+     * @param jerString the JER/JSON encoded TIM message
+     * @param options checks to perform for this validation
+     * @return ValidationResult containing validation status and details
+     * @throws ValidationException if validation fails critically
+     */
+    public ValidationResult validateTimJer(
+            String jerString,
+            ValidationOptions options) throws ValidationException {
+        ValidationOptions validatedOptions = Objects.requireNonNull(options, "options");
         long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setJerInput(jerString);
+        result.setRoadwayHeadingValidationEnabled(validatedOptions.roadwayHeadingEnabled());
 
         try {
             TravelerInformationMessageFrame timMessage = jerToMessageFrameConverter.deserialize(jerString);
             result.setTimMessage(timMessage);
 
-            return validateTimMessage(result, timMessage);
+            return validateTimMessage(result, timMessage, validatedOptions);
         } catch (Exception e) {
             throw buildValidationException(result, e);
         } finally {
@@ -120,7 +163,8 @@ public class TimValidationService {
 
     private ValidationResult validateTimMessage(
             ValidationResult result,
-            TravelerInformationMessageFrame timMessage) {
+            TravelerInformationMessageFrame timMessage,
+            ValidationOptions options) {
         try {
             j2735SchemaValidator.validate(timMessage);
             result.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
@@ -149,7 +193,9 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
+        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(
+                timMessage,
+                options);
         result.addIssues(bestPracticesIssues);
         List<String> bestPracticesErrors = bestPracticesIssues.stream()
                 .filter(issue -> issue.severity() == ValidationSeverity.ERROR)

@@ -25,6 +25,7 @@ class ValidationResponseTest {
         assertEquals("Schema Validation", response.issues().getFirst().checkName());
         assertEquals("/tim", response.issues().getFirst().path());
         assertEquals("required property missing", response.issues().getFirst().message());
+        assertFalse(response.roadwayHeadingValidationEnabled());
     }
 
     @Test

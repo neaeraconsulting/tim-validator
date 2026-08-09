@@ -3,7 +3,9 @@ package us.dot.its.jpo.timvalidator.api.controller;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.hasItem;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -18,6 +20,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.api.config.RoadwayHeadingPolicy;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.service.TimValidationService;
 
 @WebMvcTest(TimValidationController.class)
@@ -31,13 +35,24 @@ class TimValidationControllerTest {
     @MockBean
     private TimValidationService timValidationService;
 
+    @MockBean
+    private RoadwayHeadingPolicy roadwayHeadingPolicy;
+
+    @BeforeEach
+    void setUp() {
+        when(roadwayHeadingPolicy.resolve(null)).thenReturn(ValidationOptions.networkFree());
+    }
+
     @Test
     void validateJer_validMessage_returnsValidResponse() throws Exception {
         ValidationResult validationResult = new ValidationResult();
         validationResult.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
         validationResult.addValidationCheck("ITWG Schema Validation", true, "Message conforms to ITWG TIM profile schema");
 
-        when(timValidationService.validateTimJer(anyString())).thenReturn(validationResult);
+        when(timValidationService.validateTimJer(
+                anyString(),
+                eq(ValidationOptions.networkFree())))
+            .thenReturn(validationResult);
 
         mockMvc.perform(post("/api/v1/tim/validate/jer")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -45,6 +60,7 @@ class TimValidationControllerTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.valid").value(true))
+            .andExpect(jsonPath("$.roadwayHeadingValidationEnabled").value(false))
             .andExpect(jsonPath("$.issues", hasSize(0)))
             .andExpect(jsonPath("$.checks[?(@.name == 'J2735 Schema Validation')].passed").value(hasItem(true)))
             .andExpect(jsonPath("$.checks[?(@.name == 'ITWG Schema Validation')].passed").value(hasItem(true)));
@@ -57,7 +73,10 @@ class TimValidationControllerTest {
         validationResult.addValidationCheck("J2735 Schema Validation", false, "required property 'value' missing");
         validationResult.addError("J2735 Schema Validation", "required property 'value' missing", "/value");
 
-        when(timValidationService.validateTimJer(anyString())).thenReturn(validationResult);
+        when(timValidationService.validateTimJer(
+                anyString(),
+                eq(ValidationOptions.networkFree())))
+            .thenReturn(validationResult);
 
         mockMvc.perform(post("/api/v1/tim/validate/jer")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -91,7 +110,10 @@ class TimValidationControllerTest {
         validationResult.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
         validationResult.addValidationCheck("ITWG Schema Validation", true, "Message conforms to ITWG TIM profile schema");
 
-        when(timValidationService.validateTim(VALID_UPER_HEX)).thenReturn(validationResult);
+        when(timValidationService.validateTim(
+                VALID_UPER_HEX,
+                ValidationOptions.networkFree()))
+            .thenReturn(validationResult);
 
         mockMvc.perform(post("/api/v1/tim/validate/uper")
                 .contentType(MediaType.TEXT_PLAIN)
@@ -103,6 +125,33 @@ class TimValidationControllerTest {
             .andExpect(jsonPath("$.checks[?(@.name == 'J2735 Schema Validation')].passed").value(hasItem(true)))
             .andExpect(jsonPath("$.checks[?(@.name == 'ITWG Schema Validation')].passed").value(hasItem(true)));
 
-        verify(timValidationService).validateTim(VALID_UPER_HEX);
+        verify(timValidationService).validateTim(
+            VALID_UPER_HEX,
+            ValidationOptions.networkFree());
     }
+
+    @Test
+    void validateJer_roadwayHeadingRequested_passesEnabledOptions() throws Exception {
+        ValidationResult validationResult = new ValidationResult();
+        validationResult.setRoadwayHeadingValidationEnabled(true);
+        when(roadwayHeadingPolicy.resolve(true))
+            .thenReturn(ValidationOptions.withRoadwayHeading());
+        when(timValidationService.validateTimJer(
+                anyString(),
+                eq(ValidationOptions.withRoadwayHeading())))
+            .thenReturn(validationResult);
+
+        mockMvc.perform(post("/api/v1/tim/validate/jer")
+                .queryParam("roadwayHeading", "true")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"messageId\":31}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.roadwayHeadingValidationEnabled").value(true));
+
+        verify(roadwayHeadingPolicy).resolve(true);
+        verify(timValidationService).validateTimJer(
+            anyString(),
+            eq(ValidationOptions.withRoadwayHeading()));
+    }
+
 }

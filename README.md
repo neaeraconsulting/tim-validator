@@ -70,11 +70,13 @@ See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint detail
 
 ### Road-Heading Validation
 
-When a TIM region has a directional heading slice, the API queries nearby OpenStreetMap
-roadways through Overpass. For a closed path, it decodes the TIM polygon and sends a
-slightly buffered version of that polygon as the Overpass search area. For a circle, it
-queries from the circle center using the encoded radius and distance unit. Missing
-headings, `0000` (no heading), and `ffff` (all headings) do not trigger a lookup.
+Roadway-backed heading validation is optional and network-free by default. When it is
+enabled and a TIM region has a directional heading slice, the validator queries nearby
+OpenStreetMap roadways through Overpass. For a closed path, it decodes the TIM polygon
+and sends a slightly buffered version of that polygon as the Overpass search area. For a
+circle, it queries from the circle center using the encoded radius and distance unit.
+Disabled checks, missing headings, `0000` (no heading), and `ffff` (all headings) do not
+trigger a lookup.
 
 Returned roads are projected into the same local coordinate system as the TIM region.
 JTS retains only positive-length roadway portions inside the polygon or circle. Each
@@ -86,7 +88,6 @@ Heading mismatches, missing road matches, and lookup failures are returned as
 non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
 identifies the region heading that was evaluated.
 
-The API enables this check through the library's standard Overpass configuration.
 The library uses the public `https://overpass-api.de/api/interpreter` endpoint, a
 5-second Overpass query budget, a 20-second HTTP deadline, and the
 `timvalidator/1.0` user agent. These values are fixed in the library rather than
@@ -114,12 +115,31 @@ range, is evaluated from its circular angular midpoint. A roadway axis is tangen
 when it is within plus or minus 22.5 degrees of that midpoint.
 
 Tests inject an in-memory `RoadGeometryProvider`; they never call the live Overpass service.
-The ordinary `new TimValidationService()` constructor remains network-free. Library
-consumers opt into the standard roadway check without any Spring configuration:
+The ordinary `new TimValidationService()` constructor configures the standard Overpass
+provider, but its default validation options are network-free. Library consumers choose
+the behavior for each validation call:
 
 ```java
-TimValidationService validator = TimValidationService.withOverpassRoadGeometry();
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+
+TimValidationService validator = new TimValidationService();
+
+// Guaranteed not to call the roadway provider.
+validator.validateTimJer(jer, ValidationOptions.networkFree());
+
+// Explicitly enables roadway lookups for directional heading slices.
+validator.validateTimJer(jer, ValidationOptions.withRoadwayHeading());
 ```
+
+Calling `validateTimJer(jer)` or `validateTim(uper)` on an ordinary
+`new TimValidationService()` remains network-free. The provider is only queried when
+`ValidationOptions.withRoadwayHeading()` is used and the TIM contains a directional
+heading that can be evaluated. The explicit `withOverpassRoadGeometry()` factory and
+provider-injecting constructor retain their previous enabled defaults.
+
+The API accepts the same choice through `?roadwayHeading=true|false`. Requests that omit
+the parameter are network-free by default. Operators can change the default with
+`timvalidator.roadway-heading.enabled-by-default`.
 
 Tests and specialized library integrations may still inject a `RoadGeometryProvider`
 directly without changing the fixed matching rules.

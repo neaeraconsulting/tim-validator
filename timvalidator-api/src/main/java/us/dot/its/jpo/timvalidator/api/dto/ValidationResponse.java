@@ -11,6 +11,7 @@ public record ValidationResponse(
     boolean valid,
     List<ValidationIssueResponse> issues,
     List<ValidationCheckResponse> checks,
+    boolean roadwayHeadingValidationEnabled,
     Instant validationTimestamp,
     long validationDurationMs
 ) {
@@ -39,6 +40,7 @@ public record ValidationResponse(
             validationResult.isValid(),
             issues,
             checks,
+            validationResult.isRoadwayHeadingValidationEnabled(),
             validationResult.getValidationTimestamp(),
             validationResult.getValidationDurationMs()
         );
@@ -49,6 +51,7 @@ public record ValidationResponse(
             false,
             List.of(new ValidationIssueResponse(ValidationSeverity.ERROR, "Request", message, null)),
             List.of(new ValidationCheckResponse("Request", false, message)),
+            false,
             Instant.now(),
             0L
         );
