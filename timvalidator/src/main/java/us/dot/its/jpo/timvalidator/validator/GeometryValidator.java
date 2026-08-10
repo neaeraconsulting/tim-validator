@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.LineSegment;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
@@ -226,11 +227,10 @@ final class GeometryValidator {
     /**
      * Checks that the anchor is before the first node relative to the first segment.
      *
-     * <p>The decoded anchor is the origin. For anchor A, first node P0, and second
-     * node P1, a positive dot product between {@code P0 - A} and {@code P1 - P0}
-     * places A in the backward half-plane of P0. This deliberately does not require
-     * the anchor to lie on the first segment's backward extension, since that would
-     * incorrectly reject curved approaches.</p>
+     * <p>The decoded anchor is the origin. A negative projection factor places the
+     * anchor before the first node along the line defined by the first segment. This
+     * deliberately does not require the anchor to lie on the first segment's backward
+     * extension, since that would incorrectly reject curved approaches.</p>
      */
     private static void validateAnchorApproach(
             List<ValidationIssue> issues,
@@ -246,19 +246,14 @@ final class GeometryValidator {
 
         Coordinate firstNode = nodes.get(0);
         Coordinate secondNode = nodes.get(1);
-        double approachX = secondNode.getX() - firstNode.getX();
-        double approachY = secondNode.getY() - firstNode.getY();
-        double approachLengthCm = Math.hypot(approachX, approachY);
-        if (approachLengthCm == 0.0) {
+        LineSegment approach = new LineSegment(firstNode, secondNode);
+        if (approach.getLength() == 0.0) {
             issues.add(warning(notEvaluatedWarning(indexes,
                     "a zero-length first segment for the anchor approach check"), nodesPath + "/1"));
             return;
         }
 
-        double anchorToFirstX = firstNode.getX() - ANCHOR.getX();
-        double anchorToFirstY = firstNode.getY() - ANCHOR.getY();
-        double directionDotProduct = anchorToFirstX * approachX + anchorToFirstY * approachY;
-        if (directionDotProduct > 0.0) {
+        if (approach.projectionFactor(ANCHOR) < 0.0) {
             return;
         }
 
