@@ -1,0 +1,58 @@
+{
+  "messageId": 31,
+  "value": {
+    "TravelerInformation": {
+      "msgCnt": 1,
+      "timeStamp": 1,
+      "packetID": "000000000000000000",
+      "dataFrames": [
+        {
+          "doNotUse1": 0,
+          "frameType": "roadSignage",
+          "msgId": {
+            "furtherInfoID": "0000"
+          },
+          "startYear": 2026,
+          "startTime": 1,
+          "durationTime": 60,
+          "priority": 4,
+          "doNotUse2": 0,
+          "regions": [
+            {
+              "anchor": {
+                "lat": 0,
+                "long": 0,
+                "elevation": 0
+              },
+              "description": {
+                "geometry": {
+                  "direction": "0000",
+                  "circle": {
+                    "center": {
+                      "lat": 0,
+                      "long": 0,
+                      "elevation": 0
+                    },
+                    "radius": 1,
+                    "units": "meter"
+                  }
+                }
+              }
+            }
+          ],
+          "doNotUse3": 0,
+          "doNotUse4": 0,
+          "content": {
+            "advisory": [
+              {
+                "item": {
+                  "itis": 268
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
