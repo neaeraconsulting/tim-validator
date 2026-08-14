@@ -193,3 +193,4 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 | 2 | circle geometry | `anchor`, `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
+
