@@ -1,13 +1,12 @@
 trigger:
-  - main
-  - develop
-  - snapshot
-  - maven-central
+  branches:
+    include:
+      - '*'
 
 pr:
-  - main
-  - develop
-  - snapshot
+  branches:
+    include:
+      - '*'
 
 variables:
   - name: VersionNum
@@ -19,8 +18,43 @@ variables:
 
 
 stages:
+  - stage: CI
+    displayName: Build and Test
+    jobs:
+      - job: BuildAndTest
+        displayName: Compile, test, and check coverage
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - checkout: self
+            displayName: checkout
+
+          - bash: |
+              sudo apt update
+              sudo apt install -y wget apt-transport-https gnupg
+              wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
+              echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
+              sudo apt update
+              sudo apt install -y temurin-23-jdk maven
+              JAVA_23_BIN=$(update-alternatives --list java | grep "23-jdk")
+              JAVA_23_HOME=$(echo $JAVA_23_BIN | sed "s:/bin/java::")
+              sudo update-alternatives --set java $JAVA_23_BIN
+              echo "##vso[task.setvariable variable=JavaHome]$JAVA_23_HOME"
+              java -version
+              mvn -version
+            displayName: Install JDK and Maven
+
+          - bash: |
+              mvn --batch-mode clean verify
+            displayName: Compile, test, and check coverage
+            workingDirectory: $(System.DefaultWorkingDirectory)
+            env:
+              JAVA_HOME: $(JavaHome)
+
   - stage: Publish
     displayName: Publish to Maven Central
+    dependsOn: CI
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop', 'refs/heads/snapshot', 'refs/heads/maven-central'))
     jobs:
       - job: PublishSnapshot
         displayName: Publish Snapshot to Maven Central
