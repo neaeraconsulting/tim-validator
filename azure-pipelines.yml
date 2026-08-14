@@ -69,6 +69,8 @@ stages:
               summaryFileLocation: '$(System.DefaultWorkingDirectory)/timvalidator/target/site/jacoco/jacoco.xml'
               pathToSources: '$(System.DefaultWorkingDirectory)/timvalidator/src/main/java'
               failIfCoverageEmpty: true
+            env:
+              DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
 
   - stage: Publish
     displayName: Publish to Maven Central
