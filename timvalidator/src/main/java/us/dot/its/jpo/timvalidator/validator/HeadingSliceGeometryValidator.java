@@ -66,8 +66,14 @@ final class HeadingSliceGeometryValidator {
         }
 
         if (evaluatedCandidates.isEmpty()) {
-            // Schema and local-geometry validation report incomplete or malformed regions.
-            return List.of();
+            return List.of(warning(
+                    String.format(
+                            Locale.ROOT,
+                            "Data frame %d region %d roadway heading could not be evaluated because "
+                                    + "the TIM region geometry is incomplete or malformed",
+                            dataFrameIndex,
+                            regionIndex),
+                    issuePath));
         }
 
         List<RoadwayBearing> candidates = evaluatedCandidates.orElseThrow();

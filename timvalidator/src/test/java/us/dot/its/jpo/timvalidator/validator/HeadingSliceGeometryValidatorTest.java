@@ -195,6 +195,23 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
+    void validate_undecodableRegionReturnsNonBlockingWarning() {
+        GeographicalPath region = new GeographicalPath();
+        region.setDirection(heading(0));
+        HeadingSliceGeometryValidator validator = validator();
+
+        List<ValidationIssue> issues = validator.validate(region, 2, 3);
+
+        assertEquals(1, issues.size());
+        ValidationIssue issue = issues.getFirst();
+        assertEquals(ValidationSeverity.WARNING, issue.severity());
+        assertEquals("Best Practices", issue.checkName());
+        assertEquals("/value/TravelerInformation/dataFrames/2/regions/3/direction", issue.path());
+        assertTrue(issue.message().contains("could not be evaluated"));
+        assertTrue(issue.message().contains("incomplete or malformed"));
+    }
+
+    @Test
     void validate_noNearbyRoadReturnsWarning() {
         HeadingSliceGeometryValidator validator =
                 new HeadingSliceGeometryValidator(
