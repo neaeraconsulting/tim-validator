@@ -176,7 +176,7 @@ stages:
               MAVEN_GPG_PASSPHRASE: $(GPG_SIGNING_KEY_PASSWORD)
             displayName: Publish snapshot
             workingDirectory: $(WorkingDir)
-
+ 
   # Build and publish the timvalidator-api image to Docker Hub on merge to
   # main and develop.
   #
@@ -187,7 +187,7 @@ stages:
   #      DOCKERHUB_USERNAME  your Docker Hub username (the account that owns
   #                          the token; may differ from the image namespace)
   #      DOCKERHUB_PAT       the access token — enable "Keep this value secret"
-  #
+  # 
   # Published tags:
   #   main    -> {namespace}/timvalidator-api:{12-char sha}, :main, :latest
   #   develop -> {namespace}/timvalidator-api:{12-char sha}, :develop
