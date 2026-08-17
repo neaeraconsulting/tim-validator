@@ -1,13 +1,12 @@
 trigger:
-  - main
-  - develop
-  - snapshot
-  - maven-central
+  branches:
+    include:
+      - '*'
 
 pr:
-  - main
-  - develop
-  - snapshot
+  branches:
+    include:
+      - '*'
 
 variables:
   - name: VersionNum
@@ -19,8 +18,64 @@ variables:
 
 
 stages:
+  - stage: CI
+    displayName: Build and Test
+    jobs:
+      - job: BuildAndTest
+        displayName: Compile, test, and check coverage
+        pool:
+          vmImage: ubuntu-24.04
+        container: maven:3.9.9-eclipse-temurin-23
+        variables:
+          MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+          MAVEN_OPTS: '-Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository'
+        steps:
+          - checkout: self
+            displayName: Checkout
+
+          - task: Cache@2
+            displayName: Cache Maven repository
+            inputs:
+              key: 'maven | "$(Agent.OS)" | **/pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+              path: $(MAVEN_CACHE_FOLDER)
+
+          - task: UseDotNet@2
+            displayName: Install .NET SDK for coverage publisher
+            inputs:
+              version: '8.x'
+
+          - bash: |
+              set -euo pipefail
+              java -version
+              mvn -version
+              mvn --batch-mode --no-transfer-progress clean verify
+            displayName: Compile, test, and check coverage
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
+              mergeTestResults: true
+              failTaskOnMissingResultsFile: true
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publish JaCoCo coverage
+            condition: succeededOrFailed()
+            inputs:
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/timvalidator/target/site/jacoco/jacoco.xml'
+              pathToSources: '$(System.DefaultWorkingDirectory)/timvalidator/src/main/java'
+              failIfCoverageEmpty: true
+            env:
+              DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
+
   - stage: Publish
     displayName: Publish to Maven Central
+    dependsOn: CI
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop', 'refs/heads/snapshot', 'refs/heads/maven-central'))
     jobs:
       - job: PublishSnapshot
         displayName: Publish Snapshot to Maven Central
