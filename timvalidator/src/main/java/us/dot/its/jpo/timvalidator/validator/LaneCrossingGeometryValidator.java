@@ -152,7 +152,7 @@ final class LaneCrossingGeometryValidator {
                     indexes,
                     centerline,
                     corridor,
-                    regionPath(indexes) + decodedPath.nodesPathSuffix()));
+                    indexes.regionPath() + decodedPath.nodesPathSuffix()));
         } catch (IllegalArgumentException | TopologyException exception) {
             return Optional.empty();
         }
@@ -346,15 +346,6 @@ final class LaneCrossingGeometryValidator {
     private static boolean hasComputedLane(GeographicalPath region) {
         return region.getDescription().getPath().getOffset().getXy() != null
                 && region.getDescription().getPath().getOffset().getXy().getComputed() != null;
-    }
-
-    /** Builds the JSON Pointer prefix for a region's data-frame and region indexes. */
-    private static String regionPath(DataFrameIndexes indexes) {
-        return String.format(
-                Locale.ROOT,
-                "/value/TravelerInformation/dataFrames/%d/regions/%d",
-                indexes.dataFrameIndex(),
-                indexes.regionIndex());
     }
 
     private record LaneGeometry(

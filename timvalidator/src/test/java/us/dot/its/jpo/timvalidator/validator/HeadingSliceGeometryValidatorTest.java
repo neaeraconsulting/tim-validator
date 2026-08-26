@@ -50,7 +50,7 @@ class HeadingSliceGeometryValidatorTest {
         GeographicalPath region = region(heading(0));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region, 2, 3);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(2, 3));
 
         assertTrue(issues.isEmpty());
     }
@@ -60,7 +60,7 @@ class HeadingSliceGeometryValidatorTest {
         GeographicalPath region = region(heading(0, 8));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region, 0, 0);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty());
     }
@@ -70,7 +70,7 @@ class HeadingSliceGeometryValidatorTest {
         GeographicalPath region = region(heading(15, 0, 1));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region, 0, 0);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty());
     }
@@ -80,7 +80,7 @@ class HeadingSliceGeometryValidatorTest {
         GeographicalPath region = region(heading(0));
         HeadingSliceGeometryValidator validator = validator(eastWestRoad(202, "Broadway", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region, 2, 3);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(2, 3));
 
         assertEquals(1, issues.size());
         ValidationIssue issue = issues.getFirst();
@@ -102,7 +102,7 @@ class HeadingSliceGeometryValidatorTest {
                     return List.of(eastWestRoad(202, null, 0.0));
                 });
 
-        List<ValidationIssue> issues = validator.validate(region, 0, 1);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(0, 1));
 
         assertEquals(1, issues.size());
         assertEquals(
@@ -120,14 +120,14 @@ class HeadingSliceGeometryValidatorTest {
         HeadingSliceGeometryValidator validator =
                 new HeadingSliceGeometryValidator(provider);
 
-        assertTrue(validator.validate(region(null), 0, 0).isEmpty());
-        assertTrue(validator.validate(region(new HeadingSlice()), 0, 0).isEmpty());
+        assertTrue(validator.validate(region(null), new DataFrameIndexes(0, 0)).isEmpty());
+        assertTrue(validator.validate(region(new HeadingSlice()), new DataFrameIndexes(0, 0)).isEmpty());
 
         HeadingSlice allHeadings = new HeadingSlice();
         for (int index = 0; index < allHeadings.size(); index++) {
             allHeadings.set(index, true);
         }
-        assertTrue(validator.validate(region(allHeadings), 0, 0).isEmpty());
+        assertTrue(validator.validate(region(allHeadings), new DataFrameIndexes( 0, 0)).isEmpty());
         assertEquals(0, calls.get());
     }
 
@@ -141,7 +141,7 @@ class HeadingSliceGeometryValidatorTest {
                     return List.of(northSouthRoad(101, "Main Street", 0.0));
                 });
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0, 1)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0, 1)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
         assertEquals(1, calls.get());
@@ -153,7 +153,7 @@ class HeadingSliceGeometryValidatorTest {
                 validator(northSouthRoad(101, "Main Street", 0.0));
 
         List<ValidationIssue> issues =
-                validator.validate(region(heading(15, 0)), 0, 0);
+                validator.validate(region(heading(15, 0)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
     }
@@ -165,7 +165,7 @@ class HeadingSliceGeometryValidatorTest {
                 eastWestRoad(202, "Broadway", 0.0));
 
         List<ValidationIssue> issues =
-                validator.validate(region(heading(0, 1, 4, 5)), 0, 0);
+                validator.validate(region(heading(0, 1, 4, 5)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
     }
@@ -176,7 +176,7 @@ class HeadingSliceGeometryValidatorTest {
                 validator(roadAtBearing(303, "Diagonal Road", 32.0));
 
         List<ValidationIssue> issues =
-                validator.validate(region(heading(0)), 0, 0);
+                validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
     }
@@ -188,7 +188,7 @@ class HeadingSliceGeometryValidatorTest {
                     throw new IllegalStateException("service unavailable");
                 });
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertEquals(ValidationSeverity.WARNING, issues.getFirst().severity());
@@ -201,7 +201,7 @@ class HeadingSliceGeometryValidatorTest {
         region.setDirection(heading(0));
         HeadingSliceGeometryValidator validator = validator();
 
-        List<ValidationIssue> issues = validator.validate(region, 2, 3);
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(2, 3));
 
         assertEquals(1, issues.size());
         ValidationIssue issue = issues.getFirst();
@@ -218,7 +218,7 @@ class HeadingSliceGeometryValidatorTest {
                 new HeadingSliceGeometryValidator(
                         (location, radius) -> List.of());
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains("no mapped roadway"));
@@ -231,7 +231,7 @@ class HeadingSliceGeometryValidatorTest {
                 northSouthRoad(101, "Main Street", 0.0),
                 eastWestRoad(202, "Broadway", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty());
     }
@@ -242,7 +242,7 @@ class HeadingSliceGeometryValidatorTest {
                 northSouthRoad(101, "Main Street", 0.0),
                 eastWestRoad(202, "Broadway", 0.0));
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0, 4)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0, 4)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty());
     }
@@ -253,7 +253,7 @@ class HeadingSliceGeometryValidatorTest {
                 eastWestRoad(202, "Closest Road", 0.0),
                 northSouthRoad(101, "Road Outside Polygon", 60.0));
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains(
@@ -268,7 +268,7 @@ class HeadingSliceGeometryValidatorTest {
                 eastWestRoad(202, "Closest Road", 0.0),
                 northSouthRoad(101, "Cross Street", 40.0));
 
-        List<ValidationIssue> issues = validator.validate(region(heading(0)), 0, 0);
+        List<ValidationIssue> issues = validator.validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
     }
@@ -298,7 +298,7 @@ class HeadingSliceGeometryValidatorTest {
         };
 
         List<ValidationIssue> issues =
-                new HeadingSliceGeometryValidator(provider).validate(offsetPolygon, 0, 0);
+                new HeadingSliceGeometryValidator(provider).validate(offsetPolygon, new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty());
     }
@@ -312,7 +312,7 @@ class HeadingSliceGeometryValidatorTest {
                 new Coordinate(0.0, -50.0));
 
         List<ValidationIssue> issues =
-                validator(touchingRoad).validate(region(heading(0)), 0, 0);
+                validator(touchingRoad).validate(region(heading(0)), new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains(
@@ -331,7 +331,7 @@ class HeadingSliceGeometryValidatorTest {
                             northSouthRoad(101, "Road Outside Circle", 25.0));
                 });
 
-        List<ValidationIssue> issues = validator.validate(circleRegion, 0, 0);
+        List<ValidationIssue> issues = validator.validate(circleRegion, new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains("Road Through Circle"));
@@ -345,7 +345,7 @@ class HeadingSliceGeometryValidatorTest {
 
         List<ValidationIssue> issues = validator(
                 eastWestRoad(202, "Point Tangent", 50.0))
-                .validate(circleRegion, 0, 0);
+                .validate(circleRegion, new DataFrameIndexes(0, 0));
 
         assertEquals(1, issues.size());
         assertTrue(issues.getFirst().message().contains(
@@ -364,7 +364,7 @@ class HeadingSliceGeometryValidatorTest {
                     return List.of(northSouthRoad(101, "Main Street", 0.0));
                 });
 
-        List<ValidationIssue> issues = validator.validate(circleRegion, 0, 0);
+        List<ValidationIssue> issues = validator.validate(circleRegion, new DataFrameIndexes(0, 0));
 
         assertTrue(issues.isEmpty(), issues.toString());
     }

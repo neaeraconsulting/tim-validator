@@ -37,8 +37,7 @@ final class HeadingSliceGeometryValidator {
 
     List<ValidationIssue> validate(
             GeographicalPath region,
-            int dataFrameIndex,
-            int regionIndex) throws ValidationException {
+            DataFrameIndexes indexes) throws ValidationException {
         HeadingSelection selection = headingSelection(region);
         if (selection == null) {
             return List.of();
@@ -50,7 +49,7 @@ final class HeadingSliceGeometryValidator {
             return List.of();
         }
 
-        String issuePath = regionPath(dataFrameIndex, regionIndex) + selection.pathSuffix();
+        String issuePath = indexes.regionPath() + selection.pathSuffix();
         Optional<List<RoadwayBearing>> evaluatedCandidates;
         try {
             evaluatedCandidates = roadwayRegionMatcher.findRoadwayBearings(
@@ -61,8 +60,8 @@ final class HeadingSliceGeometryValidator {
                     String.format(
                             Locale.ROOT,
                             "Data frame %d region %d roadway heading could not be evaluated: %s",
-                            dataFrameIndex,
-                            regionIndex,
+                            indexes.dataFrameIndex(),
+                            indexes.regionIndex(),
                             safeMessage(ex)),
                     issuePath));
         }
@@ -73,8 +72,8 @@ final class HeadingSliceGeometryValidator {
                             Locale.ROOT,
                             "Data frame %d region %d roadway heading could not be evaluated because "
                                     + "the TIM region geometry is incomplete or malformed",
-                            dataFrameIndex,
-                            regionIndex),
+                            indexes.dataFrameIndex(),
+                            indexes.regionIndex()),
                     issuePath));
         }
 
@@ -84,8 +83,8 @@ final class HeadingSliceGeometryValidator {
                     String.format(
                             Locale.ROOT,
                             "Data frame %d region %d has no mapped roadway segment inside the TIM region",
-                            dataFrameIndex,
-                            regionIndex),
+                            indexes.dataFrameIndex(),
+                            indexes.regionIndex()),
                     issuePath));
         }
 
@@ -104,8 +103,8 @@ final class HeadingSliceGeometryValidator {
                         Locale.ROOT,
                         "Data frame %d region %d heading range center(s) %s are not tangent to any mapped "
                                 + "roadway segment inside the TIM region; candidates: %s",
-                        dataFrameIndex,
-                        regionIndex,
+                        indexes.dataFrameIndex(),
+                        indexes.regionIndex(),
                         formatRanges(mismatches),
                         formatCandidates(candidates)),
                 issuePath));
@@ -234,10 +233,6 @@ final class HeadingSliceGeometryValidator {
 
     private ValidationIssue warning(String message, String path) {
         return new ValidationIssue(ValidationSeverity.WARNING, CHECK_NAME, message, path);
-    }
-
-    private String regionPath(int dataFrameIndex, int regionIndex) {
-        return "/value/TravelerInformation/dataFrames/" + dataFrameIndex + "/regions/" + regionIndex;
     }
 
     private record HeadingSelection(

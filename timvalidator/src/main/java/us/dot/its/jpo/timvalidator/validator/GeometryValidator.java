@@ -47,8 +47,7 @@ final class GeometryValidator {
         if (roadwayHeadingEnabled) {
             issues.addAll(headingSliceGeometryValidator.validate(
                     region,
-                    indexes.dataFrameIndex(),
-                    indexes.regionIndex()));
+                    indexes));
         }
         return List.copyOf(issues);
     }
@@ -97,7 +96,7 @@ final class GeometryValidator {
         }
 
         DecodeResult decodeResult = OffsetPathDecoder.decode(region);
-        String regionPath = regionPath(indexes);
+        String regionPath = indexes.regionPath();
         if (!decodeResult.decoded()) {
             return List.of(warning(
                     notEvaluatedWarning(indexes, decodeResult.failureReason()),
@@ -161,7 +160,7 @@ final class GeometryValidator {
                         + "J2735 laneWidth is expressed in centimeters, so verify that a value in meters was not supplied",
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
-                laneWidthCm), regionPath(indexes) + "/laneWidth"));
+                laneWidthCm), indexes.regionPath() + "/laneWidth"));
     }
 
     /** Warns when circle radius units are imperial because metric units are recommended for TIMs. */
@@ -185,7 +184,7 @@ final class GeometryValidator {
                 "Data frame %d region %d circle uses %s units; metric units are recommended for TIM circle geometry",
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
-                units), regionPath(indexes) + "/description/geometry/circle/units"));
+                units), indexes.regionPath() + "/description/geometry/circle/units"));
     }
 
     /** Returns whether a J2735 distance unit is metric. */
@@ -273,14 +272,6 @@ final class GeometryValidator {
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
                 reason);
-    }
-
-    private static String regionPath(DataFrameIndexes indexes) {
-        return String.format(
-                Locale.ROOT,
-                "/value/TravelerInformation/dataFrames/%d/regions/%d",
-                indexes.dataFrameIndex(),
-                indexes.regionIndex());
     }
 
     private static ValidationIssue error(String message, String path) {
