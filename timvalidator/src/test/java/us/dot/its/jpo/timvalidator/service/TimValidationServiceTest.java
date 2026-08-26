@@ -178,7 +178,7 @@ public class TimValidationServiceTest {
     }
 
     @Test
-    public void testBestPracticesValidatorNullHandling() {
+    public void testBestPracticesValidatorNullHandling() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator();
         var issues = validator.validate(null);
         

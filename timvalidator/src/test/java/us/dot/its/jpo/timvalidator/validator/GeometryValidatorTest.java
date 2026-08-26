@@ -44,6 +44,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
@@ -56,7 +57,7 @@ class GeometryValidatorTest {
             REGION_PATH + "/description/path/offset/xy/nodes";
 
     @Test
-    void validate_circleDoesNotReportMissingOffsetPathWarning() {
+    void validate_circleDoesNotReportMissingOffsetPathWarning() throws ValidationException {
         GeometricProjection geometry = new GeometricProjection();
         geometry.setCircle(new Circle());
         GeographicalPath.DescriptionChoice description =
@@ -73,7 +74,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_imperialCircleUnitsReportMetricRecommendation() {
+    void validate_imperialCircleUnitsReportMetricRecommendation() throws ValidationException {
         TravelerInformationMessageFrame message = circleMessage(DistanceUnits.FOOT);
 
         ValidationIssue issue = findIssue(validate(message), "metric units are recommended");
@@ -83,7 +84,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_metricCircleUnitsDoNotReportMetricRecommendation() {
+    void validate_metricCircleUnitsDoNotReportMetricRecommendation() throws ValidationException {
         TravelerInformationMessageFrame message = circleMessage(DistanceUnits.METER);
 
         assertTrue(validate(message).stream().noneMatch(issue ->
@@ -91,7 +92,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_laneWidthAtSuspiciousThresholdReportsUnitWarning() {
+    void validate_laneWidthAtSuspiciousThresholdReportsUnitWarning() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(
                 20L,
                 0,
@@ -106,7 +107,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_laneWidthAboveSuspiciousThresholdDoesNotReportUnitWarning() {
+    void validate_laneWidthAboveSuspiciousThresholdDoesNotReportUnitWarning()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(
                 21L,
                 0,
@@ -118,7 +120,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_xyPathAtMaximumRecommendedSeparationDoesNotReportEncodingWarning() {
+    void validate_xyPathAtMaximumRecommendedSeparationDoesNotReportEncodingWarning()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(
                 300L,
                 0,
@@ -130,7 +133,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_xyPathBeyondMaximumRecommendedSeparationRecommendsLlOffsets() {
+    void validate_xyPathBeyondMaximumRecommendedSeparationRecommendsLlOffsets()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(
                 300L,
                 0,
@@ -147,7 +151,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_shortLlPathRecommendsXyOffsets() {
+    void validate_shortLlPathRecommendsXyOffsets() throws ValidationException {
         TravelerInformationMessageFrame message = message(region(
                 anchor(0L, 0L),
                 300L,
@@ -163,7 +167,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_longLlPathDoesNotReportEncodingWarning() {
+    void validate_longLlPathDoesNotReportEncodingWarning() throws ValidationException {
         TravelerInformationMessageFrame message = message(region(
                 anchor(0L, 0L),
                 300L,
@@ -177,7 +181,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_llPathAtMaximumComponentSeparationDoesNotReportEncodingWarning() {
+    void validate_llPathAtMaximumComponentSeparationDoesNotReportEncodingWarning()
+        throws ValidationException {
         TravelerInformationMessageFrame message = message(region(
                 anchor(0L, 0L),
                 300L,
@@ -191,7 +196,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_llPathBeyondMaximumComponentSeparationRecommendsAbsoluteNodes() {
+    void validate_llPathBeyondMaximumComponentSeparationRecommendsAbsoluteNodes()
+        throws ValidationException {
         TravelerInformationMessageFrame message = message(region(
                 anchor(0L, 0L),
                 300L,
@@ -210,7 +216,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_emptyPathReportsGeometryNotEvaluatedWarning() {
+    void validate_emptyPathReportsGeometryNotEvaluatedWarning() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0);
 
         List<ValidationIssue> issues = validate(message);
@@ -221,7 +227,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_undecodablePathReportsReasonAsWarning() {
+    void validate_undecodablePathReportsReasonAsWarning() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(new NodeOffsetPointXY()));
 
@@ -235,7 +241,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_rightAngleLaneWidthWithinLimitDoesNotReportGeometryIssue() {
+    void validate_rightAngleLaneWidthWithinLimitDoesNotReportGeometryIssue()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(15_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -249,7 +256,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_laneWidthExactlyAtBendLimitDoesNotReportBendWidthIssue() {
+    void validate_laneWidthExactlyAtBendLimitDoesNotReportBendWidthIssue()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(20_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -259,7 +267,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_laneWidthBeyondLimitReportsGeometryIssue() {
+    void validate_laneWidthBeyondLimitReportsGeometryIssue() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(25_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -271,7 +279,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_twoBendsSharingSegmentAreEvaluatedIndependently() {
+    void validate_twoBendsSharingSegmentAreEvaluatedIndependently() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(15_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -283,7 +291,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_laneCorridorWithOverlappingNonAdjacentSectionsReportsIssue() {
+    void validate_laneCorridorWithOverlappingNonAdjacentSectionsReportsIssue()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(15_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -301,7 +310,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_straightPathDoesNotImposeLaneWidthLimit() {
+    void validate_straightPathDoesNotImposeLaneWidthLimit() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(32_767L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(100L, 0L),
@@ -311,7 +320,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_pathThatDoublesBackReportsGeometryIssue() {
+    void validate_pathThatDoublesBackReportsGeometryIssue() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(1L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -321,7 +330,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_nonRightAngleBendUsesDirectionChangeInWidthLimit() {
+    void validate_nonRightAngleBendUsesDirectionChangeInWidthLimit() throws ValidationException {
         TravelerInformationMessageFrame withinLimit = xyMessage(5_000L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -336,7 +345,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPathDoesNotApplyLaneWidthBendCheck() {
+    void validate_closedPathDoesNotApplyLaneWidthBendCheck() throws ValidationException {
         TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 0L),
@@ -355,7 +364,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_openPathWithRepeatedPointReportsIssue() {
+    void validate_openPathWithRepeatedPointReportsIssue() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L),
@@ -371,7 +380,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_openPathThatIntersectsItselfReportsIssue() {
+    void validate_openPathThatIntersectsItselfReportsIssue() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(1L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(10_000L, 10_000L),
@@ -390,7 +399,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_simpleClosedPolygonDoesNotReportTopologyIssue() {
+    void validate_simpleClosedPolygonDoesNotReportTopologyIssue() throws ValidationException {
         TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L),
@@ -403,7 +412,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPolygonThatIntersectsItselfReportsIssue() {
+    void validate_closedPolygonThatIntersectsItselfReportsIssue() throws ValidationException {
         TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L),
@@ -419,7 +428,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPolygonWhoseEndpointsDoNotCoincideReportsIssue() {
+    void validate_closedPolygonWhoseEndpointsDoNotCoincideReportsIssue()
+        throws ValidationException {
         TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L),
@@ -436,7 +446,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPolygonWithRepeatedInternalPointReportsIssue() {
+    void validate_closedPolygonWithRepeatedInternalPointReportsIssue() throws ValidationException {
         TravelerInformationMessageFrame message = closedXyMessage(
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L),
@@ -452,7 +462,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_zoomScalesAnchorDistanceAndSegmentLengths() {
+    void validate_zoomScalesAnchorDistanceAndSegmentLengths() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(15_000L, 1,
                 xyNode(500L, 0L),
                 xyNode(5_000L, 0L),
@@ -465,7 +475,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_diagonalAnchorOffsetUsesEuclideanDistance() {
+    void validate_diagonalAnchorOffsetUsesEuclideanDistance() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(600L, 800L));
 
@@ -473,7 +483,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorExactlyOneMeterFromRequiredDistanceIsAccepted() {
+    void validate_anchorExactlyOneMeterFromRequiredDistanceIsAccepted() throws ValidationException {
         TravelerInformationMessageFrame nineMeters = xyMessage(0L, 0,
                 xyNode(900L, 0L));
         TravelerInformationMessageFrame elevenMeters = xyMessage(0L, 0,
@@ -484,7 +494,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorMoreThanOneMeterFromRequiredDistanceIsRejected() {
+    void validate_anchorMoreThanOneMeterFromRequiredDistanceIsRejected()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(899L, 0L));
 
@@ -492,7 +503,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorNotTenMetersFromFirstNodeReportsAnchorIssue() {
+    void validate_anchorNotTenMetersFromFirstNodeReportsAnchorIssue() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(0L, 0L));
 
@@ -505,7 +516,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorOnApproachTrajectoryDoesNotReportDirectionWarning() {
+    void validate_anchorOnApproachTrajectoryDoesNotReportDirectionWarning()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(1_000L, 0L));
@@ -514,7 +526,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorBehindButNotOnApproachLineDoesNotReportDirectionWarning() {
+    void validate_anchorBehindButNotOnApproachLineDoesNotReportDirectionWarning()
+        throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(1L, 1_000L));
@@ -523,7 +536,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_anchorAheadOfFirstSegmentReportsWarning() {
+    void validate_anchorAheadOfFirstSegmentReportsWarning() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(0L, 0,
                 xyNode(1_000L, 0L),
                 xyNode(-500L, 0L));
@@ -537,7 +550,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_xyAbsoluteLatLonNodeIsMeasuredFromAnchor() {
+    void validate_xyAbsoluteLatLonNodeIsMeasuredFromAnchor() throws ValidationException {
         Position3D equatorAnchor = anchor(0L, 0L);
         TravelerInformationMessageFrame message = message(
                 region(equatorAnchor, 0L, pathDescription(0, absoluteXyNode(0L, 898L))));
@@ -547,7 +560,8 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_xyAbsoluteLatLonNodeResetsPositionForFollowingOffsets() {
+    void validate_xyAbsoluteLatLonNodeResetsPositionForFollowingOffsets()
+        throws ValidationException {
         Position3D equatorAnchor = anchor(0L, 0L);
         TravelerInformationMessageFrame message = message(region(
                 equatorAnchor,
@@ -564,7 +578,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_latLonOffsetsUseWgs84DistanceAndZoom() {
+    void validate_latLonOffsetsUseWgs84DistanceAndZoom() throws ValidationException {
         Position3D equatorAnchor = anchor(0L, 0L);
         TravelerInformationMessageFrame message = message(
                 region(equatorAnchor, 0L, latLonPathDescription(1, llNode(0L, 452L))));
@@ -574,7 +588,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_computedLaneReturnsReferenceLaneWarning() {
+    void validate_computedLaneReturnsReferenceLaneWarning() throws ValidationException {
         TravelerInformationMessageFrame message = message(region(
                 anchor(337_545_852L, -843_986_600L),
                 300L,
@@ -603,7 +617,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_explicitNodeListDoesNotReturnComputedLaneWarning() {
+    void validate_explicitNodeListDoesNotReturnComputedLaneWarning() throws ValidationException {
         TravelerInformationMessageFrame message = xyMessage(
                 300L,
                 0,
@@ -614,7 +628,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_missingPathChoicesDoNotReturnComputedLaneWarning() {
+    void validate_missingPathChoicesDoNotReturnComputedLaneWarning() throws ValidationException {
         GeographicalPath.DescriptionChoice emptyDescription =
                 new GeographicalPath.DescriptionChoice();
         TravelerInformationMessageFrame message = message(region(
@@ -627,7 +641,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_headingMismatchReturnsStructuredGeometryWarning() {
+    void validate_headingMismatchReturnsStructuredGeometryWarning() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator(
                 (location, radius) -> List.of(new RoadSegment(
                         202L,
@@ -649,7 +663,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_disabledHeadingCheckDoesNotCallRoadProvider() {
+    void validate_disabledHeadingCheckDoesNotCallRoadProvider() throws ValidationException {
         AtomicInteger providerCalls = new AtomicInteger();
         BestPracticesValidator validator = new BestPracticesValidator(
                 (location, radius) -> {
@@ -667,7 +681,7 @@ class GeometryValidatorTest {
     }
 
     @Test
-    void validate_missingOptionalTimDoesNotCallRoadProvider() {
+    void validate_missingOptionalTimDoesNotCallRoadProvider() throws ValidationException {
         AtomicInteger providerCalls = new AtomicInteger();
         BestPracticesValidator validator = new BestPracticesValidator(
                 (location, radius) -> {
@@ -687,7 +701,8 @@ class GeometryValidatorTest {
                 .contains("not a TravelerInformationMessageFrame"));
     }
 
-    private static List<ValidationIssue> validate(TravelerInformationMessageFrame message) {
+    private static List<ValidationIssue> validate(TravelerInformationMessageFrame message)
+        throws ValidationException {
         return new BestPracticesValidator().validate(message);
     }
 

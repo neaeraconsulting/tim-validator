@@ -12,6 +12,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
@@ -64,7 +65,7 @@ public class BestPracticesValidator {
      * @param timMessage the TIM message to validate
      * @return structured validation issues (empty list if all checks pass)
      */
-    public List<ValidationIssue> validate(Object timMessage) {
+    public List<ValidationIssue> validate(Object timMessage) throws ValidationException{
         return validate(timMessage, defaultOptions);
     }
 
@@ -77,7 +78,7 @@ public class BestPracticesValidator {
      */
     public List<ValidationIssue> validate(
             Object timMessage,
-            ValidationOptions options) {
+            ValidationOptions options) throws ValidationException {
         Objects.requireNonNull(options, "options");
         List<ValidationIssue> issues = new ArrayList<>();
 
@@ -147,7 +148,7 @@ public class BestPracticesValidator {
     /** Validates geographic data in TIM message. */
     private List<ValidationIssue> validateGeography(
             TravelerInformation tim,
-            boolean roadwayHeadingEnabled) {
+            boolean roadwayHeadingEnabled) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges

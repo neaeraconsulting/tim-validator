@@ -20,6 +20,7 @@ import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
@@ -55,13 +56,14 @@ final class RoadwayRegionMatcher {
      */
     Optional<List<RoadwayBearing>> findRoadwayBearings(
             GeographicalPath region,
-            Circle circle) {
+            Circle circle) throws RoadGeometryLookupException {
         return circle == null
                 ? closedPathRoadwayBearings(region)
                 : circleRoadwayBearings(circle);
     }
 
-    private Optional<List<RoadwayBearing>> circleRoadwayBearings(Circle circle) {
+    private Optional<List<RoadwayBearing>> circleRoadwayBearings(Circle circle)
+            throws RoadGeometryLookupException {
         Optional<Coordinate> center = OffsetPathDecoder.wgs84Coordinate(circle.getCenter());
         OptionalDouble radiusMeters = circleRadiusMeters(circle);
         if (center.isEmpty() || radiusMeters.isEmpty()) {
@@ -80,7 +82,7 @@ final class RoadwayRegionMatcher {
     }
 
     private Optional<List<RoadwayBearing>> closedPathRoadwayBearings(
-            GeographicalPath region) {
+            GeographicalPath region) throws RoadGeometryLookupException {
         if (region.getClosedPath() == null || !region.getClosedPath().getValue()) {
             return Optional.empty();
         }

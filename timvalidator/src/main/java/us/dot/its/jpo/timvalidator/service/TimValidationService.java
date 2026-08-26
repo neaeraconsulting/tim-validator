@@ -193,23 +193,33 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(
+        List<ValidationIssue> bestPracticesIssues = List.of();
+        try {
+            bestPracticesIssues = bestPracticesValidator.validate(
                 timMessage,
                 options);
+        } catch (ValidationException ex) {
+            result.addValidationCheck("Best Practices Validation", false, ex.getMessage());
+            addExceptionIssues(result, "Best Practices Validation", ex);
+        }
+
         result.addIssues(bestPracticesIssues);
         List<String> bestPracticesErrors = bestPracticesIssues.stream()
-                .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
-                .map(ValidationIssue::message)
-                .toList();
+            .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+            .map(ValidationIssue::message)
+            .toList();
+
         if (!bestPracticesErrors.isEmpty()) {
-            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesErrors));
+            result.addValidationCheck("Best Practices", false,
+                String.join("; ", bestPracticesErrors));
         } else if (bestPracticesIssues.isEmpty()) {
-            result.addValidationCheck("Best Practices", true, "All best practices checks passed");
+            result.addValidationCheck("Best Practices", true,
+                "All best practices checks passed");
         } else {
             result.addValidationCheck(
-                    "Best Practices",
-                    true,
-                    "Best practices validation completed with non-blocking warnings");
+                "Best Practices",
+                true,
+                "Best practices validation completed with non-blocking warnings");
         }
 
         return result;

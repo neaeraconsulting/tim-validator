@@ -10,6 +10,7 @@ import org.locationtech.jts.geom.LineSegment;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
@@ -36,7 +37,7 @@ final class GeometryValidator {
     List<ValidationIssue> validate(
             GeographicalPath region,
             DataFrameIndexes indexes,
-            boolean roadwayHeadingEnabled) {
+            boolean roadwayHeadingEnabled) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
         validateComputedLaneReference(region, indexes).ifPresent(issues::add);
         validateSuspiciousLaneWidth(region, indexes).ifPresent(issues::add);

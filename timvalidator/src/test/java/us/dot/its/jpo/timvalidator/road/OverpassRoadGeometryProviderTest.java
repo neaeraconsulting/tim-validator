@@ -22,7 +22,7 @@ class OverpassRoadGeometryProviderTest {
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
     @Test
-    void findNearbyRoads_buildsQueryAndDecodesWayGeometry() {
+    void findNearbyRoads_buildsQueryAndDecodesWayGeometry() throws RoadGeometryLookupException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         AtomicReference<Duration> capturedTimeout = new AtomicReference<>();
         AtomicReference<String> capturedUserAgent = new AtomicReference<>();
@@ -86,7 +86,8 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findNearbyRoads_includesConstructionOnlyForAllowedRoadClass() {
+    void findNearbyRoads_includesConstructionOnlyForAllowedRoadClass()
+        throws RoadGeometryLookupException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> {
             capturedQuery.set(query);
@@ -113,7 +114,8 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findNearbyRoads_filtersReturnedWaysUsingTheSameRoadPolicy() {
+    void findNearbyRoads_filtersReturnedWaysUsingTheSameRoadPolicy()
+        throws RoadGeometryLookupException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [
@@ -215,7 +217,7 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findNearbyRoads_usesRoadReferenceWhenNameIsMissing() {
+    void findNearbyRoads_usesRoadReferenceWhenNameIsMissing() throws RoadGeometryLookupException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [{
@@ -237,7 +239,7 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findRoadsIn_buildsPolygonQueryWithLatitudeLongitudeOrder() {
+    void findRoadsIn_buildsPolygonQueryWithLatitudeLongitudeOrder() throws RoadGeometryLookupException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> {
             capturedQuery.set(query);
@@ -264,7 +266,8 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findNearbyRoads_skipsMalformedNumbersAndRetainsNumericZeroCoordinates() {
+    void findNearbyRoads_skipsMalformedNumbersAndRetainsNumericZeroCoordinates()
+        throws RoadGeometryLookupException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [

@@ -24,6 +24,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
@@ -173,7 +174,7 @@ class LaneCrossingGeometryValidatorTest {
     }
 
     @Test
-    void validate_bestPracticesFlowIncludesPairwiseLaneIssues() {
+    void validate_bestPracticesFlowIncludesPairwiseLaneIssues() throws ValidationException {
         TravelerDataFrameList dataFrames = oneDataFrame(
                 lane(anchor(BASE_LATITUDE, BASE_LONGITUDE), 200,
                         xyNode(1_000, 0),

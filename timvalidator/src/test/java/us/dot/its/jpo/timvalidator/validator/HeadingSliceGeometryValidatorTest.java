@@ -34,6 +34,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.OffsetSystem;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Radius_B12;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
@@ -45,7 +46,7 @@ class HeadingSliceGeometryValidatorTest {
     private static final double LONGITUDE = -105.0;
 
     @Test
-    void validate_centerSliceTangentToClosestRoadProducesNoIssue() {
+    void validate_centerSliceTangentToClosestRoadProducesNoIssue() throws ValidationException {
         GeographicalPath region = region(heading(0));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
@@ -55,7 +56,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_oppositeCentersAreBothTangentToTheSameRoadAxis() {
+    void validate_oppositeCentersAreBothTangentToTheSameRoadAxis() throws ValidationException {
         GeographicalPath region = region(heading(0, 8));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
@@ -65,7 +66,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_wrappedThreeSliceRangeUsesItsCenterSlice() {
+    void validate_wrappedThreeSliceRangeUsesItsCenterSlice() throws ValidationException {
         GeographicalPath region = region(heading(15, 0, 1));
         HeadingSliceGeometryValidator validator = validator(northSouthRoad(101, "Main Street", 0.0));
 
@@ -75,7 +76,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_nonTangentCenterReturnsStructuredWarning() {
+    void validate_nonTangentCenterReturnsStructuredWarning() throws ValidationException {
         GeographicalPath region = region(heading(0));
         HeadingSliceGeometryValidator validator = validator(eastWestRoad(202, "Broadway", 0.0));
 
@@ -91,7 +92,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_circleHeadingUsesCircleCenterAndNestedPath() {
+    void validate_circleHeadingUsesCircleCenterAndNestedPath() throws ValidationException {
         GeographicalPath region = nestedGeometryRegion(heading(0));
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
                 (location, radius) -> {
@@ -110,7 +111,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_missingNoHeadingAndAllHeadingsDoNotCallProvider() {
+    void validate_missingNoHeadingAndAllHeadingsDoNotCallProvider() throws ValidationException {
         AtomicInteger calls = new AtomicInteger();
         RoadGeometryProvider provider = (location, radius) -> {
             calls.incrementAndGet();
@@ -131,7 +132,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_evenWidthHeadingRangeUsesMidpointAndCallsProvider() {
+    void validate_evenWidthHeadingRangeUsesMidpointAndCallsProvider() throws ValidationException {
         AtomicInteger calls = new AtomicInteger();
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
                 (location, radius) -> {
@@ -147,7 +148,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_wrappedEvenWidthRangeUsesCircularMidpoint() {
+    void validate_wrappedEvenWidthRangeUsesCircularMidpoint() throws ValidationException {
         HeadingSliceGeometryValidator validator =
                 validator(northSouthRoad(101, "Main Street", 0.0));
 
@@ -158,7 +159,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_multipleEvenWidthRangesAreCheckedIndependently() {
+    void validate_multipleEvenWidthRangesAreCheckedIndependently() throws ValidationException {
         HeadingSliceGeometryValidator validator = validator(
                 northSouthRoad(101, "Main Street", 0.0),
                 eastWestRoad(202, "Broadway", 0.0));
@@ -170,7 +171,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_oddWidthRangeAlsoUsesPlusOrMinusOneSliceTolerance() {
+    void validate_oddWidthRangeAlsoUsesPlusOrMinusOneSliceTolerance() throws ValidationException {
         HeadingSliceGeometryValidator validator =
                 validator(roadAtBearing(303, "Diagonal Road", 32.0));
 
@@ -181,7 +182,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_providerFailureReturnsNonBlockingWarning() {
+    void validate_providerFailureReturnsNonBlockingWarning() throws ValidationException {
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
                 (location, radius) -> {
                     throw new IllegalStateException("service unavailable");
@@ -195,7 +196,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_undecodableRegionReturnsNonBlockingWarning() {
+    void validate_undecodableRegionReturnsNonBlockingWarning() throws ValidationException {
         GeographicalPath region = new GeographicalPath();
         region.setDirection(heading(0));
         HeadingSliceGeometryValidator validator = validator();
@@ -212,7 +213,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_noNearbyRoadReturnsWarning() {
+    void validate_noNearbyRoadReturnsWarning() throws ValidationException {
         HeadingSliceGeometryValidator validator =
                 new HeadingSliceGeometryValidator(
                         (location, radius) -> List.of());
@@ -224,7 +225,8 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_headingMayMatchEitherRoadAtPerpendicularIntersection() {
+    void validate_headingMayMatchEitherRoadAtPerpendicularIntersection()
+        throws ValidationException {
         HeadingSliceGeometryValidator validator = validator(
                 northSouthRoad(101, "Main Street", 0.0),
                 eastWestRoad(202, "Broadway", 0.0));
@@ -235,7 +237,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_eachHeadingRangeMayMatchADifferentIntersectionRoad() {
+    void validate_eachHeadingRangeMayMatchADifferentIntersectionRoad() throws ValidationException {
         HeadingSliceGeometryValidator validator = validator(
                 northSouthRoad(101, "Main Street", 0.0),
                 eastWestRoad(202, "Broadway", 0.0));
@@ -246,7 +248,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_roadOutsidePolygonDoesNotSatisfyHeading() {
+    void validate_roadOutsidePolygonDoesNotSatisfyHeading() throws ValidationException {
         HeadingSliceGeometryValidator validator = validator(
                 eastWestRoad(202, "Closest Road", 0.0),
                 northSouthRoad(101, "Road Outside Polygon", 60.0));
@@ -261,7 +263,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_anyRoadInsidePolygonMaySatisfyHeading() {
+    void validate_anyRoadInsidePolygonMaySatisfyHeading() throws ValidationException {
         HeadingSliceGeometryValidator validator = validator(
                 eastWestRoad(202, "Closest Road", 0.0),
                 northSouthRoad(101, "Cross Street", 40.0));
@@ -272,7 +274,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_closedPathUsesPolygonInsteadOfAnchorProximity() {
+    void validate_closedPathUsesPolygonInsteadOfAnchorProximity() throws ValidationException {
         GeographicalPath offsetPolygon = closedPathRegion(
                 heading(0),
                 xyNode(2_000L, -5_000L),
@@ -302,7 +304,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_roadTouchingPolygonAtOnlyOnePointDoesNotQualify() {
+    void validate_roadTouchingPolygonAtOnlyOnePointDoesNotQualify() throws ValidationException {
         RoadSegment touchingRoad = localRoad(
                 101,
                 "Touching Road",
@@ -318,7 +320,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_circleUsesRadiusAndExcludesRoadOutsideCircle() {
+    void validate_circleUsesRadiusAndExcludesRoadOutsideCircle() throws ValidationException {
         GeographicalPath circleRegion =
                 circleRegion(heading(0), 20L, DistanceUnits.METER);
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
@@ -337,7 +339,7 @@ class HeadingSliceGeometryValidatorTest {
     }
 
     @Test
-    void validate_roadTangentToCircleAtOnlyOnePointDoesNotQualify() {
+    void validate_roadTangentToCircleAtOnlyOnePointDoesNotQualify() throws ValidationException {
         GeographicalPath circleRegion =
                 circleRegion(heading(4), 50L, DistanceUnits.METER);
 
@@ -354,7 +356,7 @@ class HeadingSliceGeometryValidatorTest {
     @MethodSource("circleUnitConversions")
     void validate_circleConvertsEncodedRadiusToMeters(
             DistanceUnits units,
-            double expectedRadiusMeters) {
+            double expectedRadiusMeters) throws ValidationException {
         GeographicalPath circleRegion = circleRegion(heading(0), 2L, units);
         HeadingSliceGeometryValidator validator = new HeadingSliceGeometryValidator(
                 (location, radius) -> {

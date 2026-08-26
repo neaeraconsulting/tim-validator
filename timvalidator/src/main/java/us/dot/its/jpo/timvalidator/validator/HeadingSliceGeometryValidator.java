@@ -11,8 +11,10 @@ import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.RoadwayRegionMatcher.RoadwayBearing;
@@ -36,7 +38,7 @@ final class HeadingSliceGeometryValidator {
     List<ValidationIssue> validate(
             GeographicalPath region,
             int dataFrameIndex,
-            int regionIndex) {
+            int regionIndex) throws ValidationException {
         HeadingSelection selection = headingSelection(region);
         if (selection == null) {
             return List.of();

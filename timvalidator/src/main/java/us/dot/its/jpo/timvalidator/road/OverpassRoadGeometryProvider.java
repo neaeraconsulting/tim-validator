@@ -108,7 +108,8 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     }
 
     @Override
-    public List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters) {
+    public List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters)
+        throws RoadGeometryLookupException {
         validateLocation(location);
         if (!Double.isFinite(radiusMeters) || radiusMeters <= 0.0) {
             throw new IllegalArgumentException("radiusMeters must be positive");
@@ -119,12 +120,12 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     }
 
     @Override
-    public List<RoadSegment> findRoadsIn(Polygon searchArea) {
+    public List<RoadSegment> findRoadsIn(Polygon searchArea) throws RoadGeometryLookupException {
         validateSearchArea(searchArea);
         return executeQuery(buildPolygonQuery(searchArea));
     }
 
-    private List<RoadSegment> executeQuery(String query) {
+    private List<RoadSegment> executeQuery(String query) throws RoadGeometryLookupException {
         String response = transport.execute(endpoint, query, httpTimeout, userAgent);
         return parseRoads(response);
     }
@@ -188,7 +189,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
         return value;
     }
 
-    private List<RoadSegment> parseRoads(String response) {
+    private List<RoadSegment> parseRoads(String response) throws RoadGeometryLookupException {
         try {
             JsonNode root = objectMapper.readTree(response);
             if (root == null) {
@@ -323,17 +324,19 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
 
     @FunctionalInterface
     interface OverpassTransport {
-        String execute(URI endpoint, String query, Duration timeout, String userAgent);
+        String execute(URI endpoint, String query, Duration timeout, String userAgent)
+            throws RoadGeometryLookupException;
     }
 
-    private static final class JdkOverpassTransport implements OverpassTransport {
+    private static final class JdkOverpassTransport implements OverpassTransport{
 
         private final HttpClient httpClient = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
 
         @Override
-        public String execute(URI endpoint, String query, Duration timeout, String userAgent) {
+        public String execute(URI endpoint, String query, Duration timeout, String userAgent)
+                throws RoadGeometryLookupException {
             String requestBody = "data=" + URLEncoder.encode(query, StandardCharsets.UTF_8);
             HttpRequest request = HttpRequest.newBuilder(endpoint)
                     .timeout(timeout)

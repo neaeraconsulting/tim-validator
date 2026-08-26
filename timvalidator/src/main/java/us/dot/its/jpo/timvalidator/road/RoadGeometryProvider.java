@@ -21,7 +21,7 @@ public interface RoadGeometryProvider {
     /**
      * Finds roads near a WGS-84 coordinate, where x is longitude and y is latitude.
      */
-    List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters);
+    List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters) throws RoadGeometryLookupException;
 
     /**
      * Finds roads within a WGS-84 polygon.
@@ -30,7 +30,7 @@ public interface RoadGeometryProvider {
      * JTS's minimum bounding circle and Proj4J's WGS-84 geodesic distance. Providers
      * that support polygon queries should override this method.</p>
      */
-    default List<RoadSegment> findRoadsIn(Polygon searchArea) {
+    default List<RoadSegment> findRoadsIn(Polygon searchArea) throws RoadGeometryLookupException {
         Objects.requireNonNull(searchArea, "searchArea");
         if (searchArea.isEmpty()) {
             throw new IllegalArgumentException("searchArea must not be empty");
