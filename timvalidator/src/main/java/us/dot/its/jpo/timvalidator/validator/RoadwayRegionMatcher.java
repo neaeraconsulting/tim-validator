@@ -1,5 +1,7 @@
 package us.dot.its.jpo.timvalidator.validator;
 
+import static us.dot.its.jpo.timvalidator.validator.AngleDegreesUtils.normalizeDegrees;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -315,11 +317,6 @@ final class RoadwayRegionMatcher {
                 road,
                 normalizeDegrees(
                         90.0 - Math.toDegrees(Angle.angle(start, end)))));
-    }
-
-    private double normalizeDegrees(double degrees) {
-        double normalized = degrees % 360.0;
-        return normalized < 0.0 ? normalized + 360.0 : normalized;
     }
 
     record RoadwayBearing(RoadSegment road, double bearingDegrees) {

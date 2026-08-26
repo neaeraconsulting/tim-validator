@@ -1,11 +1,12 @@
 package us.dot.its.jpo.timvalidator.validator;
 
+import static us.dot.its.jpo.timvalidator.validator.AngleDegreesUtils.diffDegrees;
+import static us.dot.its.jpo.timvalidator.validator.AngleDegreesUtils.normalizeDegrees;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-
-import org.locationtech.jts.algorithm.Angle;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.HeadingSlice;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
@@ -14,7 +15,6 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeometricProjection;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
-import us.dot.its.jpo.timvalidator.road.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.RoadwayRegionMatcher.RoadwayBearing;
@@ -179,20 +179,13 @@ final class HeadingSliceGeometryValidator {
     }
 
     private boolean isTangent(double centerDegrees, double roadwayBearingDegrees) {
-        return tangentAxisDistance(centerDegrees, roadwayBearingDegrees)
+        return tangentAxisDiffDegrees(centerDegrees, roadwayBearingDegrees)
                 <= ROADWAY_TANGENCY_TOLERANCE_DEGREES + ANGLE_EPSILON_DEGREES;
     }
 
-    private double tangentAxisDistance(double firstDegrees, double secondDegrees) {
-        double difference = Math.toDegrees(Angle.diff(
-                Math.toRadians(firstDegrees),
-                Math.toRadians(secondDegrees)));
+    private double tangentAxisDiffDegrees(double firstDegrees, double secondDegrees) {
+        double difference = diffDegrees(firstDegrees, secondDegrees);
         return Math.min(difference, Math.abs(180.0 - difference));
-    }
-
-    private double normalizeDegrees(double degrees) {
-        double normalized = degrees % 360.0;
-        return normalized < 0.0 ? normalized + 360.0 : normalized;
     }
 
     private String formatRanges(List<HeadingRange> ranges) {
