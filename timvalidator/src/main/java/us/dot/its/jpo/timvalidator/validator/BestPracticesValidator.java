@@ -15,7 +15,6 @@ import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
-import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
@@ -28,6 +27,14 @@ public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
 
+    private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
+        throw new ValidationException(
+                "No RoadGeometryProvider configured; use "
+                        + "TimValidationService.withOverpassRoadGeometry() or the "
+                        + "RoadGeometryProvider-accepting constructor to enable "
+                        + "roadway-backed checks.");
+    };
+
     private final GeometryValidator geometryValidator;
     private final ValidationOptions defaultOptions;
     /**
@@ -37,7 +44,7 @@ public class BestPracticesValidator {
      * geometry provider.
      */
     public BestPracticesValidator() {
-        this(new OverpassRoadGeometryProvider(), ValidationOptions.networkFree());
+        this(UNCONFIGURED_PROVIDER, ValidationOptions.networkFree());
     }
 
     /**

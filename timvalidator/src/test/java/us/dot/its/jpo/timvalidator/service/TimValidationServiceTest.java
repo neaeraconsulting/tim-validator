@@ -184,9 +184,69 @@ assertTrue(ex.getMessage().contains("Test exception"));
     public void testBestPracticesValidatorNullHandling() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator();
         var issues = validator.validate(null);
-        
+
         assertNotNull(issues, "Issues list should not be null");
         assertFalse(issues.isEmpty(), "Should report issues for null message");
+    }
+
+    @Test
+    public void validateTimJer_defaultServiceRejectsRoadwayHeadingWithoutConfiguredProvider() throws Exception {
+        String headingJer = """
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "description": {
+                            "geometry": {
+                              "direction": "8000",
+                              "circle": {
+                                "center": {"lat": 0, "long": 0, "elevation": 0},
+                                "radius": 1,
+                                "units": "meter"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+
+        ValidationResult result = validationService.validateTimJer(headingJer, ValidationOptions.withRoadwayHeading());
+
+        assertFalse(result.isValid(), "Missing roadway provider should make the result invalid");
+        assertFalse(result.getValidationChecks().get("Best Practices Validation").isPassed());
+        assertTrue(result.getErrors().stream().anyMatch(issue ->
+            issue.checkName().equals("Best Practices Validation")
+                && issue.message().contains("No RoadGeometryProvider configured")));
     }
 
     @Test
