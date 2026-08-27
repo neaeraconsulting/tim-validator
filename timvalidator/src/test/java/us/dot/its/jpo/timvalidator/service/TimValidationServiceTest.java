@@ -111,8 +111,8 @@ public class TimValidationServiceTest {
         ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
         }, "ValidationException should be throwable");
-        assertTrue(ex.getMessage().contains("Test exception"));
-    }
+assertTrue(ex.getMessage().contains("Test exception"));
+}
 
     @Test
     public void testJerValidationFailureIncludesResult() {
