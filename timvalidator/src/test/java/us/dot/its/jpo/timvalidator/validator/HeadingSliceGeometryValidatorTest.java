@@ -199,6 +199,7 @@ class HeadingSliceGeometryValidatorTest {
     @Test
     void validate_undecodableRegionReturnsNonBlockingWarning() throws ValidationException {
         GeographicalPath region = new GeographicalPath();
+        region.setClosedPath(new Asn1Boolean(true));
         region.setDirection(heading(0));
         HeadingSliceGeometryValidator validator = validator();
 
@@ -211,6 +212,17 @@ class HeadingSliceGeometryValidatorTest {
         assertEquals("/value/TravelerInformation/dataFrames/2/regions/3/direction", issue.path());
         assertTrue(issue.message().contains("could not be evaluated"));
         assertTrue(issue.message().contains("incomplete or malformed"));
+    }
+
+    @Test
+    void validate_pathRegionWithDirectionIsSkippedNotFlaggedAsMalformed() throws ValidationException {
+        GeographicalPath region = new GeographicalPath();
+        region.setDirection(heading(0));
+        HeadingSliceGeometryValidator validator = validator();
+
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(2, 3));
+
+        assertTrue(issues.isEmpty());
     }
 
     @Test
