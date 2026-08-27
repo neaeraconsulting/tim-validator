@@ -30,8 +30,8 @@ public class BestPracticesValidator {
     private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
         throw new ValidationException(
                 "No RoadGeometryProvider configured; use "
-                        + "TimValidationService.withOverpassRoadGeometry() or the "
-                        + "RoadGeometryProvider-accepting constructor to enable "
+                        + "TimValidationService.withOverpassRoadGeometry(endpoint, userAgent) or "
+                        + "the RoadGeometryProvider-accepting constructor to enable "
                         + "roadway-backed checks.");
     };
 

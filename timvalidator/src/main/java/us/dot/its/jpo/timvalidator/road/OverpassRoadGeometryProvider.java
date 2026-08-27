@@ -30,14 +30,17 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 /**
  * Retrieves nearby motor-vehicle roadways from an OpenStreetMap Overpass endpoint.
+ *
+ * <p>This class has no default endpoint or User-Agent: callers must supply both. The Overpass
+ * API's public instances are shared, rate-limited infrastructure; see the usage guidelines at
+ * <a href="https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage">
+ * wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage</a> before choosing an endpoint and a
+ * User-Agent that uniquely identifies your application.
  */
 public final class OverpassRoadGeometryProvider implements RoadGeometryProvider {
 
-    private static final String DEFAULT_ENDPOINT =
-            "https://overpass-api.de/api/interpreter";
     private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration DEFAULT_HTTP_TIMEOUT = Duration.ofSeconds(20);
-    private static final String DEFAULT_USER_AGENT = "timvalidator/1.0";
     private static final List<String> ALLOWED_ROAD_CLASSES = List.of(
             "motorway",
             "motorway_link",
@@ -66,14 +69,15 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     private final OverpassTransport transport;
 
     /**
-     * Creates a provider using the validator library's standard Overpass settings.
+     * Creates a provider using the library's default timeouts, against a caller-chosen
+     * Overpass endpoint and User-Agent.
+     *
+     * @param endpoint the Overpass API endpoint to query
+     * @param userAgent a value that uniquely identifies the calling application, per the
+     *        Overpass usage guidelines
      */
-    public OverpassRoadGeometryProvider() {
-        this(
-                DEFAULT_ENDPOINT,
-                DEFAULT_QUERY_TIMEOUT,
-                DEFAULT_HTTP_TIMEOUT,
-                DEFAULT_USER_AGENT);
+    public OverpassRoadGeometryProvider(String endpoint, String userAgent) {
+        this(endpoint, DEFAULT_QUERY_TIMEOUT, DEFAULT_HTTP_TIMEOUT, userAgent);
     }
 
     public OverpassRoadGeometryProvider(String endpoint, Duration timeout, String userAgent) {

@@ -176,7 +176,9 @@ assertTrue(ex.getMessage().contains("Test exception"));
 
     @Test
     public void testStandardOverpassServiceInstantiation() {
-        TimValidationService validator = TimValidationService.withOverpassRoadGeometry();
+        TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
+            "https://overpass.example/api/interpreter",
+            "my-app/1.0");
         assertNotNull(validator, "Overpass-backed service should be instantiated");
     }
 

@@ -2,6 +2,7 @@ package us.dot.its.jpo.timvalidator.road;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,6 +23,15 @@ import us.dot.its.jpo.timvalidator.exception.ValidationException;
 class OverpassRoadGeometryProviderTest {
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+
+    @Test
+    void constructor_customEndpointAndUserAgentAreAccepted() {
+        OverpassRoadGeometryProvider provider = new OverpassRoadGeometryProvider(
+                "https://overpass.example/api/interpreter",
+                "my-app/1.0");
+
+        assertNotNull(provider);
+    }
 
     @Test
     void findNearbyRoads_buildsQueryAndDecodesWayGeometry() throws ValidationException {
