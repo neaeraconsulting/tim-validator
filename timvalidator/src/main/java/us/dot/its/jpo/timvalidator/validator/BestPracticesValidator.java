@@ -161,25 +161,11 @@ public class BestPracticesValidator {
             return issues;
         }
 
-        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
-            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-
-            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
-            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
-                GeographicalPath region = regions.get(regionIndex);
-                if (region == null) {
-                    continue;
-                }
-
-                DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                issues.addAll(geometryValidator.validate(
-                        region,
-                        indexes,
-                        roadwayHeadingEnabled));
-            }
+        for (var region : DataFrameRegion.regions(dataFrames).toList()) {
+            issues.addAll(geometryValidator.validate(
+                region.path(),
+                region.indexes(),
+                roadwayHeadingEnabled));
         }
 
         issues.addAll(LaneCrossingGeometryValidator.validate(dataFrames));
