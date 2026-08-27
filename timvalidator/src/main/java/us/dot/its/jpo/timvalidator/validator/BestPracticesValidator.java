@@ -106,7 +106,7 @@ public class BestPracticesValidator {
 
         issues.addAll(validateRequiredFields(tim));
         issues.addAll(validateTimePeriod(tim));
-        issues.addAll(validateGeography(tim, options.roadwayHeadingEnabled()));
+        issues.addAll(validateGeography(tim, options));
         issues.addAll(validateAdvisoryContent(tim));
 
         return List.copyOf(issues);
@@ -148,7 +148,7 @@ public class BestPracticesValidator {
     /** Validates geographic data in TIM message. */
     private List<ValidationIssue> validateGeography(
             TravelerInformation tim,
-            boolean roadwayHeadingEnabled) throws ValidationException {
+            ValidationOptions options) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges
@@ -165,7 +165,7 @@ public class BestPracticesValidator {
             issues.addAll(geometryValidator.validate(
                 region.path(),
                 region.indexes(),
-                roadwayHeadingEnabled));
+                options));
         }
 
         issues.addAll(LaneCrossingGeometryValidator.validate(dataFrames));
