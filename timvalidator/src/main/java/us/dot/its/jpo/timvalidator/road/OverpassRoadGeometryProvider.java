@@ -355,7 +355,6 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 }
                 return response.body();
             } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
                 throw new RoadGeometryLookupException("Overpass request was interrupted", ex);
             } catch (IOException ex) {
                 throw new RoadGeometryLookupException("Overpass request failed", ex);
