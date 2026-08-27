@@ -114,7 +114,8 @@ final class HeadingSliceGeometryValidator {
         if (region == null) {
             return null;
         }
-        if (region.getDirection() != null) {
+        boolean isPolygon = region.getClosedPath() != null && region.getClosedPath().getValue();
+        if (isPolygon && region.getDirection() != null) {
             return new HeadingSelection(
                     region.getDirection(),
                     "/direction",
