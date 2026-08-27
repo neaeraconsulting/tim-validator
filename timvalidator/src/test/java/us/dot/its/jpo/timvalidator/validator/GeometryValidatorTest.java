@@ -643,7 +643,7 @@ class GeometryValidatorTest {
     @Test
     void validate_headingMismatchReturnsStructuredGeometryWarning() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator(
-                (location, radius) -> List.of(new RoadSegment(
+                (location, radius) -> List.of(RoadSegment.validRoadSegment(
                         202L,
                         "Broadway",
                         List.of(

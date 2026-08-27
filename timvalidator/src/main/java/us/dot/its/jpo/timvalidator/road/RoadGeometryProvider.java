@@ -7,6 +7,8 @@ import org.locationtech.jts.algorithm.MinimumBoundingCircle;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.proj4j.geodesic.Geodesic;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 /**
  * Supplies roadway centerlines within a TIM region.
@@ -21,7 +23,8 @@ public interface RoadGeometryProvider {
     /**
      * Finds roads near a WGS-84 coordinate, where x is longitude and y is latitude.
      */
-    List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters) throws RoadGeometryLookupException;
+    List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters)
+        throws ValidationException;
 
     /**
      * Finds roads within a WGS-84 polygon.
@@ -30,7 +33,8 @@ public interface RoadGeometryProvider {
      * JTS's minimum bounding circle and Proj4J's WGS-84 geodesic distance. Providers
      * that support polygon queries should override this method.</p>
      */
-    default List<RoadSegment> findRoadsIn(Polygon searchArea) throws RoadGeometryLookupException {
+    default List<RoadSegment> findRoadsIn(Polygon searchArea)
+            throws ValidationException {
         Objects.requireNonNull(searchArea, "searchArea");
         if (searchArea.isEmpty()) {
             throw new IllegalArgumentException("searchArea must not be empty");

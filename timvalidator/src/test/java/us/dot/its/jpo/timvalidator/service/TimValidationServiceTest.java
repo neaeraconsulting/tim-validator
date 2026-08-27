@@ -19,9 +19,11 @@ import org.junit.jupiter.api.Test;
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
@@ -192,13 +194,14 @@ public class TimValidationServiceTest {
         TimValidationService roadBackedService = new TimValidationService(
             (location, radius) -> {
                 providerCalls.incrementAndGet();
-                return java.util.List.of(new RoadSegment(
+                return java.util.List.of(RoadSegment.validRoadSegment(
                     202L,
                     "Broadway",
                     java.util.List.of(
                         new Coordinate(-0.001, 0.0),
                         new Coordinate(0.001, 0.0))));
             });
+
 
         String headingJer = """
             {
