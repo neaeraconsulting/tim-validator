@@ -106,6 +106,7 @@ public class TimValidationServiceTest {
         assertTrue(summary.contains("Warning detail"), "Summary should contain warning details");
     }
 
+    @Test
     public void testValidationException() {
         ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
