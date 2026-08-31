@@ -22,6 +22,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.UniqueMSGID;
+import us.dot.its.jpo.timvalidator.gnis.GeoPackageGnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeature;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
@@ -32,6 +33,20 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 class GnisPacketIdValidatorTest {
 
     private static final int GNIS_ID = 0x123456;
+
+    @Test
+    void validate_fullPacketIdUsingPackagedCivilData() {
+        // 0x24CB10 is Northglenn, CO's GNIS ID (2411280); the final six bytes identify
+        // this individual TIM/message.
+        String packetId = "24CB10A1B2C3D4E5F6";
+        TravelerInformation testTim = tim(packetId, 39.9108, -104.9878);
+
+        List<ValidationIssue> issues = new GnisPacketIdValidator(
+                new GeoPackageGnisFeatureProvider()).validate(testTim);
+
+        assertEquals(9, testTim.getPacketID().getOctets().length);
+        assertTrue(issues.isEmpty(), "Northglenn's GNIS prefix should match its TIM bounds");
+    }
 
     @Test
     void validate_readsUnsignedBigEndianPrefixAndWarnsForUnknownCivilId() {
