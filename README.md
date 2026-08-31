@@ -68,6 +68,28 @@ JER requests send the TIM MessageFrame JSON body. UPER requests send the UPER-en
 
 See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details and example response payloads.
 
+### GNIS Packet-ID Validation
+
+The first three bytes of a nine-byte TIM `packetID` are interpreted as an unsigned,
+big-endian GNIS deployment-area identifier. This is a non-blocking best-practice check;
+J2735 field validity remains the responsibility of schema validation.
+
+The validator first requires the identifier to exist in its approved Civil GNIS feature
+set. It then derives the overall WGS 84 bounds of the TIM's path or circle region
+geometry and queries the GNIS spatial index using an expanded envelope. The expansion is
+the greater of 50 km or 20 percent of the TIM bounds' diagonal, capped at 150 km. A valid
+Civil feature outside that search area receives an unverifiable warning unless it is
+more than 300 km from the original TIM bounds, in which case it receives a geographic
+inconsistency warning. Region anchors are used only when required to decode relative
+J2735 path offsets; they are not used as the representative comparison point.
+
+The reduced Civil GNIS GeoPackage is bundled in the `timvalidator` JAR and queried with
+its `feature_id` and RTree indexes. At runtime it is extracted once to a temporary
+read-only data source because SQLite requires a filesystem path. No GNIS network request
+or external GDAL installation is required. See
+[docs/civil_gnis_deployment_areas.md](docs/civil_gnis_deployment_areas.md) for how the
+dataset was produced.
+
 ### Road-Heading Validation
 
 Roadway-backed heading validation is optional and network-free by default. When it is
