@@ -16,7 +16,9 @@ public class TimValidatorConfiguration {
     }
 
     @Bean
-    public TimValidationService timValidationService() {
-        return new TimValidationService();
+    public TimValidationService timValidationService(RoadwayHeadingProperties properties) {
+        return TimValidationService.withOverpassRoadGeometry(
+                properties.getOverpassUrl(),
+                properties.getOverpassUserAgent());
     }
 }

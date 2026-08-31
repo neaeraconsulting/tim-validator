@@ -34,6 +34,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.OffsetSystem;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Radius_B12;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Zoom;
 import us.dot.its.jpo.asn.runtime.types.Asn1Boolean;
+import us.dot.its.jpo.timvalidator.exception.InvalidGeometryException;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
@@ -198,6 +199,7 @@ class HeadingSliceGeometryValidatorTest {
     @Test
     void validate_undecodableRegionReturnsNonBlockingWarning() throws ValidationException {
         GeographicalPath region = new GeographicalPath();
+        region.setClosedPath(new Asn1Boolean(true));
         region.setDirection(heading(0));
         HeadingSliceGeometryValidator validator = validator();
 
@@ -210,6 +212,17 @@ class HeadingSliceGeometryValidatorTest {
         assertEquals("/value/TravelerInformation/dataFrames/2/regions/3/direction", issue.path());
         assertTrue(issue.message().contains("could not be evaluated"));
         assertTrue(issue.message().contains("incomplete or malformed"));
+    }
+
+    @Test
+    void validate_pathRegionWithDirectionIsSkippedNotFlaggedAsMalformed() throws ValidationException {
+        GeographicalPath region = new GeographicalPath();
+        region.setDirection(heading(0));
+        HeadingSliceGeometryValidator validator = validator();
+
+        List<ValidationIssue> issues = validator.validate(region, new DataFrameIndexes(2, 3));
+
+        assertTrue(issues.isEmpty());
     }
 
     @Test
@@ -291,7 +304,8 @@ class HeadingSliceGeometryValidatorTest {
             }
 
             @Override
-            public List<RoadSegment> findRoadsIn(Polygon searchArea) {
+            public List<RoadSegment> findRoadsIn(Polygon searchArea)
+                throws InvalidGeometryException {
                 assertTrue(searchArea.getEnvelopeInternal().getMinX() > LONGITUDE);
                 return List.of(northSouthRoad(101, "Road Inside Polygon", 30.0));
             }
@@ -473,7 +487,8 @@ class HeadingSliceGeometryValidatorTest {
         return anchor;
     }
 
-    private static RoadSegment northSouthRoad(long id, String name, double eastOffsetMeters) {
+    private static RoadSegment northSouthRoad(long id, String name, double eastOffsetMeters)
+        throws InvalidGeometryException {
         return localRoad(
                 id,
                 name,
@@ -481,7 +496,8 @@ class HeadingSliceGeometryValidatorTest {
                 new Coordinate(eastOffsetMeters, 100.0));
     }
 
-    private static RoadSegment eastWestRoad(long id, String name, double northOffsetMeters) {
+    private static RoadSegment eastWestRoad(long id, String name, double northOffsetMeters)
+        throws InvalidGeometryException {
         return localRoad(
                 id,
                 name,
@@ -489,7 +505,8 @@ class HeadingSliceGeometryValidatorTest {
                 new Coordinate(100.0, northOffsetMeters));
     }
 
-    private static RoadSegment roadAtBearing(long id, String name, double bearingDegrees) {
+    private static RoadSegment roadAtBearing(long id, String name, double bearingDegrees)
+        throws InvalidGeometryException {
         double radians = Math.toRadians(bearingDegrees);
         double halfLengthMeters = 100.0;
         double eastOffset = halfLengthMeters * Math.sin(radians);
@@ -504,10 +521,10 @@ class HeadingSliceGeometryValidatorTest {
     private static RoadSegment localRoad(
             long id,
             String name,
-            Coordinate... localCoordinatesMeters) {
+            Coordinate... localCoordinatesMeters) throws InvalidGeometryException {
         List<Coordinate> wgs84Coordinates = OffsetPathDecoder.wgs84Coordinates(
                 anchor(),
                 localCoordinatesMeters).orElseThrow();
-        return new RoadSegment(id, name, wgs84Coordinates);
+        return RoadSegment.validRoadSegment(id, name, wgs84Coordinates);
     }
 }

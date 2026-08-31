@@ -19,9 +19,11 @@ import org.junit.jupiter.api.Test;
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
@@ -104,12 +106,13 @@ public class TimValidationServiceTest {
         assertTrue(summary.contains("Warning detail"), "Summary should contain warning details");
     }
 
+    @Test
     public void testValidationException() {
         ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
         }, "ValidationException should be throwable");
-        assertTrue(ex.getMessage().contains("Test exception"));
-    }
+assertTrue(ex.getMessage().contains("Test exception"));
+}
 
     @Test
     public void testJerValidationFailureIncludesResult() {
@@ -173,7 +176,9 @@ public class TimValidationServiceTest {
 
     @Test
     public void testStandardOverpassServiceInstantiation() {
-        TimValidationService validator = TimValidationService.withOverpassRoadGeometry();
+        TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
+            "https://overpass.example/api/interpreter",
+            "my-app/1.0");
         assertNotNull(validator, "Overpass-backed service should be instantiated");
     }
 
@@ -181,9 +186,69 @@ public class TimValidationServiceTest {
     public void testBestPracticesValidatorNullHandling() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator();
         var issues = validator.validate(null);
-        
+
         assertNotNull(issues, "Issues list should not be null");
         assertFalse(issues.isEmpty(), "Should report issues for null message");
+    }
+
+    @Test
+    public void validateTimJer_defaultServiceRejectsRoadwayHeadingWithoutConfiguredProvider() throws Exception {
+        String headingJer = """
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "description": {
+                            "geometry": {
+                              "direction": "8000",
+                              "circle": {
+                                "center": {"lat": 0, "long": 0, "elevation": 0},
+                                "radius": 1,
+                                "units": "meter"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+
+        ValidationResult result = validationService.validateTimJer(headingJer, ValidationOptions.withRoadwayHeading());
+
+        assertFalse(result.isValid(), "Missing roadway provider should make the result invalid");
+        assertFalse(result.getValidationChecks().get("Best Practices Validation").isPassed());
+        assertTrue(result.getErrors().stream().anyMatch(issue ->
+            issue.checkName().equals("Best Practices Validation")
+                && issue.message().contains("No RoadGeometryProvider configured")));
     }
 
     @Test
@@ -192,13 +257,14 @@ public class TimValidationServiceTest {
         TimValidationService roadBackedService = new TimValidationService(
             (location, radius) -> {
                 providerCalls.incrementAndGet();
-                return java.util.List.of(new RoadSegment(
+                return java.util.List.of(RoadSegment.validRoadSegment(
                     202L,
                     "Broadway",
                     java.util.List.of(
                         new Coordinate(-0.001, 0.0),
                         new Coordinate(0.001, 0.0))));
             });
+
 
         String headingJer = """
             {

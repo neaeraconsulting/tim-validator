@@ -46,12 +46,24 @@ public class TimValidationService {
     }
 
     /**
-     * Creates a validation service with the standard Overpass-backed roadway heading check.
+     * Creates a validation service with an Overpass-backed roadway heading check against a
+     * caller-chosen Overpass endpoint and User-Agent.
      *
+     * <p>The Overpass API's public instances are shared, rate-limited infrastructure; see the
+     * usage guidelines at
+     * <a href="https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage">
+     * wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage</a> before choosing an endpoint
+     * and a User-Agent that uniquely identifies your application.
+     *
+     * @param overpassEndpoint the Overpass API endpoint to query for roadway geometry
+     * @param userAgent a value that uniquely identifies the calling application
      * @return a service with roadway-backed heading-slice validation enabled
      */
-    public static TimValidationService withOverpassRoadGeometry() {
-        return new TimValidationService(new OverpassRoadGeometryProvider());
+    public static TimValidationService withOverpassRoadGeometry(
+            String overpassEndpoint,
+            String userAgent) {
+        return new TimValidationService(
+                new OverpassRoadGeometryProvider(overpassEndpoint, userAgent));
     }
 
     /**
@@ -64,9 +76,7 @@ public class TimValidationService {
      */
     public static TimValidationService withGnisFeatureProvider(GnisFeatureProvider provider) {
         return new TimValidationService(
-                new BestPracticesValidator(
-                        new OverpassRoadGeometryProvider(),
-                        Objects.requireNonNull(provider, "provider")),
+                new BestPracticesValidator(Objects.requireNonNull(provider, "provider")),
                 ValidationOptions.networkFree());
     }
 

@@ -6,8 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
-import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
-import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
@@ -17,7 +15,6 @@ import us.dot.its.jpo.timvalidator.gnis.GeoPackageGnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
-import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
@@ -27,6 +24,14 @@ import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
+
+    private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
+        throw new ValidationException(
+                "No RoadGeometryProvider configured; use "
+                        + "TimValidationService.withOverpassRoadGeometry(endpoint, userAgent) or "
+                        + "the RoadGeometryProvider-accepting constructor to enable "
+                        + "roadway-backed checks.");
+    };
 
     private final GeometryValidator geometryValidator;
     private final GnisPacketIdValidator gnisPacketIdValidator;
@@ -41,7 +46,7 @@ public class BestPracticesValidator {
      */
     public BestPracticesValidator() {
         this(
-                new OverpassRoadGeometryProvider(),
+                UNCONFIGURED_PROVIDER,
                 new GeoPackageGnisFeatureProvider(),
                 ValidationOptions.networkFree());
     }
@@ -57,6 +62,18 @@ public class BestPracticesValidator {
                 roadGeometryProvider,
                 new GeoPackageGnisFeatureProvider(),
                 ValidationOptions.withRoadwayHeading());
+    }
+
+    /**
+     * Creates a network-free validator with an injected GNIS data source.
+     *
+     * @param gnisFeatureProvider provider used to retrieve GNIS features
+     */
+    public BestPracticesValidator(GnisFeatureProvider gnisFeatureProvider) {
+        this(
+                UNCONFIGURED_PROVIDER,
+                Objects.requireNonNull(gnisFeatureProvider, "gnisFeatureProvider"),
+                ValidationOptions.networkFree());
     }
 
     /**
@@ -118,7 +135,7 @@ public class BestPracticesValidator {
         TravelerInformation tim = travelerInformation.orElseThrow();
 
         issues.addAll(gnisPacketIdValidator.validate(tim));
-        issues.addAll(validateGeometry(tim, options.roadwayHeadingEnabled()));
+        issues.addAll(validateGeometry(tim, options));
 
         return List.copyOf(issues);
     }
@@ -142,7 +159,7 @@ public class BestPracticesValidator {
 
     private List<ValidationIssue> validateGeometry(
             TravelerInformation tim,
-            boolean roadwayHeadingEnabled) throws ValidationException {
+            ValidationOptions options) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
 
         TravelerDataFrameList dataFrames = tim.getDataFrames();
@@ -150,25 +167,11 @@ public class BestPracticesValidator {
             return issues;
         }
 
-        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
-            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-
-            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
-            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
-                GeographicalPath region = regions.get(regionIndex);
-                if (region == null) {
-                    continue;
-                }
-
-                DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                issues.addAll(geometryValidator.validate(
-                        region,
-                        indexes,
-                        roadwayHeadingEnabled));
-            }
+        for (var region : DataFrameRegion.regions(dataFrames).toList()) {
+            issues.addAll(geometryValidator.validate(
+                region.path(),
+                region.indexes(),
+                options));
         }
 
         issues.addAll(LaneCrossingGeometryValidator.validate(dataFrames));

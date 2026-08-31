@@ -12,7 +12,6 @@ import org.locationtech.jts.algorithm.Angle;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.LineSegment;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.util.AffineTransformation;
@@ -21,7 +20,7 @@ import org.locationtech.proj4j.units.Units;
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
-import us.dot.its.jpo.timvalidator.road.RoadGeometryLookupException;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
@@ -35,6 +34,7 @@ final class RoadwayRegionMatcher {
     private static final double ROAD_QUERY_BUFFER_METERS = 5.0;
     private static final double CLOSED_RING_EPSILON_CENTIMETERS = 1.0e-6;
     private static final double MINIMUM_ROAD_PORTION_LENGTH_METERS = 1.0e-6;
+    private static final int CIRCLE_APPROXIMATION_QUADRANT_SEGMENTS = 32;
     private static final double METERS_PER_CENTIMETER = Units.convert(
             1.0,
             Units.CENTIMETRES,
@@ -57,14 +57,14 @@ final class RoadwayRegionMatcher {
      */
     Optional<List<RoadwayBearing>> findRoadwayBearings(
             GeographicalPath region,
-            Circle circle) throws RoadGeometryLookupException {
+            Circle circle) throws ValidationException {
         return circle == null
                 ? closedPathRoadwayBearings(region)
                 : circleRoadwayBearings(circle);
     }
 
     private Optional<List<RoadwayBearing>> circleRoadwayBearings(Circle circle)
-            throws RoadGeometryLookupException {
+            throws ValidationException {
         Optional<Coordinate> center = OffsetPathDecoder.wgs84Coordinate(circle.getCenter());
         OptionalDouble radiusMeters = CircleGeometryUtils.radiusMeters(circle);
         if (center.isEmpty() || radiusMeters.isEmpty()) {
@@ -76,14 +76,16 @@ final class RoadwayRegionMatcher {
         List<RoadSegment> roads = roadGeometryProvider.findNearbyRoads(
                 circleCenter,
                 radius);
-        return Optional.of(roadwayBearingsInsideCircle(
+        Geometry circleArea = GEOMETRY_FACTORY.createPoint(ORIGIN)
+                .buffer(radius, CIRCLE_APPROXIMATION_QUADRANT_SEGMENTS);
+        return Optional.of(roadwayBearingsInsideArea(
                 circleCenter,
-                radius,
+                circleArea,
                 roads));
     }
 
     private Optional<List<RoadwayBearing>> closedPathRoadwayBearings(
-            GeographicalPath region) throws RoadGeometryLookupException {
+            GeographicalPath region) throws ValidationException {
         if (region.getClosedPath() == null || !region.getClosedPath().getValue()) {
             return Optional.empty();
         }
@@ -173,37 +175,6 @@ final class RoadwayRegionMatcher {
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
-    }
-
-    private List<RoadwayBearing> roadwayBearingsInsideCircle(
-            Coordinate projectionOrigin,
-            double radiusMeters,
-            List<RoadSegment> roads) {
-        if (roads == null) {
-            return List.of();
-        }
-
-        List<RoadwayBearing> bearings = new ArrayList<>();
-        for (RoadSegment road : roads) {
-            Optional<LineString> projectedRoad =
-                    projectedRoad(projectionOrigin, road);
-            if (projectedRoad.isEmpty()) {
-                continue;
-            }
-
-            Coordinate[] coordinates = projectedRoad.orElseThrow().getCoordinates();
-            for (int index = 1; index < coordinates.length; index++) {
-                Coordinate start = coordinates[index - 1];
-                Coordinate end = coordinates[index];
-                LineSegment segment = new LineSegment(start, end);
-                if (segment.getLength() > MINIMUM_ROAD_PORTION_LENGTH_METERS
-                        && segment.distance(ORIGIN)
-                                < radiusMeters - MINIMUM_ROAD_PORTION_LENGTH_METERS) {
-                    addRoadwayBearing(road, start, end, bearings);
-                }
-            }
-        }
-        return List.copyOf(bearings);
     }
 
     private List<RoadwayBearing> roadwayBearingsInsideArea(

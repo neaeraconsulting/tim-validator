@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+import java.util.stream.Stream;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.Geometry;
@@ -70,46 +71,21 @@ final class LaneCrossingGeometryValidator {
 
     /** Finds the first valid lane anchor to use as the message-wide projection origin. */
     private static Optional<Coordinate> firstLaneAnchor(TravelerDataFrameList dataFrames) {
-        for (TravelerDataFrame dataFrame : dataFrames) {
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-            for (GeographicalPath region : dataFrame.getRegions()) {
-                if (!isExplicitOpenPath(region)) {
-                    continue;
-                }
-                Optional<Coordinate> anchor = OffsetPathDecoder.wgs84Coordinate(region.getAnchor());
-                if (anchor.isPresent()) {
-                    return anchor;
-                }
-            }
-        }
-        return Optional.empty();
+        return DataFrameRegion.regions(dataFrames)
+            .map(DataFrameRegion::path)
+            .filter(LaneCrossingGeometryValidator::isExplicitOpenPath)
+            .flatMap(path -> OffsetPathDecoder.wgs84Coordinate(path.getAnchor()).stream())
+            .findFirst();
     }
 
     /** Decodes every eligible lane into the shared planar coordinate system. */
     private static List<LaneGeometry> decodeLanes(
             TravelerDataFrameList dataFrames,
             Coordinate sharedOrigin) {
-        List<LaneGeometry> lanes = new ArrayList<>();
-        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
-            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-
-            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
-            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
-                GeographicalPath region = regions.get(regionIndex);
-                if (!isExplicitOpenPath(region)) {
-                    continue;
-                }
-
-                DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                decodeLane(region, indexes, sharedOrigin).ifPresent(lanes::add);
-            }
-        }
-        return List.copyOf(lanes);
+        return DataFrameRegion.regions(dataFrames)
+            .filter(region -> isExplicitOpenPath(region.path()))
+            .flatMap(region -> decodeLane(region.path(), region.indexes(), sharedOrigin).stream())
+            .toList();
     }
 
     /** Builds the shared centerline and optional width corridor for one lane region. */

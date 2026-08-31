@@ -1,13 +1,12 @@
 trigger:
-  - main
-  - develop
-  - snapshot
-  - maven-central
+  branches:
+    include:
+      - '*'
 
 pr:
-  - main
-  - develop
-  - snapshot
+  branches:
+    include:
+      - '*'
 
 variables:
   - name: VersionNum
@@ -16,11 +15,75 @@ variables:
     value: '$(system.defaultWorkingDirectory)/timvalidator'
   - name: JavaHome
     value: 'JavaHome' # initial value, JDK install step sets it
+  - name: DOCKERHUB_NAMESPACE
+    value: neaeraconsulting
+  - name: imageRepository
+    value: timvalidator-api
+  - name: dockerfilePath
+    value: $(Build.SourcesDirectory)/Dockerfile
+  - name: imageName
+    value: $(DOCKERHUB_NAMESPACE)/$(imageRepository)
 
 
 stages:
+  - stage: CI
+    displayName: Build and Test
+    jobs:
+      - job: BuildAndTest
+        displayName: Compile, test, and check coverage
+        pool:
+          vmImage: ubuntu-24.04
+        container: maven:3.9.9-eclipse-temurin-23
+        variables:
+          MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+          MAVEN_OPTS: '-Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository'
+        steps:
+          - checkout: self
+            displayName: Checkout
+
+          - task: Cache@2
+            displayName: Cache Maven repository
+            inputs:
+              key: 'maven | "$(Agent.OS)" | **/pom.xml'
+              restoreKeys: |
+                maven | "$(Agent.OS)"
+              path: $(MAVEN_CACHE_FOLDER)
+
+          - task: UseDotNet@2
+            displayName: Install .NET SDK for coverage publisher
+            inputs:
+              version: '8.x'
+
+          - bash: |
+              set -euo pipefail
+              java -version
+              mvn -version
+              mvn --batch-mode --no-transfer-progress clean verify
+            displayName: Compile, test, and check coverage
+
+          - task: PublishTestResults@2
+            displayName: Publish test results
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: JUnit
+              testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
+              mergeTestResults: true
+              failTaskOnMissingResultsFile: true
+
+          - task: PublishCodeCoverageResults@2
+            displayName: Publish JaCoCo coverage
+            condition: succeededOrFailed()
+            inputs:
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/timvalidator/target/site/jacoco/jacoco.xml'
+              pathToSources: '$(System.DefaultWorkingDirectory)/timvalidator/src/main/java'
+              failIfCoverageEmpty: true
+            env:
+              DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
+
   - stage: Publish
     displayName: Publish to Maven Central
+    dependsOn: CI
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop', 'refs/heads/snapshot', 'refs/heads/maven-central'))
     jobs:
       - job: PublishSnapshot
         displayName: Publish Snapshot to Maven Central
@@ -113,10 +176,69 @@ stages:
               MAVEN_GPG_PASSPHRASE: $(GPG_SIGNING_KEY_PASSWORD)
             displayName: Publish snapshot
             workingDirectory: $(WorkingDir)
+ 
+  # Build and publish the timvalidator-api image to Docker Hub on merge to
+  # main and develop.
+  #
+  # One-time Azure DevOps setup:
+  # 1. Create a Docker Hub access token (Account Settings > Personal access
+  #    tokens). Grant Read, Write, Delete on the repository.
+  # 2. Pipeline > Edit > Variables, add:
+  #      DOCKERHUB_USERNAME  your Docker Hub username (the account that owns
+  #                          the token; may differ from the image namespace)
+  #      DOCKERHUB_PAT       the access token — enable "Keep this value secret"
+  # 
+  # Published tags:
+  #   main    -> {namespace}/timvalidator-api:{12-char sha}, :main, :latest
+  #   develop -> {namespace}/timvalidator-api:{12-char sha}, :develop
+  - stage: Docker
+    displayName: Build and publish image
+    dependsOn: CI
+    condition: |
+      and(
+        succeeded(),
+        in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop')
+      )
+    jobs:
+      - job: BuildAndPush
+        displayName: Build and push to Docker Hub
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - bash: |
+              set -euo pipefail
+              branch="$(Build.SourceBranchName)"
+              sha="$(Build.SourceVersion)"
+              short_sha="${sha:0:12}"
+              tags="${short_sha},${branch}"
+              if [ "$branch" = "main" ]; then
+                tags="${tags},latest"
+              fi
+              echo "Publishing $(imageName) with tags: ${tags}"
+              echo "##vso[task.setvariable variable=dockerTags]${tags}"
+            displayName: Compute image tags
 
-              
-              
+          - bash: |
+              set -euo pipefail
+              echo "$DOCKERHUB_PAT" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            displayName: Login to Docker Hub
+            env:
+              DOCKERHUB_USERNAME: $(DOCKERHUB_USERNAME)
+              DOCKERHUB_PAT: $(DOCKERHUB_PAT)
 
+          - bash: |
+              set -euo pipefail
+              image="$(imageName)"
+              IFS=',' read -ra tags <<< "$(dockerTags)"
+              tag_args=()
+              for tag in "${tags[@]}"; do
+                tag_args+=(-t "${image}:${tag}")
+              done
+              docker build "${tag_args[@]}" -f "$(dockerfilePath)" "$(Build.SourcesDirectory)"
+              docker push --all-tags "$image"
+            displayName: Build and push image
 
-
+          - bash: docker logout
+            displayName: Logout of Docker Hub
+            condition: always()
 

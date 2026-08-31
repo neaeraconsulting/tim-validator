@@ -2,6 +2,7 @@ package us.dot.its.jpo.timvalidator.road;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -16,13 +17,24 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Polygon;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 class OverpassRoadGeometryProviderTest {
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
 
     @Test
-    void findNearbyRoads_buildsQueryAndDecodesWayGeometry() throws RoadGeometryLookupException {
+    void constructor_customEndpointAndUserAgentAreAccepted() {
+        OverpassRoadGeometryProvider provider = new OverpassRoadGeometryProvider(
+                "https://overpass.example/api/interpreter",
+                "my-app/1.0");
+
+        assertNotNull(provider);
+    }
+
+    @Test
+    void findNearbyRoads_buildsQueryAndDecodesWayGeometry() throws ValidationException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         AtomicReference<Duration> capturedTimeout = new AtomicReference<>();
         AtomicReference<String> capturedUserAgent = new AtomicReference<>();
@@ -87,7 +99,7 @@ class OverpassRoadGeometryProviderTest {
 
     @Test
     void findNearbyRoads_includesConstructionOnlyForAllowedRoadClass()
-        throws RoadGeometryLookupException {
+        throws ValidationException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> {
             capturedQuery.set(query);
@@ -115,7 +127,7 @@ class OverpassRoadGeometryProviderTest {
 
     @Test
     void findNearbyRoads_filtersReturnedWaysUsingTheSameRoadPolicy()
-        throws RoadGeometryLookupException {
+        throws ValidationException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [
@@ -217,7 +229,7 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findNearbyRoads_usesRoadReferenceWhenNameIsMissing() throws RoadGeometryLookupException {
+    void findNearbyRoads_usesRoadReferenceWhenNameIsMissing() throws ValidationException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [{
@@ -239,7 +251,7 @@ class OverpassRoadGeometryProviderTest {
     }
 
     @Test
-    void findRoadsIn_buildsPolygonQueryWithLatitudeLongitudeOrder() throws RoadGeometryLookupException {
+    void findRoadsIn_buildsPolygonQueryWithLatitudeLongitudeOrder() throws ValidationException {
         AtomicReference<String> capturedQuery = new AtomicReference<>();
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> {
             capturedQuery.set(query);
@@ -267,7 +279,7 @@ class OverpassRoadGeometryProviderTest {
 
     @Test
     void findNearbyRoads_skipsMalformedNumbersAndRetainsNumericZeroCoordinates()
-        throws RoadGeometryLookupException {
+        throws ValidationException {
         OverpassRoadGeometryProvider provider = provider((endpoint, query, timeout, userAgent) -> """
                 {
                   "elements": [

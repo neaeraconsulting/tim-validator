@@ -1,5 +1,8 @@
 package us.dot.its.jpo.timvalidator.road;
 
+import static us.dot.its.jpo.timvalidator.road.GeoUtils.coordinateIsValid;
+import static us.dot.its.jpo.timvalidator.road.GeoUtils.validateCoordinate;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -21,17 +24,23 @@ import org.locationtech.jts.geom.Polygon;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import us.dot.its.jpo.timvalidator.exception.InvalidGeometryException;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 
 /**
  * Retrieves nearby motor-vehicle roadways from an OpenStreetMap Overpass endpoint.
+ *
+ * <p>This class has no default endpoint or User-Agent: callers must supply both. The Overpass
+ * API's public instances are shared, rate-limited infrastructure; see the usage guidelines at
+ * <a href="https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage">
+ * wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage</a> before choosing an endpoint and a
+ * User-Agent that uniquely identifies your application.
  */
 public final class OverpassRoadGeometryProvider implements RoadGeometryProvider {
 
-    private static final String DEFAULT_ENDPOINT =
-            "https://overpass-api.de/api/interpreter";
     private static final Duration DEFAULT_QUERY_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration DEFAULT_HTTP_TIMEOUT = Duration.ofSeconds(20);
-    private static final String DEFAULT_USER_AGENT = "timvalidator/1.0";
     private static final List<String> ALLOWED_ROAD_CLASSES = List.of(
             "motorway",
             "motorway_link",
@@ -60,14 +69,15 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     private final OverpassTransport transport;
 
     /**
-     * Creates a provider using the validator library's standard Overpass settings.
+     * Creates a provider using the library's default timeouts, against a caller-chosen
+     * Overpass endpoint and User-Agent.
+     *
+     * @param endpoint the Overpass API endpoint to query
+     * @param userAgent a value that uniquely identifies the calling application, per the
+     *        Overpass usage guidelines
      */
-    public OverpassRoadGeometryProvider() {
-        this(
-                DEFAULT_ENDPOINT,
-                DEFAULT_QUERY_TIMEOUT,
-                DEFAULT_HTTP_TIMEOUT,
-                DEFAULT_USER_AGENT);
+    public OverpassRoadGeometryProvider(String endpoint, String userAgent) {
+        this(endpoint, DEFAULT_QUERY_TIMEOUT, DEFAULT_HTTP_TIMEOUT, userAgent);
     }
 
     public OverpassRoadGeometryProvider(String endpoint, Duration timeout, String userAgent) {
@@ -109,8 +119,8 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
 
     @Override
     public List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters)
-        throws RoadGeometryLookupException {
-        validateLocation(location);
+        throws ValidationException {
+        validateCoordinate(location);
         if (!Double.isFinite(radiusMeters) || radiusMeters <= 0.0) {
             throw new IllegalArgumentException("radiusMeters must be positive");
         }
@@ -120,12 +130,12 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
     }
 
     @Override
-    public List<RoadSegment> findRoadsIn(Polygon searchArea) throws RoadGeometryLookupException {
+    public List<RoadSegment> findRoadsIn(Polygon searchArea) throws ValidationException {
         validateSearchArea(searchArea);
         return executeQuery(buildPolygonQuery(searchArea));
     }
 
-    private List<RoadSegment> executeQuery(String query) throws RoadGeometryLookupException {
+    private List<RoadSegment> executeQuery(String query) throws ValidationException {
         String response = transport.execute(endpoint, query, httpTimeout, userAgent);
         return parseRoads(response);
     }
@@ -139,7 +149,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 longitudeDegrees));
     }
 
-    String buildPolygonQuery(Polygon searchArea) {
+    String buildPolygonQuery(Polygon searchArea) throws InvalidGeometryException {
         validateSearchArea(searchArea);
         Coordinate[] coordinates = searchArea.getExteriorRing().getCoordinates();
         StringJoiner polygonCoordinates = new StringJoiner(" ");
@@ -189,7 +199,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
         return value;
     }
 
-    private List<RoadSegment> parseRoads(String response) throws RoadGeometryLookupException {
+    private List<RoadSegment> parseRoads(String response) throws ValidationException {
         try {
             JsonNode root = objectMapper.readTree(response);
             if (root == null) {
@@ -228,7 +238,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                     name = tags.path("ref").asText(null);
                 }
                 try {
-                    roads.add(new RoadSegment(idNode.longValue(), name, geometry));
+                    roads.add(RoadSegment.validRoadSegment(idNode.longValue(), name, geometry));
                 } catch (IllegalArgumentException ex) {
                     // Ignore malformed individual ways while retaining other valid candidates.
                 }
@@ -260,11 +270,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
             Coordinate coordinate = new Coordinate(
                     longitudeNode.doubleValue(),
                     latitudeNode.doubleValue());
-            if (!coordinate.isValid()
-                    || coordinate.getY() < -90.0
-                    || coordinate.getY() > 90.0
-                    || coordinate.getX() < -180.0
-                    || coordinate.getX() > 180.0) {
+            if (!coordinateIsValid(coordinate)) {
                 return null;
             }
             geometry.add(coordinate);
@@ -272,17 +278,6 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
         return geometry.size() < 2
                 ? null
                 : GEOMETRY_FACTORY.createLineString(geometry.toArray(Coordinate[]::new));
-    }
-
-    private void validateLocation(Coordinate location) {
-        Objects.requireNonNull(location, "location");
-        if (!location.isValid()
-                || location.getY() < -90.0
-                || location.getY() > 90.0
-                || location.getX() < -180.0
-                || location.getX() > 180.0) {
-            throw new IllegalArgumentException("Invalid WGS-84 coordinate");
-        }
     }
 
     private boolean isEligibleRoad(JsonNode tags) {
@@ -309,7 +304,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
         return false;
     }
 
-    private void validateSearchArea(Polygon searchArea) {
+    private void validateSearchArea(Polygon searchArea) throws InvalidGeometryException {
         Objects.requireNonNull(searchArea, "searchArea");
         if (searchArea.isEmpty()
                 || !searchArea.isValid()
@@ -318,7 +313,7 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                     "searchArea must be a valid, non-empty polygon without holes");
         }
         for (Coordinate coordinate : searchArea.getCoordinates()) {
-            validateLocation(coordinate);
+            validateCoordinate(coordinate);
         }
     }
 
@@ -355,7 +350,6 @@ public final class OverpassRoadGeometryProvider implements RoadGeometryProvider 
                 }
                 return response.body();
             } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
                 throw new RoadGeometryLookupException("Overpass request was interrupted", ex);
             } catch (IOException ex) {
                 throw new RoadGeometryLookupException("Overpass request failed", ex);

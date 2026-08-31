@@ -110,10 +110,9 @@ Heading mismatches, missing road matches, and lookup failures are returned as
 non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
 identifies the region heading that was evaluated.
 
-The library uses the public `https://overpass-api.de/api/interpreter` endpoint, a
-5-second Overpass query budget, a 20-second HTTP deadline, and the
-`timvalidator/1.0` user agent. These values are fixed in the library rather than
-exposed as Spring application properties.
+The library fixes a 5-second Overpass query budget and a 20-second HTTP deadline; these
+are not configurable. The Overpass endpoint and User-Agent, by contrast, have no default
+in the library at all and must be supplied explicitly by the caller — see below.
 
 The Overpass query uses an allowlist of ordinary motor-vehicle road classes from
 `motorway` through `tertiary`, along with their link classes, `unclassified`,
@@ -137,27 +136,43 @@ range, is evaluated from its circular angular midpoint. A roadway axis is tangen
 when it is within plus or minus 22.5 degrees of that midpoint.
 
 Tests inject an in-memory `RoadGeometryProvider`; they never call the live Overpass service.
-The ordinary `new TimValidationService()` constructor configures the standard Overpass
-provider, but its default validation options are network-free. Library consumers choose
-the behavior for each validation call:
+The ordinary `new TimValidationService()` constructor is fully network-free: it has no
+roadway provider configured at all, so even explicitly passing
+`ValidationOptions.withRoadwayHeading()` to it will fail with a clear error rather than
+silently reaching any network endpoint.
 
 ```java
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 
 TimValidationService validator = new TimValidationService();
 
-// Guaranteed not to call the roadway provider.
+// Guaranteed not to call any roadway provider.
 validator.validateTimJer(jer, ValidationOptions.networkFree());
+```
 
-// Explicitly enables roadway lookups for directional heading slices.
+To enable roadway-backed heading validation, choose an Overpass endpoint and a User-Agent
+that uniquely identifies your application, and use them explicitly — the library has no
+default endpoint or User-Agent of its own, since it's published for use by an unknown
+number of downstream consumers and must never silently enroll all of them into hitting
+shared Overpass infrastructure under one identity. See the Overpass usage guidelines at
+<https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage> before choosing an
+endpoint, especially for production or commercial use (self-hosted or paid instances are
+recommended there):
+
+```java
+TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
+    "https://overpass-api.de/api/interpreter",
+    "my-app/1.0 (contact@example.com)");
+
+// Enables roadway lookups for directional heading slices.
 validator.validateTimJer(jer, ValidationOptions.withRoadwayHeading());
 ```
 
-Calling `validateTimJer(jer)` or `validateTim(uper)` on an ordinary
-`new TimValidationService()` remains network-free. The provider is only queried when
-`ValidationOptions.withRoadwayHeading()` is used and the TIM contains a directional
-heading that can be evaluated. The explicit `withOverpassRoadGeometry()` factory and
-provider-injecting constructor retain their previous enabled defaults.
+The `timvalidator-api` module, being one specific deployment rather than a library used by
+unknown consumers, does default to the public Overpass instance and a generic User-Agent —
+both configurable via `timvalidator.roadway-heading.overpass-url` and
+`timvalidator.roadway-heading.overpass-user-agent` in `application.properties`, and both
+should be reviewed for any production deployment.
 
 The API accepts the same choice through `?roadwayHeading=true|false`. Requests that omit
 the parameter are network-free by default. Operators can change the default with
@@ -291,3 +306,4 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 | 2 | circle geometry | `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
+
