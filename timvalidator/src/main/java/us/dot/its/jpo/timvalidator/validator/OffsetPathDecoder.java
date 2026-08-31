@@ -228,6 +228,27 @@ final class OffsetPathDecoder {
         return Optional.of(List.copyOf(geographicCoordinates));
     }
 
+    /** Converts decoded centimeter path nodes into WGS-84 coordinates. */
+    static Optional<List<Coordinate>> wgs84Coordinates(
+            GeographicalPath region,
+            List<Coordinate> localNodesCentimeters) {
+        if (region == null || localNodesCentimeters == null) {
+            return Optional.empty();
+        }
+
+        Coordinate[] localNodesMeters = new Coordinate[localNodesCentimeters.size()];
+        for (int index = 0; index < localNodesCentimeters.size(); index++) {
+            Coordinate node = localNodesCentimeters.get(index);
+            if (node == null || !node.isValid()) {
+                return Optional.empty();
+            }
+            localNodesMeters[index] = new CoordinateXY(
+                    node.getX() / CENTIMETERS_PER_METER,
+                    node.getY() / CENTIMETERS_PER_METER);
+        }
+        return wgs84Coordinates(region.getAnchor(), localNodesMeters);
+    }
+
     /**
      * Reprojects anchor-relative decoded path nodes into a planar coordinate system
      * shared by multiple TIM regions.
@@ -246,19 +267,9 @@ final class OffsetPathDecoder {
             return Optional.empty();
         }
 
-        Coordinate[] localNodesMeters = new Coordinate[localNodesCentimeters.size()];
-        for (int index = 0; index < localNodesCentimeters.size(); index++) {
-            Coordinate node = localNodesCentimeters.get(index);
-            if (node == null || !node.isValid()) {
-                return Optional.empty();
-            }
-            localNodesMeters[index] = new CoordinateXY(
-                    node.getX() / CENTIMETERS_PER_METER,
-                    node.getY() / CENTIMETERS_PER_METER);
-        }
-
-        Optional<List<Coordinate>> geographicNodes =
-                wgs84Coordinates(region.getAnchor(), localNodesMeters);
+        Optional<List<Coordinate>> geographicNodes = wgs84Coordinates(
+                region,
+                localNodesCentimeters);
         if (geographicNodes.isEmpty()) {
             return Optional.empty();
         }

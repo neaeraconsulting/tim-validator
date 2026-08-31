@@ -13,31 +13,37 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
+import us.dot.its.jpo.timvalidator.gnis.GeoPackageGnisFeatureProvider;
+import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
- * Performs hard-coded best practices validation on TIM messages.
- *
- * Checks for known best practices, field completeness, semantic validity, and other
- * business logic rules beyond basic schema validation.
+ * Applies TIM geometry and packet-identifier best-practice checks that are not
+ * covered by schema validation.
  */
 public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
 
     private final GeometryValidator geometryValidator;
+    private final GnisPacketIdValidator gnisPacketIdValidator;
     private final ValidationOptions defaultOptions;
+
     /**
-     * Creates a validator without an external road geometry lookup.
+     * Creates a validator with packaged Civil GNIS data and without an external
+     * road geometry lookup.
      *
      * This keeps the library deterministic for callers that have not configured a road
      * geometry provider.
      */
     public BestPracticesValidator() {
-        this(new OverpassRoadGeometryProvider(), ValidationOptions.networkFree());
+        this(
+                new OverpassRoadGeometryProvider(),
+                new GeoPackageGnisFeatureProvider(),
+                ValidationOptions.networkFree());
     }
 
     /**
@@ -47,15 +53,34 @@ public class BestPracticesValidator {
      * @param roadGeometryProvider provider used to retrieve roadway geometry
      */
     public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
-        this(roadGeometryProvider, ValidationOptions.withRoadwayHeading());
+        this(
+                roadGeometryProvider,
+                new GeoPackageGnisFeatureProvider(),
+                ValidationOptions.withRoadwayHeading());
+    }
+
+    /**
+     * Creates a validator with injectable roadway and GNIS data sources.
+     *
+     * @param roadGeometryProvider provider used to retrieve roadway geometry
+     * @param gnisFeatureProvider provider used to retrieve GNIS features
+     */
+    public BestPracticesValidator(
+            RoadGeometryProvider roadGeometryProvider,
+            GnisFeatureProvider gnisFeatureProvider) {
+        this(roadGeometryProvider, gnisFeatureProvider, ValidationOptions.withRoadwayHeading());
     }
 
     private BestPracticesValidator(
             RoadGeometryProvider roadGeometryProvider,
+            GnisFeatureProvider gnisFeatureProvider,
             ValidationOptions defaultOptions) {
         this.geometryValidator = new GeometryValidator(Objects.requireNonNull(
                 roadGeometryProvider,
                 "roadGeometryProvider"));
+        this.gnisPacketIdValidator = new GnisPacketIdValidator(Objects.requireNonNull(
+                gnisFeatureProvider,
+                "gnisFeatureProvider"));
         this.defaultOptions = defaultOptions;
     }
 
@@ -65,7 +90,7 @@ public class BestPracticesValidator {
      * @param timMessage the TIM message to validate
      * @return structured validation issues (empty list if all checks pass)
      */
-    public List<ValidationIssue> validate(Object timMessage) throws ValidationException{
+    public List<ValidationIssue> validate(Object timMessage) throws ValidationException {
         return validate(timMessage, defaultOptions);
     }
 
@@ -92,22 +117,8 @@ public class BestPracticesValidator {
         }
         TravelerInformation tim = travelerInformation.orElseThrow();
 
-        // TODO: Implement best practices checks
-        // Example checks to consider:
-        // - Verify required fields are present and non-null
-        // - Check geographic coordinates are within valid bounds
-        // - Validate time ranges and durations are logical
-        // - Ensure message IDs are unique and properly sequenced
-        // - Check priority levels are appropriate for message type
-        // - Validate TIM periods don't exceed reasonable durations
-        // - Ensure advisory messages are complete with all required details
-        // - Check that frames/extents are properly ordered
-        // - Validate region geometries (roads must exist, coordinates valid)
-
-        issues.addAll(validateRequiredFields(tim));
-        issues.addAll(validateTimePeriod(tim));
-        issues.addAll(validateGeography(tim, options.roadwayHeadingEnabled()));
-        issues.addAll(validateAdvisoryContent(tim));
+        issues.addAll(gnisPacketIdValidator.validate(tim));
+        issues.addAll(validateGeometry(tim, options.roadwayHeadingEnabled()));
 
         return List.copyOf(issues);
     }
@@ -129,32 +140,10 @@ public class BestPracticesValidator {
         return Optional.empty();
     }
 
-    /** Validates that all required fields are present. */
-    private List<ValidationIssue> validateRequiredFields(TravelerInformation tim) {
-        // TODO: Check for required fields based on message type
-
-        return List.of();
-    }
-
-    /** Validates TIM time period and duration constraints. */
-    private List<ValidationIssue> validateTimePeriod(TravelerInformation tim) {
-        // TODO: Validate start/end times, ensure they're logical
-        // TODO: Check duration doesn't exceed reasonable limits (e.g., 6 months)
-        // TODO: Ensure times are in proper sequence
-
-        return List.of();
-    }
-
-    /** Validates geographic data in TIM message. */
-    private List<ValidationIssue> validateGeography(
+    private List<ValidationIssue> validateGeometry(
             TravelerInformation tim,
             boolean roadwayHeadingEnabled) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
-
-        // TODO: Validate latitude/longitude ranges
-        // TODO: Ensure road identifiers exist and reference valid roads
-        // TODO: Check that extent geometries are properly formed
-        // TODO: Validate lane numbers and ranges
 
         TravelerDataFrameList dataFrames = tim.getDataFrames();
         if (dataFrames == null) {
@@ -187,17 +176,7 @@ public class BestPracticesValidator {
         return List.copyOf(issues);
     }
 
-    /** Validates advisory content and completeness. */
-    private List<ValidationIssue> validateAdvisoryContent(TravelerInformation tim) {
-        // TODO: Ensure advisory messages have sufficient detail
-        // TODO: Validate that message reason codes are appropriate
-        // TODO: Check that all required signage frames are provided
-        // TODO: Verify message language codes are valid
-
-        return List.of();
-    }
-
-    private ValidationIssue error(String message) {
+    private static ValidationIssue error(String message) {
         return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
     }
 }

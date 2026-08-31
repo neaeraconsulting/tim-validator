@@ -20,7 +20,6 @@ import org.locationtech.proj4j.units.Units;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.Position3D;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.Circle;
-import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
@@ -67,7 +66,7 @@ final class RoadwayRegionMatcher {
     private Optional<List<RoadwayBearing>> circleRoadwayBearings(Circle circle)
             throws RoadGeometryLookupException {
         Optional<Coordinate> center = OffsetPathDecoder.wgs84Coordinate(circle.getCenter());
-        OptionalDouble radiusMeters = circleRadiusMeters(circle);
+        OptionalDouble radiusMeters = CircleGeometryUtils.radiusMeters(circle);
         if (center.isEmpty() || radiusMeters.isEmpty()) {
             return Optional.empty();
         }
@@ -174,49 +173,6 @@ final class RoadwayRegionMatcher {
         } catch (IllegalArgumentException ex) {
             return Optional.empty();
         }
-    }
-
-    private OptionalDouble circleRadiusMeters(Circle circle) {
-        if (circle.getRadius() == null || circle.getUnits() == null) {
-            return OptionalDouble.empty();
-        }
-
-        double encodedRadius = circle.getRadius().getValue();
-        DistanceUnits units = circle.getUnits();
-        double radiusMeters = switch (units) {
-            case CENTIMETER -> Units.convert(
-                    encodedRadius,
-                    Units.CENTIMETRES,
-                    Units.METRES);
-            case CM2_5 -> Units.convert(
-                    encodedRadius * 2.5,
-                    Units.CENTIMETRES,
-                    Units.METRES);
-            case DECIMETER -> Units.convert(
-                    encodedRadius,
-                    Units.DECIMETRES,
-                    Units.METRES);
-            case METER -> encodedRadius;
-            case KILOMETER -> Units.convert(
-                    encodedRadius,
-                    Units.KILOMETRES,
-                    Units.METRES);
-            case FOOT -> Units.convert(
-                    encodedRadius,
-                    Units.FEET,
-                    Units.METRES);
-            case YARD -> Units.convert(
-                    encodedRadius,
-                    Units.YARDS,
-                    Units.METRES);
-            case MILE -> Units.convert(
-                    encodedRadius,
-                    Units.MILES,
-                    Units.METRES);
-        };
-        return Double.isFinite(radiusMeters) && radiusMeters > 0.0
-                ? OptionalDouble.of(radiusMeters)
-                : OptionalDouble.empty();
     }
 
     private List<RoadwayBearing> roadwayBearingsInsideCircle(
