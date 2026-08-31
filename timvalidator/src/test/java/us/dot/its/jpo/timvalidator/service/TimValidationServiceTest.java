@@ -3,6 +3,7 @@ package us.dot.its.jpo.timvalidator.service;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HexFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.locationtech.jts.geom.Coordinate;
@@ -42,6 +43,13 @@ public class TimValidationServiceTest {
         "001f5a60050d291a05652359a6ea9dce18080000fd29ec31f4020007a5270dcdf0e3ee6d5c00002ee208705f440006c38df5c36dadfe21c526c110eaeb4520ac11e3f2c3d6959081d706e9a150b04c3800001004306204221001020110";
     private static final String LEGACY_UPER_MISSING_ITWG_FIELDS_HEX =
         "001F6970138ED764E8ABE0BBA9B4D5240F775D9B0309C269A6E4D166420B77FFF93F51D3C5801EA107F92937E4AD64D6FD38352FB783062C360DE24000000004D34DC9A2CC8416E271180004420C0F23A84179FF2461BE25D59F405F03B8C82F1574AE109002009EEEBB36006001830002848A859B4B280002848AF0E51D2881010100030180C620FB90CAAD3B9C50820826550919D5729A7639692100032A3649C88400A983010180034801010001838182D6DDACDEEEE30D5990CA8E531F4562161223F5418FD9A82BE7219686AA70CD938080BE6942DDAC14F4007CC8F8BD6CAEA835F02C7BBA3354ED2856E5977879ECEF5205A37A1CD9A26E12A6CFF6550202138D3F5CA0D3AE158B18895F0BBF16176971";
+    // The following UPER are for packetID validation tests
+    private static final String ATLANTA_CITY_UPER_HEX =
+        "001f5660050d2924ab362359a6ea9dce08080000fd29ec31f4020007a5270dcdf0e3ee6d5c00002ee208705f440006c38df5c36dadfe21c526c110eaeb4520ac11e3f2c3d6959081d706e9a150b04c380000100c044a0c1e43";
+    private static final String ATLANTA_GEORGIA_UPER_HEX =
+        "001f5660050d291a05652359a6ea9dce08080000fd29ec31f4020007a5270dcdf0e3ee6d5c00002ee208705f440006c38df5c36dadfe21c526c110eaeb4520ac11e3f2c3d6959081d706e9a150b04c380000100c044a0c1e43";
+    private static final String ATLANTA_WITH_CALIFORNIA_UPER_HEX =
+        "001f5660050d291b28422359a6ea9dce08080000fd29ec31f4020007a5270dcdf0e3ee6d5c00002ee208705f440006c38df5c36dadfe21c526c110eaeb4520ac11e3f2c3d6959081d706e9a150b04c380000100c044a0c1e43";
 
     private TimValidationService validationService;
 
@@ -440,6 +448,77 @@ assertTrue(ex.getMessage().contains("Test exception"));
             "ITIS content validation should fail for an incomplete pattern");
         assertTrue(result.getErrors().stream()
             .anyMatch(issue -> issue.checkName().equals("ITIS Content Validation")));
+    }
+
+    @Test
+    public void validateTim_atlantaUperWithAtlantaGnisCode_passesPacketIdCheck() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(ATLANTA_CITY_UPER_HEX);
+
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        byte[] packetId = result.getTimMessage().getValue().getPacketID().getOctets();
+        assertEquals(9, packetId.length);
+        assertEquals(
+            "24AB362359A6EA9DCE",
+            HexFormat.of().withUpperCase().formatHex(packetId));
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getWarnings().stream().noneMatch(issue ->
+            "/value/TravelerInformation/packetID".equals(issue.path())),
+            "A local Civil GNIS feature should be confidently valid for the Atlanta TIM bounds");
+    }
+
+    @Test
+    public void validateTim_atlantaUperWithGeorgiaGnisCode_returnsCouldNotBeConfidentlyVerifiedWarning() throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(ATLANTA_GEORGIA_UPER_HEX);
+
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        assertEquals(
+            "1A05652359A6EA9DCE",
+            HexFormat.of().withUpperCase().formatHex(
+                result.getTimMessage().getValue().getPacketID().getOctets()));
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed(),
+            "An uncertain GNIS relationship should remain a non-blocking warning");
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && "/value/TravelerInformation/packetID".equals(issue.path())
+                && issue.message().contains("GNIS identifier 1705317 (State of Georgia)")
+                && issue.message().contains("could not be confidently verified")));
+        assertFalse(result.getWarnings().stream().anyMatch(issue ->
+            "/value/TravelerInformation/packetID".equals(issue.path())
+                && issue.message().contains("geographically inconsistent")));
+    }
+
+    @Test
+    public void validateTim_atlantaUperWithCaliforniaGnisCode_returnsGeographicallyInconsistentWarning()
+            throws Exception {
+        Assumptions.assumeTrue(isNativeLibraryAvailable(),
+            "Native codec library not found; skipping end-to-end validation test");
+
+        ValidationResult result = validationService.validateTim(ATLANTA_WITH_CALIFORNIA_UPER_HEX);
+
+        assertNotNull(result.getTimMessage(), "Deserialized TIM message should be captured");
+        byte[] packetId = result.getTimMessage().getValue().getPacketID().getOctets();
+        assertEquals(9, packetId.length);
+        assertEquals(
+            "1B28422359A6EA9DCE",
+            HexFormat.of().withUpperCase().formatHex(packetId));
+        assertTrue(result.getValidationChecks().get("J2735 Schema Validation").isPassed());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed(),
+            "A GNIS geographic mismatch should remain a non-blocking warning");
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && "/value/TravelerInformation/packetID".equals(issue.path())
+                && issue.message().contains("GNIS identifier 1779778 (State of California)")
+                && issue.message().contains("geographically inconsistent")));
     }
 
     @Test
