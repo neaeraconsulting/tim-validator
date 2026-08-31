@@ -3,8 +3,12 @@ package us.dot.its.jpo.timvalidator.service;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.locationtech.jts.geom.Coordinate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,8 +18,13 @@ import org.junit.jupiter.api.Test;
 
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.RoadGeometryLookupException;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
+import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
+import us.dot.its.jpo.timvalidator.road.RoadSegment;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.TimJsonValidator;
@@ -97,12 +106,13 @@ public class TimValidationServiceTest {
         assertTrue(summary.contains("Warning detail"), "Summary should contain warning details");
     }
 
+    @Test
     public void testValidationException() {
         ValidationException ex = assertThrows(ValidationException.class, () -> {
             throw new ValidationException("Test exception");
         }, "ValidationException should be throwable");
-        assertTrue(ex.getMessage().contains("Test exception"));
-    }
+assertTrue(ex.getMessage().contains("Test exception"));
+}
 
     @Test
     public void testJerValidationFailureIncludesResult() {
@@ -165,12 +175,251 @@ public class TimValidationServiceTest {
     }
 
     @Test
-    public void testBestPracticesValidatorNullHandling() {
+    public void testStandardOverpassServiceInstantiation() {
+        TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
+            "https://overpass.example/api/interpreter",
+            "my-app/1.0");
+        assertNotNull(validator, "Overpass-backed service should be instantiated");
+    }
+
+    @Test
+    public void testBestPracticesValidatorNullHandling() throws ValidationException {
         BestPracticesValidator validator = new BestPracticesValidator();
         var issues = validator.validate(null);
-        
+
         assertNotNull(issues, "Issues list should not be null");
         assertFalse(issues.isEmpty(), "Should report issues for null message");
+    }
+
+    @Test
+    public void validateTimJer_defaultServiceRejectsRoadwayHeadingWithoutConfiguredProvider() throws Exception {
+        String headingJer = """
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "description": {
+                            "geometry": {
+                              "direction": "8000",
+                              "circle": {
+                                "center": {"lat": 0, "long": 0, "elevation": 0},
+                                "radius": 1,
+                                "units": "meter"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+
+        ValidationResult result = validationService.validateTimJer(headingJer, ValidationOptions.withRoadwayHeading());
+
+        assertFalse(result.isValid(), "Missing roadway provider should make the result invalid");
+        assertFalse(result.getValidationChecks().get("Best Practices Validation").isPassed());
+        assertTrue(result.getErrors().stream().anyMatch(issue ->
+            issue.checkName().equals("Best Practices Validation")
+                && issue.message().contains("No RoadGeometryProvider configured")));
+    }
+
+    @Test
+    public void validateTimJer_headingMismatchReturnsStructuredBestPracticesWarning() throws Exception {
+        AtomicInteger providerCalls = new AtomicInteger();
+        TimValidationService roadBackedService = new TimValidationService(
+            (location, radius) -> {
+                providerCalls.incrementAndGet();
+                return java.util.List.of(RoadSegment.validRoadSegment(
+                    202L,
+                    "Broadway",
+                    java.util.List.of(
+                        new Coordinate(-0.001, 0.0),
+                        new Coordinate(0.001, 0.0))));
+            });
+
+
+        String headingJer = """
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "description": {
+                            "geometry": {
+                              "direction": "8000",
+                              "circle": {
+                                "center": {"lat": 0, "long": 0, "elevation": 0},
+                                "radius": 1,
+                                "units": "meter"
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """;
+
+        ValidationResult networkFreeResult = roadBackedService.validateTimJer(
+            headingJer,
+            ValidationOptions.networkFree());
+
+        assertEquals(0, providerCalls.get(),
+            "Disabled roadway heading validation must not call the provider");
+        assertFalse(networkFreeResult.isRoadwayHeadingValidationEnabled());
+        assertTrue(networkFreeResult.getWarnings().stream().noneMatch(issue ->
+            issue.message().contains("not tangent")));
+
+        ValidationResult result = roadBackedService.validateTimJer(
+            headingJer,
+            ValidationOptions.withRoadwayHeading());
+
+        assertEquals(1, providerCalls.get());
+        assertTrue(result.isRoadwayHeadingValidationEnabled());
+        assertTrue(result.isValid(), result.getSummary());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && "/value/TravelerInformation/dataFrames/0/regions/0/description/geometry/direction"
+                    .equals(issue.path())
+                && issue.message().contains("not tangent")));
+        assertFalse(result.getWarnings().stream().anyMatch(issue ->
+            issue.message().contains("missing offset path description")));
+        assertEquals(0, result.getErrors().size());
+    }
+
+    @Test
+    public void validateTimJer_defaultServiceSupportsEnabledRoadwayHeading() throws Exception {
+        ValidationResult result = validationService.validateTimJer(
+            "{\"messageId\":31}",
+            ValidationOptions.withRoadwayHeading());
+
+        assertTrue(result.isRoadwayHeadingValidationEnabled());
+    }
+
+    @Test
+    public void validateTimJer_computedLaneReturnsNonBlockingBestPracticesWarning() throws Exception {
+        ValidationResult result = validationService.validateTimJer("""
+            {
+              "messageId": 31,
+              "value": {
+                "TravelerInformation": {
+                  "msgCnt": 1,
+                  "timeStamp": 1,
+                  "packetID": "000000000000000000",
+                  "dataFrames": [
+                    {
+                      "doNotUse1": 0,
+                      "frameType": "roadSignage",
+                      "msgId": {"furtherInfoID": "0000"},
+                      "startYear": 2026,
+                      "startTime": 1,
+                      "durationTime": 60,
+                      "priority": 4,
+                      "doNotUse2": 0,
+                      "regions": [
+                        {
+                          "anchor": {"lat": 0, "long": 0, "elevation": 0},
+                          "laneWidth": 300,
+                          "directionality": "forward",
+                          "closedPath": false,
+                          "description": {
+                            "path": {
+                              "scale": 0,
+                              "offset": {
+                                "xy": {
+                                  "computed": {
+                                    "referenceLaneId": 7,
+                                    "offsetXaxis": {"small": 0},
+                                    "offsetYaxis": {"small": 300}
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      "doNotUse3": 0,
+                      "doNotUse4": 0,
+                      "content": {
+                        "advisory": [
+                          {"item": {"itis": 769}},
+                          {"item": {"itis": 9478}},
+                          {"item": {"itis": 7747}}
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """);
+
+        assertTrue(result.isValid(), result.getSummary());
+        assertTrue(result.getValidationChecks().get("Best Practices").isPassed());
+        assertTrue(result.getWarnings().stream().anyMatch(issue ->
+            issue.severity() == ValidationSeverity.WARNING
+                && issue.checkName().equals("Best Practices")
+                && ("/value/TravelerInformation/dataFrames/0/regions/0/description/path/offset/xy/"
+                    + "computed/referenceLaneId").equals(issue.path())
+                && issue.message().contains("left-most lane in the direction of traffic")));
+        assertEquals(0, result.getErrors().size());
     }
 
     @Test

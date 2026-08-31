@@ -1,14 +1,18 @@
 package us.dot.its.jpo.timvalidator.service;
 
 import java.util.List;
+import java.util.Objects;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.OverpassRoadGeometryProvider;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.validator.BestPracticesValidator;
 import us.dot.its.jpo.timvalidator.validator.ItisJsonValidator;
 import us.dot.its.jpo.timvalidator.validator.ItwgTimJsonValidator;
@@ -33,14 +37,57 @@ public class TimValidationService {
     private final ItwgTimJsonValidator itwgSchemaValidator;
     private final ItisJsonValidator itisContentValidator;
     private final BestPracticesValidator bestPracticesValidator;
+    private final ValidationOptions defaultOptions;
 
+    /** Creates a service whose default validation is network-free. */
     public TimValidationService() {
+        this(new BestPracticesValidator(), ValidationOptions.defaults());
+    }
+
+    /**
+     * Creates a validation service with an Overpass-backed roadway heading check against a
+     * caller-chosen Overpass endpoint and User-Agent.
+     *
+     * <p>The Overpass API's public instances are shared, rate-limited infrastructure; see the
+     * usage guidelines at
+     * <a href="https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage">
+     * wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage</a> before choosing an endpoint
+     * and a User-Agent that uniquely identifies your application.
+     *
+     * @param overpassEndpoint the Overpass API endpoint to query for roadway geometry
+     * @param userAgent a value that uniquely identifies the calling application
+     * @return a service with roadway-backed heading-slice validation enabled
+     */
+    public static TimValidationService withOverpassRoadGeometry(
+            String overpassEndpoint,
+            String userAgent) {
+        return new TimValidationService(
+                new OverpassRoadGeometryProvider(overpassEndpoint, userAgent));
+    }
+
+    /**
+     * Creates a validation service with an injected roadway source.
+     *
+     * @param roadGeometryProvider provider used to retrieve nearby road geometry
+     */
+    public TimValidationService(RoadGeometryProvider roadGeometryProvider) {
+        this(
+                new BestPracticesValidator(Objects.requireNonNull(
+                        roadGeometryProvider,
+                        "roadGeometryProvider")),
+                ValidationOptions.withRoadwayHeading());
+    }
+
+    private TimValidationService(
+            BestPracticesValidator bestPracticesValidator,
+            ValidationOptions defaultOptions) {
         this.uperToMessageFrameConverter = new UperToMessageFrameConverter();
         this.jerToMessageFrameConverter = new JerToMessageFrameConverter();
         this.j2735SchemaValidator = new TimJsonValidator();
         this.itwgSchemaValidator = new ItwgTimJsonValidator();
         this.itisContentValidator = new ItisJsonValidator();
-        this.bestPracticesValidator = new BestPracticesValidator();
+        this.bestPracticesValidator = bestPracticesValidator;
+        this.defaultOptions = defaultOptions;
     }
 
     /**
@@ -51,9 +98,25 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTim(String uperString) throws ValidationException {
+        return validateTim(uperString, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message from UPER format using per-call options.
+     *
+     * @param uperString the UPER encoded TIM message
+     * @param options checks to perform for this validation
+     * @return ValidationResult containing validation status and details
+     * @throws ValidationException if validation fails critically
+     */
+    public ValidationResult validateTim(
+            String uperString,
+            ValidationOptions options) throws ValidationException {
+        ValidationOptions validatedOptions = Objects.requireNonNull(options, "options");
         long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setUperInput(uperString);
+        result.setRoadwayHeadingValidationEnabled(validatedOptions.roadwayHeadingEnabled());
 
         try {
             String xerFormat = uperToMessageFrameConverter.convertUperToXer(uperString);
@@ -62,7 +125,7 @@ public class TimValidationService {
             TravelerInformationMessageFrame timMessage = uperToMessageFrameConverter.deserialize(xerFormat);
             result.setTimMessage(timMessage);
 
-            return validateTimMessage(result, timMessage);
+            return validateTimMessage(result, timMessage, validatedOptions);
         } catch (Exception e) {
             throw buildValidationException(result, e);
         } finally {
@@ -78,15 +141,31 @@ public class TimValidationService {
      * @throws ValidationException if validation fails critically
      */
     public ValidationResult validateTimJer(String jerString) throws ValidationException {
+        return validateTimJer(jerString, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message from JER/JSON format using per-call options.
+     *
+     * @param jerString the JER/JSON encoded TIM message
+     * @param options checks to perform for this validation
+     * @return ValidationResult containing validation status and details
+     * @throws ValidationException if validation fails critically
+     */
+    public ValidationResult validateTimJer(
+            String jerString,
+            ValidationOptions options) throws ValidationException {
+        ValidationOptions validatedOptions = Objects.requireNonNull(options, "options");
         long validationStartNanos = System.nanoTime();
         ValidationResult result = new ValidationResult();
         result.setJerInput(jerString);
+        result.setRoadwayHeadingValidationEnabled(validatedOptions.roadwayHeadingEnabled());
 
         try {
             TravelerInformationMessageFrame timMessage = jerToMessageFrameConverter.deserialize(jerString);
             result.setTimMessage(timMessage);
 
-            return validateTimMessage(result, timMessage);
+            return validateTimMessage(result, timMessage, validatedOptions);
         } catch (Exception e) {
             throw buildValidationException(result, e);
         } finally {
@@ -96,7 +175,8 @@ public class TimValidationService {
 
     private ValidationResult validateTimMessage(
             ValidationResult result,
-            TravelerInformationMessageFrame timMessage) {
+            TravelerInformationMessageFrame timMessage,
+            ValidationOptions options) {
         try {
             j2735SchemaValidator.validate(timMessage);
             result.addValidationCheck("J2735 Schema Validation", true, "Message conforms to generated J2735 schema");
@@ -125,21 +205,33 @@ public class TimValidationService {
             addExceptionIssues(result, "ITIS Content Validation", ex);
         }
 
-        List<ValidationIssue> bestPracticesIssues = bestPracticesValidator.validate(timMessage);
+        List<ValidationIssue> bestPracticesIssues = List.of();
+        try {
+            bestPracticesIssues = bestPracticesValidator.validate(
+                timMessage,
+                options);
+        } catch (ValidationException ex) {
+            result.addValidationCheck("Best Practices Validation", false, ex.getMessage());
+            addExceptionIssues(result, "Best Practices Validation", ex);
+        }
+
         result.addIssues(bestPracticesIssues);
         List<String> bestPracticesErrors = bestPracticesIssues.stream()
-                .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
-                .map(ValidationIssue::message)
-                .toList();
+            .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
+            .map(ValidationIssue::message)
+            .toList();
+
         if (!bestPracticesErrors.isEmpty()) {
-            result.addValidationCheck("Best Practices", false, String.join("; ", bestPracticesErrors));
+            result.addValidationCheck("Best Practices", false,
+                String.join("; ", bestPracticesErrors));
         } else if (bestPracticesIssues.isEmpty()) {
-            result.addValidationCheck("Best Practices", true, "All best practices checks passed");
+            result.addValidationCheck("Best Practices", true,
+                "All best practices checks passed");
         } else {
             result.addValidationCheck(
-                    "Best Practices",
-                    true,
-                    "Best practices validation completed with non-blocking warnings");
+                "Best Practices",
+                true,
+                "Best practices validation completed with non-blocking warnings");
         }
 
         return result;

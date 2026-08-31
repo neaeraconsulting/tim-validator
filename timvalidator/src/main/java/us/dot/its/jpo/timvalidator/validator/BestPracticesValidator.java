@@ -2,6 +2,7 @@ package us.dot.its.jpo.timvalidator.validator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
@@ -10,8 +11,11 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
  * Performs hard-coded best practices validation on TIM messages.
@@ -23,30 +27,75 @@ public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
 
+    private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
+        throw new ValidationException(
+                "No RoadGeometryProvider configured; use "
+                        + "TimValidationService.withOverpassRoadGeometry(endpoint, userAgent) or "
+                        + "the RoadGeometryProvider-accepting constructor to enable "
+                        + "roadway-backed checks.");
+    };
+
+    private final GeometryValidator geometryValidator;
+    private final ValidationOptions defaultOptions;
     /**
-     * Validates a TIM message against best practices rules.
+     * Creates a validator without an external road geometry lookup.
+     *
+     * This keeps the library deterministic for callers that have not configured a road
+     * geometry provider.
+     */
+    public BestPracticesValidator() {
+        this(UNCONFIGURED_PROVIDER, ValidationOptions.networkFree());
+    }
+
+    /**
+     * Creates a validator that checks heading slices against roadway geometry inside
+     * the TIM region.
+     *
+     * @param roadGeometryProvider provider used to retrieve roadway geometry
+     */
+    public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
+        this(roadGeometryProvider, ValidationOptions.withRoadwayHeading());
+    }
+
+    private BestPracticesValidator(
+            RoadGeometryProvider roadGeometryProvider,
+            ValidationOptions defaultOptions) {
+        this.geometryValidator = new GeometryValidator(Objects.requireNonNull(
+                roadGeometryProvider,
+                "roadGeometryProvider"));
+        this.defaultOptions = defaultOptions;
+    }
+
+    /**
+     * Validates a TIM message against best-practice rules.
      *
      * @param timMessage the TIM message to validate
-     * @return list of validation issues found (empty list if all checks pass)
+     * @return structured validation issues (empty list if all checks pass)
      */
-    public List<ValidationIssue> validate(Object timMessage) {
+    public List<ValidationIssue> validate(Object timMessage) throws ValidationException{
+        return validate(timMessage, defaultOptions);
+    }
+
+    /**
+     * Validates a TIM message and controls whether external roadway geometry is used.
+     *
+     * @param timMessage the TIM message to validate
+     * @param options checks to perform for this validation
+     * @return structured validation issues (empty list if all checks pass)
+     */
+    public List<ValidationIssue> validate(
+            Object timMessage,
+            ValidationOptions options) throws ValidationException {
+        Objects.requireNonNull(options, "options");
         List<ValidationIssue> issues = new ArrayList<>();
 
         if (timMessage == null) {
-            return List.of(new ValidationIssue(
-                    ValidationSeverity.ERROR,
-                    CHECK_NAME,
-                    "TIM message is null",
-                    null));
+            return List.of(error("TIM message is null"));
         }
 
         Optional<TravelerInformation> travelerInformation = travelerInformation(timMessage);
         if (travelerInformation.isEmpty()) {
-            return List.of(new ValidationIssue(
-                    ValidationSeverity.ERROR,
-                    CHECK_NAME,
-                    "TIM message is not a TravelerInformationMessageFrame",
-                    null));
+            return List.of(error("TIM message is not a TravelerInformationMessageFrame"));
         }
         TravelerInformation tim = travelerInformation.orElseThrow();
 
@@ -64,7 +113,7 @@ public class BestPracticesValidator {
 
         issues.addAll(validateRequiredFields(tim));
         issues.addAll(validateTimePeriod(tim));
-        issues.addAll(validateGeography(tim));
+        issues.addAll(validateGeography(tim, options));
         issues.addAll(validateAdvisoryContent(tim));
 
         return List.copyOf(issues);
@@ -104,7 +153,9 @@ public class BestPracticesValidator {
     }
 
     /** Validates geographic data in TIM message. */
-    private List<ValidationIssue> validateGeography(TravelerInformation tim) {
+    private List<ValidationIssue> validateGeography(
+            TravelerInformation tim,
+            ValidationOptions options) throws ValidationException {
         List<ValidationIssue> issues = new ArrayList<>();
 
         // TODO: Validate latitude/longitude ranges
@@ -117,23 +168,14 @@ public class BestPracticesValidator {
             return issues;
         }
 
-        for (int dataFrameIndex = 0; dataFrameIndex < dataFrames.size(); dataFrameIndex++) {
-            TravelerDataFrame dataFrame = dataFrames.get(dataFrameIndex);
-            if (dataFrame == null || dataFrame.getRegions() == null) {
-                continue;
-            }
-
-            TravelerDataFrame.SequenceOfRegions regions = dataFrame.getRegions();
-            for (int regionIndex = 0; regionIndex < regions.size(); regionIndex++) {
-                GeographicalPath region = regions.get(regionIndex);
-                if (region == null) {
-                    continue;
-                }
-
-                DataFrameIndexes indexes = new DataFrameIndexes(dataFrameIndex, regionIndex);
-                issues.addAll(GeometryValidator.validate(region, indexes));
-            }
+        for (var region : DataFrameRegion.regions(dataFrames).toList()) {
+            issues.addAll(geometryValidator.validate(
+                region.path(),
+                region.indexes(),
+                options));
         }
+
+        issues.addAll(LaneCrossingGeometryValidator.validate(dataFrames));
 
         return List.copyOf(issues);
     }
@@ -146,5 +188,9 @@ public class BestPracticesValidator {
         // TODO: Verify message language codes are valid
 
         return List.of();
+    }
+
+    private ValidationIssue error(String message) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
     }
 }

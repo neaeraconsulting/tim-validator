@@ -29,6 +29,7 @@ public class ValidationResult {
     private TravelerInformationMessageFrame timMessage; // The deserialized POJO
     private Instant validationTimestamp;
     private long validationDurationMs;
+    private boolean roadwayHeadingValidationEnabled;
 
     private final Map<String, CheckResult> validationChecks; // Maps check name to result
     private final List<ValidationIssue> issues;
@@ -95,6 +96,9 @@ public class ValidationResult {
         summary.append("Overall Status: ").append(isValid() ? "VALID" : "INVALID").append("\n");
         summary.append("Timestamp: ").append(validationTimestamp).append("\n");
         summary.append("Duration: ").append(validationDurationMs).append("ms\n\n");
+        summary.append("Roadway heading validation: ")
+                .append(roadwayHeadingValidationEnabled ? "ENABLED" : "DISABLED")
+                .append("\n\n");
 
         summary.append("Validation Checks:\n");
         for (CheckResult check : validationChecks.values()) {

@@ -3,13 +3,18 @@ package us.dot.its.jpo.timvalidator.validator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.LineSegment;
 
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.DistanceUnits;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.exception.ValidationException;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
+import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodedPath;
 
@@ -21,12 +26,70 @@ final class GeometryValidator {
     private static final double CENTIMETERS_PER_METER = 100.0;
     private static final double REQUIRED_ANCHOR_TO_FIRST_NODE_CM = 1_000.0;
     private static final double ANCHOR_DISTANCE_TOLERANCE_CM = 100.0;
+    private static final long MAX_SUSPICIOUS_LANE_WIDTH_CM = 20L;
 
-    private GeometryValidator() {
+    private final HeadingSliceGeometryValidator headingSliceGeometryValidator;
+
+    GeometryValidator(RoadGeometryProvider roadGeometryProvider) {
+        this.headingSliceGeometryValidator =
+                new HeadingSliceGeometryValidator(roadGeometryProvider);
     }
 
-    public static List<ValidationIssue> validate(GeographicalPath region, DataFrameIndexes indexes) {
-        // Geometric projections such as circles do not contain offset paths.
+    List<ValidationIssue> validate(
+            GeographicalPath region,
+            DataFrameIndexes indexes,
+            ValidationOptions options) throws ValidationException {
+        List<ValidationIssue> issues = new ArrayList<>();
+        validateComputedLaneReference(region, indexes).ifPresent(issues::add);
+        validateSuspiciousLaneWidth(region, indexes).ifPresent(issues::add);
+        validateCircleUnits(region, indexes).ifPresent(issues::add);
+        issues.addAll(validateLocalGeometry(region, indexes));
+
+        if (options.roadwayHeadingEnabled()) {
+            issues.addAll(headingSliceGeometryValidator.validate(
+                    region,
+                    indexes));
+        }
+        return List.copyOf(issues);
+    }
+
+    /**
+     * Warns when a computed lane is used because its reference lane should be the
+     * left-most lane in the direction of traffic.
+     */
+    private Optional<ValidationIssue> validateComputedLaneReference(
+            GeographicalPath region,
+            DataFrameIndexes indexes) {
+        if (!hasComputedLane(region)) {
+            return Optional.empty();
+        }
+
+        String message = String.format(
+                Locale.ROOT,
+                "Data frame %d region %d uses a computed lane. It is recommended that referenceLaneId "
+                        + "identify the left-most lane in the direction of traffic",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex());
+        String path = String.format(
+                Locale.ROOT,
+                "/value/TravelerInformation/dataFrames/%d/regions/%d/description/path/offset/xy/"
+                        + "computed/referenceLaneId",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex());
+        return Optional.of(new ValidationIssue(
+                ValidationSeverity.WARNING,
+                CHECK_NAME,
+                message,
+                path));
+    }
+
+    /** Validates locally decodable offset paths and skips other description choices. */
+    private List<ValidationIssue> validateLocalGeometry(
+            GeographicalPath region,
+            DataFrameIndexes indexes) {
+        if (hasComputedLane(region)) {
+            return List.of();
+        }
         if (region != null
                 && region.getDescription() != null
                 && region.getDescription().getGeometry() != null) {
@@ -34,7 +97,7 @@ final class GeometryValidator {
         }
 
         DecodeResult decodeResult = OffsetPathDecoder.decode(region);
-        String regionPath = regionPath(indexes);
+        String regionPath = indexes.regionPath();
         if (!decodeResult.decoded()) {
             return List.of(warning(
                     notEvaluatedWarning(indexes, decodeResult.failureReason()),
@@ -49,6 +112,11 @@ final class GeometryValidator {
         }
 
         List<ValidationIssue> issues = new ArrayList<>();
+        OffsetEncodingRecommendationValidator.validate(
+                region,
+                decodedPath,
+                indexes,
+                regionPath).ifPresent(issues::add);
         boolean closedPath = region.getClosedPath() != null && region.getClosedPath().getValue();
         List<ValidationIssue> centerlineIssues =
                 CenterlineGeometryValidator.validate(nodes, closedPath, indexes, nodesPath);
@@ -75,6 +143,70 @@ final class GeometryValidator {
         return List.copyOf(issues);
     }
 
+    /** Warns about very small values that may have been entered as meters instead of centimeters. */
+    private Optional<ValidationIssue> validateSuspiciousLaneWidth(
+            GeographicalPath region,
+            DataFrameIndexes indexes) {
+        if (region == null
+                || region.getLaneWidth() == null
+                || region.getLaneWidth().getValue() < 1L
+                || region.getLaneWidth().getValue() > MAX_SUSPICIOUS_LANE_WIDTH_CM) {
+            return Optional.empty();
+        }
+
+        long laneWidthCm = region.getLaneWidth().getValue();
+        return Optional.of(warning(String.format(
+                Locale.ROOT,
+                "Data frame %d region %d laneWidth is %d cm, which is suspiciously small; "
+                        + "J2735 laneWidth is expressed in centimeters, so verify that a value in meters was not supplied",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
+                laneWidthCm), indexes.regionPath() + "/laneWidth"));
+    }
+
+    /** Warns when circle radius units are imperial because metric units are recommended for TIMs. */
+    private Optional<ValidationIssue> validateCircleUnits(
+            GeographicalPath region,
+            DataFrameIndexes indexes) {
+        if (region == null
+                || region.getDescription() == null
+                || region.getDescription().getGeometry() == null
+                || region.getDescription().getGeometry().getCircle() == null) {
+            return Optional.empty();
+        }
+
+        DistanceUnits units = region.getDescription().getGeometry().getCircle().getUnits();
+        if (units == null || isMetric(units)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(warning(String.format(
+                Locale.ROOT,
+                "Data frame %d region %d circle uses %s units; metric units are recommended for TIM circle geometry",
+                indexes.dataFrameIndex(),
+                indexes.regionIndex(),
+                units), indexes.regionPath() + "/description/geometry/circle/units"));
+    }
+
+    /** Returns whether a J2735 distance unit is metric. */
+    private static boolean isMetric(DistanceUnits units) {
+        return units == DistanceUnits.CENTIMETER
+                || units == DistanceUnits.CM2_5
+                || units == DistanceUnits.DECIMETER
+                || units == DistanceUnits.METER
+                || units == DistanceUnits.KILOMETER;
+    }
+
+    private static boolean hasComputedLane(GeographicalPath region) {
+        return region != null
+                && region.getDescription() != null
+                && region.getDescription().getPath() != null
+                && region.getDescription().getPath().getOffset() != null
+                && region.getDescription().getPath().getOffset().getXy() != null
+                && region.getDescription().getPath().getOffset().getXy().getComputed() != null;
+    }
+
+    /** Checks that the first path node is approximately ten meters from the anchor. */
     private static void validateAnchorDistance(
             List<ValidationIssue> issues,
             Coordinate firstNode,
@@ -133,6 +265,7 @@ final class GeometryValidator {
                 indexes.regionIndex()), anchorPath));
     }
 
+    /** Creates the message used when a local geometry check cannot be performed. */
     private static String notEvaluatedWarning(DataFrameIndexes indexes, String reason) {
         return String.format(
                 Locale.ROOT,
@@ -140,14 +273,6 @@ final class GeometryValidator {
                 indexes.dataFrameIndex(),
                 indexes.regionIndex(),
                 reason);
-    }
-
-    private static String regionPath(DataFrameIndexes indexes) {
-        return String.format(
-                Locale.ROOT,
-                "/value/TravelerInformation/dataFrames/%d/regions/%d",
-                indexes.dataFrameIndex(),
-                indexes.regionIndex());
     }
 
     private static ValidationIssue error(String message, String path) {
