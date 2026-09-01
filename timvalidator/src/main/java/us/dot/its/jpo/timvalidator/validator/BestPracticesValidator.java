@@ -1,11 +1,15 @@
 package us.dot.its.jpo.timvalidator.validator;
 
+import java.time.Year;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
+import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
@@ -18,12 +22,13 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 import us.dot.its.jpo.timvalidator.road.RoadGeometryProvider;
 
 /**
- * Applies TIM geometry and packet-identifier best-practice checks that are not
- * covered by schema validation.
+ * Applies TIM time, geometry, and packet-identifier best-practice checks that
+ * are not covered by schema validation.
  */
 public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
+    private static final long INDEFINITE_DURATION_MINUTES = 32_000L;
 
     private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
         throw new ValidationException(
@@ -135,6 +140,8 @@ public class BestPracticesValidator {
         TravelerInformation tim = travelerInformation.orElseThrow();
 
         issues.addAll(gnisPacketIdValidator.validate(tim));
+        issues.addAll(validateStartYears(tim));
+        issues.addAll(validateDefiniteEndTimes(tim));
         issues.addAll(validateGeometry(tim, options));
 
         return List.copyOf(issues);
@@ -155,6 +162,66 @@ public class BestPracticesValidator {
         }
 
         return Optional.empty();
+    }
+
+    /** Warns when a data frame is assigned a start year later than the current UTC year. */
+    private static List<ValidationIssue> validateStartYears(TravelerInformation tim) {
+        TravelerDataFrameList dataFrames = tim.getDataFrames();
+        if (dataFrames == null) {
+            return List.of();
+        }
+
+        int currentYear = Year.now(ZoneOffset.UTC).getValue();
+        List<ValidationIssue> issues = new ArrayList<>();
+        for (int index = 0; index < dataFrames.size(); index++) {
+            TravelerDataFrame dataFrame = dataFrames.get(index);
+            if (dataFrame == null || dataFrame.getStartYear() == null) {
+                continue;
+            }
+
+            long startYear = dataFrame.getStartYear().getValue();
+            if (startYear > currentYear) {
+                issues.add(warning(
+                        String.format(
+                                Locale.ROOT,
+                                "Data frame %d startYear %d is later than the current UTC year %d",
+                                index,
+                                startYear,
+                                currentYear),
+                        dataFramePath(index) + "/startYear"));
+            }
+        }
+        return List.copyOf(issues);
+    }
+
+    /** Warns when durationTime uses the value representing an indefinite end time. */
+    private static List<ValidationIssue> validateDefiniteEndTimes(TravelerInformation tim) {
+        TravelerDataFrameList dataFrames = tim.getDataFrames();
+        if (dataFrames == null) {
+            return List.of();
+        }
+
+        List<ValidationIssue> issues = new ArrayList<>();
+        for (int index = 0; index < dataFrames.size(); index++) {
+            TravelerDataFrame dataFrame = dataFrames.get(index);
+            if (dataFrame == null || dataFrame.getDurationTime() == null
+                    || dataFrame.getDurationTime().getValue() != INDEFINITE_DURATION_MINUTES) {
+                continue;
+            }
+
+            issues.add(warning(
+                    String.format(
+                            Locale.ROOT,
+                            "Data frame %d durationTime 32000 represents an indefinite end time which is not recommended",
+                            index),
+                    dataFramePath(index) + "/durationTime"));
+        }
+        return List.copyOf(issues);
+    }
+
+    /** Builds the indexed path prefix needed for warnings produced inside data-frame loops. */
+    private static String dataFramePath(int dataFrameIndex) {
+        return "/value/TravelerInformation/dataFrames/" + dataFrameIndex;
     }
 
     private List<ValidationIssue> validateGeometry(
@@ -181,5 +248,9 @@ public class BestPracticesValidator {
 
     private static ValidationIssue error(String message) {
         return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
+    }
+
+    private static ValidationIssue warning(String message, String path) {
+        return new ValidationIssue(ValidationSeverity.WARNING, CHECK_NAME, message, path);
     }
 }

@@ -68,6 +68,13 @@ JER requests send the TIM MessageFrame JSON body. UPER requests send the UPER-en
 
 See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details and example response payloads.
 
+### Time Validation
+
+The validator applies two non-blocking time-related best-practice checks to each
+TIM data frame. A `startYear` later than the current UTC year produces a warning,
+and a `durationTime` of `32000`, which represents an indefinite end time, produces
+a warning recommending a definite duration instead.
+
 ### GNIS Packet-ID Validation
 
 The first three bytes of a nine-byte TIM `packetID` are interpreted as an unsigned,
@@ -306,4 +313,3 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 | 2 | circle geometry | `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
-
