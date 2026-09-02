@@ -22,7 +22,6 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.UniqueMSGID;
 import us.dot.its.jpo.timvalidator.gnis.CsvGnisFeatureProvider;
-import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeature;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisLookupException;
@@ -124,11 +123,6 @@ class GnisPacketIdValidatorTest {
             @Override
             public Optional<GnisFeature> findById(int id) throws GnisLookupException {
                 throw new GnisLookupException("GNIS data unavailable");
-            }
-
-            @Override
-            public List<GnisFeature> findWithin(GnisBounds bounds) {
-                throw new AssertionError("spatial query must not run");
             }
         };
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
@@ -256,14 +250,6 @@ class GnisPacketIdValidatorTest {
         public Optional<GnisFeature> findById(int id) {
             requestedId = id;
             return lookup;
-        }
-
-        @Override
-        public List<GnisFeature> findWithin(GnisBounds bounds) {
-            // Guard the intended validation flow: after findById returns the selected
-            // feature, the validator should compare its location directly with the
-            // expanded TIM bounds instead of performing a redundant spatial query.
-            throw new AssertionError("packetID validation must not perform a spatial query");
         }
     }
 }

@@ -203,7 +203,7 @@ record TimGeographicBounds(
      * Expands the envelope by approximately the requested ground distance.
      *
      * <p>The result contains two query envelopes when expansion crosses the
-     * antimeridian, allowing ordinary GeoPackage RTree comparisons.</p>
+     * antimeridian, allowing ordinary geospatial query comparisons.</p>
      *
      * @param bufferMeters outward expansion applied to every edge
      * @return one or two normalized WGS-84 query envelopes
@@ -270,7 +270,7 @@ record TimGeographicBounds(
     }
 
     /**
-     * Converts an internal longitude interval into valid GeoPackage query bounds,
+     * Converts an internal longitude interval into valid geospatial query bounds,
      * splitting it at the antimeridian when necessary.
      */
     private static List<GnisBounds> normalizedBounds(
