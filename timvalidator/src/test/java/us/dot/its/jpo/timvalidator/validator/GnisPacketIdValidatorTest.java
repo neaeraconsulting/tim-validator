@@ -66,14 +66,11 @@ class GnisPacketIdValidatorTest {
     @Test
     void validate_selectedFeatureInsideExpandedBoundsDoesNotFlag() {
         GnisFeature feature = feature(-104.6, 40.0);
-        StubProvider provider = new StubProvider(Optional.of(feature), List.of(feature));
+        StubProvider provider = new StubProvider(Optional.of(feature), List.of());
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         assertTrue(validator.validate(tim("123456000000000000", 40.0, -105.0)).isEmpty());
-        assertEquals(1, provider.requestedBounds.size());
-        GnisBounds queried = provider.requestedBounds.getFirst();
-        assertTrue(queried.minimumLongitude() < -105.5);
-        assertTrue(queried.maximumLongitude() > -104.5);
+        assertTrue(provider.requestedBounds.isEmpty());
     }
 
     @Test
@@ -137,6 +134,20 @@ class GnisPacketIdValidatorTest {
         ValidationIssue issue = validator.validate(tim).getFirst();
 
         assertTrue(issue.message().contains("TIM does not contain usable region geometry"));
+        assertTrue(provider.requestedBounds.isEmpty());
+    }
+
+    @Test
+    void validate_featureWithoutUsableLocationProducesGenericWarning() {
+        StubProvider provider = new StubProvider(
+                Optional.of(new GnisFeature(GNIS_ID, "Civil Area", "Civil", null)),
+                List.of());
+        GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
+
+        ValidationIssue issue = validator.validate(
+                tim("123456000000000000", 40.0, -105.0)).getFirst();
+
+        assertTrue(issue.message().contains("does not contain a usable representative location"));
         assertTrue(provider.requestedBounds.isEmpty());
     }
 

@@ -21,6 +21,8 @@ import org.sqlite.SQLiteConfig;
 /** Reads approved Civil GNIS deployment-area features from a GeoPackage. */
 public final class GeoPackageGnisFeatureProvider implements GnisFeatureProvider {
 
+    private static final System.Logger LOGGER =
+            System.getLogger(GeoPackageGnisFeatureProvider.class.getName());
     private static final String RESOURCE_NAME = "civil_gnis_deployment_areas.gpkg";
     private static final String FIND_BY_ID_SQL = """
             SELECT feature_id, feature_name, feature_class,
@@ -78,7 +80,13 @@ public final class GeoPackageGnisFeatureProvider implements GnisFeatureProvider 
             try (ResultSet results = statement.executeQuery()) {
                 List<GnisFeature> features = new ArrayList<>();
                 while (results.next()) {
-                    features.add(readFeature(results));
+                    try {
+                        features.add(readFeature(results));
+                    } catch (GnisLookupException ex) {
+                        // One malformed row should not prevent valid features in the
+                        // same geographic search area from being considered.
+                        LOGGER.log(System.Logger.Level.WARNING, ex.getMessage());
+                    }
                 }
                 return List.copyOf(features);
             }
@@ -101,43 +109,54 @@ public final class GeoPackageGnisFeatureProvider implements GnisFeatureProvider 
                 configuration.toProperties());
     }
 
-    private static GnisFeature readFeature(ResultSet results) throws SQLException {
-        return new GnisFeature(
-                results.getInt("feature_id"),
-                results.getString("feature_name"),
-                results.getString("feature_class"),
-                new CoordinateXY(
-                        results.getDouble("prim_long_dec"),
-                        results.getDouble("prim_lat_dec")));
+    private static GnisFeature readFeature(ResultSet results)
+            throws SQLException, GnisLookupException {
+        int featureId = results.getInt("feature_id");
+        try {
+            return new GnisFeature(
+                    featureId,
+                    results.getString("feature_name"),
+                    results.getString("feature_class"),
+                    new CoordinateXY(
+                            results.getDouble("prim_long_dec"),
+                            results.getDouble("prim_lat_dec")));
+        } catch (IllegalArgumentException ex) {
+            throw new GnisLookupException(
+                    "Civil GNIS feature " + featureId + " contains invalid data",
+                    ex);
+        }
     }
 
     private static final class PackagedDatabase {
 
-        private static final Path PATH = extract();
+        private static Path path;
 
         private PackagedDatabase() {
         }
 
-        private static Path path() throws GnisLookupException {
-            if (PATH == null) {
-                throw new GnisLookupException(
-                        "Packaged Civil GNIS GeoPackage could not be loaded");
+        private static synchronized Path path() throws GnisLookupException {
+            if (path == null) {
+                path = extract();
             }
-            return PATH;
+            return path;
         }
 
-        private static Path extract() {
+        private static Path extract() throws GnisLookupException {
             try (InputStream source = GeoPackageGnisFeatureProvider.class
                     .getResourceAsStream(RESOURCE_NAME)) {
                 if (source == null) {
-                    return null;
+                    throw new GnisLookupException(
+                            "Packaged Civil GNIS GeoPackage resource was not found: "
+                                    + RESOURCE_NAME);
                 }
                 Path extracted = Files.createTempFile("timvalidator-civil-gnis-", ".gpkg");
                 Files.copy(source, extracted, StandardCopyOption.REPLACE_EXISTING);
                 extracted.toFile().deleteOnExit();
                 return extracted;
             } catch (IOException ex) {
-                return null;
+                throw new GnisLookupException(
+                        "Unable to extract the packaged Civil GNIS GeoPackage",
+                        ex);
             }
         }
     }

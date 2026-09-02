@@ -5,6 +5,8 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
+import org.locationtech.jts.geom.Coordinate;
+
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeature;
@@ -62,17 +64,23 @@ final class GnisPacketIdValidator {
 
             TimGeographicBounds bounds = timBounds.orElseThrow();
             double expansionMeters = expansionMeters(bounds.diagonalMeters());
+            Coordinate selectedLocation = selectedFeature.location();
+            if (!isUsableLocation(selectedLocation)) {
+                return List.of(unverifiedWarning(
+                        gnisId,
+                        selectedFeature,
+                        "the GNIS feature does not contain a usable representative location"));
+            }
 
-            // Pass without a flag when the selected ID is in the expanded search area
+            // Pass without a flag when the selected feature is in the expanded search area
             for (GnisBounds queryBounds : bounds.expanded(expansionMeters)) {
-                if (featureProvider.findWithin(queryBounds).stream()
-                        .anyMatch(feature -> feature.id() == gnisId)) {
+                if (queryBounds.contains(selectedLocation.getX(), selectedLocation.getY())) {
                     return List.of();
                 }
             }
 
             // Outside the search area, distinguish uncertain from clearly inconsistent
-            double distanceMeters = bounds.distanceMeters(selectedFeature.location());
+            double distanceMeters = bounds.distanceMeters(selectedLocation);
             if (distanceMeters > CLEARLY_INCONSISTENT_DISTANCE_METERS) {
                 return List.of(warning(String.format(
                         Locale.ROOT,
@@ -106,6 +114,15 @@ final class GnisPacketIdValidator {
                 Math.max(
                         MINIMUM_BOUNDING_BOX_EXPANSION_METERS,
                         diagonalMeters * BOUNDING_BOX_DIAGONAL_FACTOR));
+    }
+
+    private static boolean isUsableLocation(Coordinate location) {
+        return location != null
+                && location.isValid()
+                && location.getX() >= -180.0
+                && location.getX() <= 180.0
+                && location.getY() >= -90.0
+                && location.getY() <= 90.0;
     }
 
     private static ValidationIssue unverifiedWarning(

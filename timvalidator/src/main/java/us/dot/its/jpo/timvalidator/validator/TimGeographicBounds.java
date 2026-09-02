@@ -136,30 +136,37 @@ record TimGeographicBounds(
      */
     private static Optional<TimGeographicBounds> fromCoordinates(
             List<Coordinate> coordinates) {
-        List<Coordinate> valid = coordinates.stream()
-                .filter(coordinate -> coordinate != null
-                        && coordinate.isValid()
-                        && coordinate.getX() >= -180.0
-                        && coordinate.getX() <= 180.0
-                        && coordinate.getY() >= -90.0
-                        && coordinate.getY() <= 90.0)
-                .toList();
-        if (valid.isEmpty()) {
+        double minimumLatitude = Double.POSITIVE_INFINITY;
+        double maximumLatitude = Double.NEGATIVE_INFINITY;
+        double standardMinimum = Double.POSITIVE_INFINITY;
+        double standardMaximum = Double.NEGATIVE_INFINITY;
+        double shiftedMinimum = Double.POSITIVE_INFINITY;
+        double shiftedMaximum = Double.NEGATIVE_INFINITY;
+
+        // Collect both longitude representations in one pass. Ignore non-finite or
+        // out-of-range derived coordinates; no usable coordinates makes the GNIS
+        // relationship unverifiable rather than causing this best-practice check to fail.
+        for (Coordinate coordinate : coordinates) {
+            if (coordinate == null
+                    || !coordinate.isValid()
+                    || coordinate.getX() < -180.0
+                    || coordinate.getX() > 180.0
+                    || coordinate.getY() < -90.0
+                    || coordinate.getY() > 90.0) {
+                continue;
+            }
+
+            minimumLatitude = Math.min(minimumLatitude, coordinate.getY());
+            maximumLatitude = Math.max(maximumLatitude, coordinate.getY());
+            standardMinimum = Math.min(standardMinimum, coordinate.getX());
+            standardMaximum = Math.max(standardMaximum, coordinate.getX());
+            double shiftedLongitude = shiftLongitude(coordinate.getX());
+            shiftedMinimum = Math.min(shiftedMinimum, shiftedLongitude);
+            shiftedMaximum = Math.max(shiftedMaximum, shiftedLongitude);
+        }
+        if (!Double.isFinite(minimumLatitude)) {
             return Optional.empty();
         }
-
-        double minimumLatitude = valid.stream().mapToDouble(Coordinate::getY).min().orElseThrow();
-        double maximumLatitude = valid.stream().mapToDouble(Coordinate::getY).max().orElseThrow();
-        double standardMinimum = valid.stream().mapToDouble(Coordinate::getX).min().orElseThrow();
-        double standardMaximum = valid.stream().mapToDouble(Coordinate::getX).max().orElseThrow();
-        double shiftedMinimum = valid.stream()
-                .mapToDouble(coordinate -> shiftLongitude(coordinate.getX()))
-                .min()
-                .orElseThrow();
-        double shiftedMaximum = valid.stream()
-                .mapToDouble(coordinate -> shiftLongitude(coordinate.getX()))
-                .max()
-                .orElseThrow();
 
         // Comparing ordinary -180..180 longitudes with a shifted 0..360 range
         // prevents a narrow antimeridian crossing from appearing nearly global.
