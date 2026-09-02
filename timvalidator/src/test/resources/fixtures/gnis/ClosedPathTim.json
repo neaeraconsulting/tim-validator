@@ -1,0 +1,110 @@
+{
+    "messageId": 31,
+    "value": {
+        "TravelerInformation": {
+            "msgCnt": 1,
+            "packetID": "00000000001C838989",
+            "dataFrames": [
+                {
+                    "doNotUse1": 0,
+                    "frameType": "roadSignage",
+                    "msgId": {
+                        "roadSignID": {
+                            "position": {
+                                "lat": 337564706,
+                                "long": -844027070,
+                                "elevation": 2800
+                            },
+                            "viewAngle": "07F0",
+                            "mutcdCode": "maintenance"
+                        }
+                    },
+                    "startYear": 2025,
+                    "startTime": 264336,
+                    "durationTime": 23041,
+                    "priority": 3,
+                    "doNotUse2": 0,
+                    "regions": [
+                        {
+                            "anchor": {
+                                "lat": 337564706,
+                                "long": -844027070,
+                                "elevation": 2800
+                            },
+                            "laneWidth": 366,
+                            "directionality": "forward",
+                            "closedPath": true,
+                            "direction": "07F0",
+                            "description": {
+                                "path": {
+                                    "offset": {
+                                        "xy": {
+                                            "nodes": [
+                                                {
+                                                    "delta": {
+                                                        "node-XY1": {
+                                                            "x": -385,
+                                                            "y": -297
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-XY2": {
+                                                            "x": 671,
+                                                            "y": 0
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-XY5": {
+                                                            "x": 37,
+                                                            "y": 5343
+                                                        }
+                                                    },
+                                                    "attributes": {
+                                                        "dElevation": -20
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-XY2": {
+                                                            "x": -683,
+                                                            "y": 25
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "doNotUse3": 0,
+                    "doNotUse4": 0,
+                    "content": {
+                        "advisory": [
+                            {
+                                "item": {
+                                    "itis": 1025
+                                }
+                            },
+                            {
+                                "item": {
+                                    "itis": 13569
+                                }
+                            },
+                            {
+                                "item": {
+                                    "text": "road-construction ahead"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -49,6 +49,29 @@ class GnisPacketIdValidatorTest {
     }
 
     @Test
+    void validate_jerFixturesWithDifferentSingleRegionTypes() {
+        assertFixturePasses("ClosedPathTim.json", -84.402707, 33.7564706);
+        assertFixturePasses("SingleRegionCircleTIM.json", -74.8771, 40.5598);
+        assertFixturePasses("SingleRegionPathOffsetTIM.json", -104.9683865, 40.4747167);
+    }
+
+    @Test
+    void validate_jerFixtureWithMultipleRegions() {
+        TravelerInformation tim = fixture("MultiRegionPathOffsetTIM.json");
+
+        assertEquals(2, tim.getDataFrames().getFirst().getRegions().size());
+        assertFixturePasses(tim, -104.647101, 41.1531501);
+    }
+
+    @Test
+    void validate_jerFixtureWithMultipleDataFrames() {
+        TravelerInformation tim = fixture("MultiDataFrameOffsetTim.json");
+
+        assertEquals(2, tim.getDataFrames().size());
+        assertFixturePasses(tim, -104.647101, 41.1531501);
+    }
+
+    @Test
     void validate_readsUnsignedBigEndianPrefixAndWarnsForUnknownCivilId() {
         StubProvider provider = new StubProvider(Optional.empty(), List.of());
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
@@ -166,6 +189,38 @@ class GnisPacketIdValidatorTest {
                 "Civil Area",
                 "Civil",
                 new Coordinate(longitude, latitude));
+    }
+
+    private static TravelerInformation fixture(String fileName) {
+        return GnisTimTestFixtures.travelerInformation(fileName);
+    }
+
+    private static void assertFixturePasses(
+            String fileName,
+            double longitude,
+            double latitude) {
+        assertFixturePasses(fixture(fileName), longitude, latitude);
+    }
+
+    private static void assertFixturePasses(
+            TravelerInformation tim,
+            double longitude,
+            double latitude) {
+        byte[] packetId = tim.getPacketID().getOctets();
+        int gnisId = Byte.toUnsignedInt(packetId[0]) << 16
+                | Byte.toUnsignedInt(packetId[1]) << 8
+                | Byte.toUnsignedInt(packetId[2]);
+        GnisFeature selectedFeature = new GnisFeature(
+                gnisId,
+                "Fixture Deployment Area",
+                "Civil",
+                new Coordinate(longitude, latitude));
+        StubProvider provider = new StubProvider(Optional.of(selectedFeature), List.of());
+
+        List<ValidationIssue> issues = new GnisPacketIdValidator(provider).validate(tim);
+
+        assertTrue(issues.isEmpty());
+        assertEquals(gnisId, provider.requestedId);
     }
 
     private static TravelerInformation tim(String packetId, double latitude, double longitude) {

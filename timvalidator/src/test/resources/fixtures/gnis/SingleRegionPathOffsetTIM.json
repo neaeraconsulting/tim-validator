@@ -1,0 +1,104 @@
+{
+    "messageId": 31,
+    "value": {
+        "TravelerInformation": {
+            "msgCnt": 1,
+            "timeStamp": 61920,
+            "packetID": "8D442EF0020C6B1A09",
+            "urlB": "null",
+            "dataFrames": [
+                {
+                    "doNotUse1": 0,
+                    "frameType": "advisory",
+                    "msgId": {
+                        "roadSignID": {
+                            "position": {
+                                "lat": 404747167,
+                                "long": -1049683865
+                            },
+                            "viewAngle": "FFFF",
+                            "mutcdCode": "warning"
+                        }
+                    },
+                    "startYear": 2025,
+                    "startTime": 61920,
+                    "durationTime": 28800,
+                    "priority": 5,
+                    "doNotUse2": 0,
+                    "regions": [
+                        {
+                            "name": "Snow Highland Hills",
+                            "id": {
+                                "region": 0,
+                                "id": 0
+                            },
+                            "anchor": {
+                                "lat": 404747167,
+                                "long": -1049683865
+                            },
+                            "laneWidth": 1500,
+                            "directionality": "both",
+                            "closedPath": false,
+                            "direction": "FFFF",
+                            "description": {
+                                "path": {
+                                    "scale": 0,
+                                    "offset": {
+                                        "ll": {
+                                            "nodes": [
+                                                {
+                                                    "delta": {
+                                                        "node-LL2": {
+                                                            "lon": -2468,
+                                                            "lat": -782
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-LL2": {
+                                                            "lon": -2303,
+                                                            "lat": -1126
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-LL2": {
+                                                            "lon": -6786,
+                                                            "lat": -4724
+                                                        }
+                                                    }
+                                                },
+                                                {
+                                                    "delta": {
+                                                        "node-LL2": {
+                                                            "lon": -6211,
+                                                            "lat": -3848
+                                                        }
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "doNotUse3": 0,
+                    "doNotUse4": 0,
+                    "content": {
+                        "advisory": [
+                            {
+                                "item": {
+                                    "itis": 4868
+                                }
+                            }
+                        ]
+                    },
+                    "url": "null"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,75 @@
+{
+    "messageId": 31,
+    "value": {
+        "TravelerInformation": {
+            "msgCnt": 2,
+            "timeStamp": 78360,
+            "packetID": "8D442EF0020C6B1A01",
+            "urlB": "null",
+            "dataFrames": [
+                {
+                    "doNotUse1": 0,
+                    "frameType": "advisory",
+                    "msgId": {
+                        "roadSignID": {
+                            "position": {
+                                "lat": 405598000,
+                                "long": -748771000
+                            },
+                            "viewAngle": "FFFF",
+                            "mutcdCode": "warning"
+                        }
+                    },
+                    "startYear": 2025,
+                    "startTime": 78360,
+                    "durationTime": 28800,
+                    "priority": 5,
+                    "doNotUse2": 0,
+                    "regions": [
+                        {
+                            "name": "Snow Archer Traffic CIRCLE",
+                            "id": {
+                                "region": 0,
+                                "id": 0
+                            },
+                            "anchor": {
+                                "lat": 405598000,
+                                "long": -748771000
+                            },
+                            "directionality": "both",
+                            "closedPath": false,
+                            "direction": "FFFF",
+                            "description": {
+                                "geometry": {
+                                    "direction": "FFFF",
+                                    "extent": "useInstantlyOnly",
+                                    "circle": {
+                                        "center": {
+                                            "lat": 405598000,
+                                            "long": -748771000,
+                                            "elevation": 18240
+                                        },
+                                        "radius": 250,
+                                        "units": "meter"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "doNotUse3": 0,
+                    "doNotUse4": 0,
+                    "content": {
+                        "advisory": [
+                            {
+                                "item": {
+                                    "itis": 4868
+                                }
+                            }
+                        ]
+                    },
+                    "url": "null"
+                }
+            ]
+        }
+    }
+}
