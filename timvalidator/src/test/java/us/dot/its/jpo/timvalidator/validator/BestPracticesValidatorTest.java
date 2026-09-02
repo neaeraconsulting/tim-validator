@@ -3,7 +3,8 @@ package us.dot.its.jpo.timvalidator.validator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Year;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 
@@ -19,9 +20,13 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 
 class BestPracticesValidatorTest {
 
+    private static final Clock CLOCK = Clock.fixed(
+            Instant.parse("2025-06-01T00:00:00Z"),
+            ZoneOffset.UTC);
+
     @Test
     void validate_futureStartYearProducesWarning() throws Exception {
-        int futureYear = Year.now(ZoneOffset.UTC).getValue() + 1;
+        int futureYear = 2026;
 
         List<ValidationIssue> issues = validate(dataFrame(futureYear, 60));
 
@@ -36,18 +41,14 @@ class BestPracticesValidatorTest {
 
     @Test
     void validate_currentAndPastStartYearsWithDefiniteDurationsDoNotWarn() throws Exception {
-        int currentYear = Year.now(ZoneOffset.UTC).getValue();
-
         assertTrue(validate(
-                dataFrame(currentYear, 60),
-                dataFrame(currentYear - 1, 120)).isEmpty());
+                dataFrame(2025, 60),
+                dataFrame(2024, 120)).isEmpty());
     }
 
     @Test
     void validate_indefiniteDurationProducesWarning() throws Exception {
-        int currentYear = Year.now(ZoneOffset.UTC).getValue();
-
-        List<ValidationIssue> issues = validate(dataFrame(currentYear, 32_000));
+        List<ValidationIssue> issues = validate(dataFrame(2025, 32_000));
 
         assertEquals(1, issues.size());
         ValidationIssue issue = issues.getFirst();
@@ -59,9 +60,7 @@ class BestPracticesValidatorTest {
 
     @Test
     void validate_normalDurationDoesNotProduceWarning() throws Exception {
-        int currentYear = Year.now(ZoneOffset.UTC).getValue();
-
-        assertTrue(validate(dataFrame(currentYear, 60)).isEmpty());
+        assertTrue(validate(dataFrame(2025, 60)).isEmpty());
     }
 
     private static List<ValidationIssue> validate(TravelerDataFrame... dataFrames)
@@ -72,7 +71,7 @@ class BestPracticesValidatorTest {
         }
         TravelerInformation tim = new TravelerInformation();
         tim.setDataFrames(dataFrameList);
-        return new BestPracticesValidator().validate(tim);
+        return new BestPracticesValidator(CLOCK).validate(tim);
     }
 
     private static TravelerDataFrame dataFrame(int startYear, long durationMinutes) {

@@ -75,6 +75,10 @@ TIM data frame. A `startYear` later than the current UTC year produces a warning
 and a `durationTime` of `32000`, which represents an indefinite end time, produces
 a warning recommending a definite duration instead.
 
+The current year comes from the UTC system clock by default. Applications validating
+archived TIMs can instead supply a historical `java.time.Clock` through
+`BestPracticesValidator(Clock)`.
+
 ### GNIS Packet-ID Validation
 
 The first three bytes of a nine-byte TIM `packetID` are interpreted as an unsigned,

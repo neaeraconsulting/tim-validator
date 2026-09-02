@@ -1,7 +1,7 @@
 package us.dot.its.jpo.timvalidator.validator;
 
+import java.time.Clock;
 import java.time.Year;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -41,6 +41,7 @@ public class BestPracticesValidator {
     private final GeometryValidator geometryValidator;
     private final GnisPacketIdValidator gnisPacketIdValidator;
     private final ValidationOptions defaultOptions;
+    private final Clock clock;
 
     /**
      * Creates a validator with packaged Civil GNIS data and without an external
@@ -53,7 +54,21 @@ public class BestPracticesValidator {
         this(
                 UNCONFIGURED_PROVIDER,
                 new GeoPackageGnisFeatureProvider(),
-                ValidationOptions.networkFree());
+                ValidationOptions.networkFree(),
+                Clock.systemUTC());
+    }
+
+    /**
+     * Creates a validator whose time-based checks use the supplied custom clock.
+     *
+     * @param clock time source used to determine the current year
+     */
+    public BestPracticesValidator(Clock clock) {
+        this(
+                UNCONFIGURED_PROVIDER,
+                new GeoPackageGnisFeatureProvider(),
+                ValidationOptions.networkFree(),
+                clock);
     }
 
     /**
@@ -66,7 +81,8 @@ public class BestPracticesValidator {
         this(
                 roadGeometryProvider,
                 new GeoPackageGnisFeatureProvider(),
-                ValidationOptions.withRoadwayHeading());
+                ValidationOptions.withRoadwayHeading(),
+                Clock.systemUTC());
     }
 
     /**
@@ -78,7 +94,8 @@ public class BestPracticesValidator {
         this(
                 UNCONFIGURED_PROVIDER,
                 Objects.requireNonNull(gnisFeatureProvider, "gnisFeatureProvider"),
-                ValidationOptions.networkFree());
+                ValidationOptions.networkFree(),
+                Clock.systemUTC());
     }
 
     /**
@@ -90,13 +107,18 @@ public class BestPracticesValidator {
     public BestPracticesValidator(
             RoadGeometryProvider roadGeometryProvider,
             GnisFeatureProvider gnisFeatureProvider) {
-        this(roadGeometryProvider, gnisFeatureProvider, ValidationOptions.withRoadwayHeading());
+        this(
+                roadGeometryProvider,
+                gnisFeatureProvider,
+                ValidationOptions.withRoadwayHeading(),
+                Clock.systemUTC());
     }
 
     private BestPracticesValidator(
             RoadGeometryProvider roadGeometryProvider,
             GnisFeatureProvider gnisFeatureProvider,
-            ValidationOptions defaultOptions) {
+            ValidationOptions defaultOptions,
+            Clock clock) {
         this.geometryValidator = new GeometryValidator(Objects.requireNonNull(
                 roadGeometryProvider,
                 "roadGeometryProvider"));
@@ -104,6 +126,7 @@ public class BestPracticesValidator {
                 gnisFeatureProvider,
                 "gnisFeatureProvider"));
         this.defaultOptions = defaultOptions;
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     /**
@@ -140,7 +163,7 @@ public class BestPracticesValidator {
         TravelerInformation tim = travelerInformation.orElseThrow();
 
         issues.addAll(gnisPacketIdValidator.validate(tim));
-        issues.addAll(validateStartYears(tim));
+        issues.addAll(validateStartYears(clock, tim));
         issues.addAll(validateDefiniteEndTimes(tim));
         issues.addAll(validateGeometry(tim, options));
 
@@ -165,13 +188,15 @@ public class BestPracticesValidator {
     }
 
     /** Warns when a data frame is assigned a start year later than the current UTC year. */
-    private static List<ValidationIssue> validateStartYears(TravelerInformation tim) {
+    private static List<ValidationIssue> validateStartYears(
+            Clock clock,
+            TravelerInformation tim) {
         TravelerDataFrameList dataFrames = tim.getDataFrames();
         if (dataFrames == null) {
             return List.of();
         }
 
-        int currentYear = Year.now(ZoneOffset.UTC).getValue();
+        int currentYear = Year.now(clock).getValue();
         List<ValidationIssue> issues = new ArrayList<>();
         for (int index = 0; index < dataFrames.size(); index++) {
             TravelerDataFrame dataFrame = dataFrames.get(index);
