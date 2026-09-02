@@ -9,15 +9,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import org.locationtech.jts.geom.CoordinateXY;
-import org.locationtech.jts.geom.Envelope;
-import org.locationtech.jts.index.strtree.STRtree;
 
 /** Reads approved Civil GNIS deployment-area features from an in-memory CSV dataset. */
 public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
@@ -58,26 +58,6 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         return Optional.ofNullable(dataset.featuresById().get(gnisId));
     }
 
-    @Override
-    public List<GnisFeature> findWithin(GnisBounds bounds) throws GnisLookupException {
-        Objects.requireNonNull(bounds, "bounds");
-        // STRtree queries use JTS envelopes, so translate the public bounds type first
-        Envelope envelope = new Envelope(
-                bounds.minimumLongitude(),
-                bounds.maximumLongitude(),
-                bounds.minimumLatitude(),
-                bounds.maximumLatitude());
-        List<GnisFeature> features = new ArrayList<>();
-        // Confirm exact coordinate containment instead of relying only on index candidates
-        dataset().spatialIndex().query(envelope, item -> {
-            GnisFeature feature = (GnisFeature) item;
-            if (bounds.contains(feature.location().getX(), feature.location().getY())) {
-                features.add(feature);
-            }
-        });
-        return List.copyOf(features);
-    }
-
     /** Returns the loaded packaged dataset or this instance's custom dataset. */
     private Dataset dataset() throws GnisLookupException {
         if (csvPath == null) {
@@ -108,7 +88,7 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         }
     }
 
-    /** Validates the CSV and builds the in-memory ID and spatial lookup structures. */
+    /** Validates the CSV and builds the in-memory ID lookup. */
     private static Dataset load(BufferedReader reader, String description)
             throws IOException, GnisLookupException {
         // Fail initialization when the column order changes; row parsing below relies
@@ -131,6 +111,7 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
 
         Map<Integer, GnisFeature> featuresById = new HashMap<>();
         Map<Integer, String> invalidFeatures = new HashMap<>();
+        Set<Integer> seenFeatureIds = new HashSet<>();
         // Build the ID lookup first while preserving malformed IDs so an exact lookup
         // can report bad source data instead of treating the ID as unknown.
         String line;
@@ -145,22 +126,13 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
                     description,
                     lineNumber,
                     featuresById,
-                    invalidFeatures);
+                    invalidFeatures,
+                    seenFeatureIds);
         }
 
-        // Index only successfully parsed representative points. Building the immutable
-        // STRtree after reading also prevents partially loaded rows from entering it.
-        STRtree spatialIndex = new STRtree();
-        for (GnisFeature feature : featuresById.values()) {
-            double longitude = feature.location().getX();
-            double latitude = feature.location().getY();
-            spatialIndex.insert(new Envelope(longitude, longitude, latitude, latitude), feature);
-        }
-        spatialIndex.build();
         return new Dataset(
                 Map.copyOf(featuresById),
-                Map.copyOf(invalidFeatures),
-                spatialIndex);
+                Map.copyOf(invalidFeatures));
     }
 
     /** Parses and validates one data row before adding it to the ID lookup. */
@@ -169,19 +141,26 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
             String description,
             long lineNumber,
             Map<Integer, GnisFeature> featuresById,
-            Map<Integer, String> invalidFeatures) {
+            Map<Integer, String> invalidFeatures,
+            Set<Integer> seenFeatureIds) {
         Integer featureId = null;
         try {
             // Parse the ID before the remaining values when possible so malformed
             // records can still be associated with a later packetID lookup.
             List<String> columns = parseCsvLine(line);
             featureId = parseFeatureId(columns);
+            if (featureId != null && !seenFeatureIds.add(featureId)) {
+                throw new IllegalArgumentException("feature_id is duplicated");
+            }
             if (columns.size() != EXPECTED_COLUMNS.size()) {
                 throw new IllegalArgumentException(
                         "expected " + EXPECTED_COLUMNS.size() + " columns but found " + columns.size());
             }
 
             featureId = Integer.valueOf(columns.get(0));
+            if (!"Civil".equals(columns.get(2))) {
+                throw new IllegalArgumentException("feature_class must be Civil");
+            }
             double latitude = Double.parseDouble(columns.get(4));
             double longitude = Double.parseDouble(columns.get(5));
             if (!Double.isFinite(latitude)
@@ -192,15 +171,16 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
                     || longitude > 180.0) {
                 throw new IllegalArgumentException("coordinates are outside the WGS-84 range");
             }
+            if (latitude == 0.0 && longitude == 0.0) {
+                throw new IllegalArgumentException("coordinates use the GNIS unknown-location value");
+            }
 
             GnisFeature feature = new GnisFeature(
                     featureId,
                     columns.get(1),
                     columns.get(2),
                     new CoordinateXY(longitude, latitude));
-            if (featuresById.putIfAbsent(featureId, feature) != null) {
-                throw new IllegalArgumentException("feature_id is duplicated");
-            }
+            featuresById.put(featureId, feature);
         } catch (IllegalArgumentException ex) {
             // A bad row should not prevent the remaining national dataset from loading.
             String featureDescription = featureId == null
@@ -233,7 +213,7 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         }
     }
 
-    /** Parses one RFC 4180-style CSV record, including quoted commas and escaped quotes. */
+    /** Parses one single-line CSV record, including quoted commas and escaped quotes. */
     private static List<String> parseCsvLine(String line) {
         List<String> columns = new ArrayList<>();
         StringBuilder value = new StringBuilder();
@@ -268,8 +248,7 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
 
     private record Dataset(
             Map<Integer, GnisFeature> featuresById,
-            Map<Integer, String> invalidFeatures,
-            STRtree spatialIndex) {
+            Map<Integer, String> invalidFeatures) {
     }
 
     private static final class PackagedDataset {

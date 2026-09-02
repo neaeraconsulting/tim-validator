@@ -49,13 +49,12 @@ check they are treated as longitude/latitude coordinates compatible with J2735
 WGS 84 anchors; the practical datum difference is immaterial at the validation
 distances used by the project.
 
-## Runtime indexing
+## Runtime loading
 
 The library reads the packaged CSV lazily on the first GNIS lookup and shares the
-loaded dataset across validator instances. It creates:
-
-- an in-memory map keyed by `feature_id` for direct packet-prefix lookups; and
-- a JTS `STRtree` of representative feature points for geographic bounds queries.
+loaded dataset across validator instances. It creates an in-memory map keyed by
+`feature_id` for direct packet-prefix lookups. The selected feature's representative
+point is then compared directly with the TIM's expanded geographic bounds.
 
 No SQLite, GeoPackage, GDAL, or external service is required at runtime.
 

@@ -85,10 +85,9 @@ used only when required to decode relative J2735 path offsets; they are not used
 representative comparison point.
 
 The reduced Civil GNIS CSV is bundled in the `timvalidator` JAR and loaded once
-per JVM. The provider builds an in-memory map for `feature_id` lookups and a JTS `STRtree`
-for geographic bounds queries. It reads the CSV directly from the classpath without a
-temporary file. No GNIS network request, SQLite dependency, or external GDAL installation
-is required at runtime. See
+per JVM. The provider builds an in-memory map for `feature_id` lookups and reads the CSV
+directly from the classpath without a temporary file. No GNIS network request, SQLite
+dependency, or external GDAL installation is required at runtime. See
 [docs/civil_gnis_deployment_areas.md](docs/civil_gnis_deployment_areas.md) for how the
 dataset was produced.
 
