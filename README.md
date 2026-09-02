@@ -75,18 +75,20 @@ big-endian GNIS deployment-area identifier. This is a non-blocking best-practice
 J2735 field validity remains the responsibility of schema validation.
 
 The validator first requires the identifier to exist in its approved Civil GNIS feature
-set. It then derives the overall WGS 84 bounds of the TIM's path or circle region
-geometry and queries the GNIS spatial index using an expanded envelope. The expansion is
-the greater of 50 km or 20 percent of the TIM bounds' diagonal, capped at 150 km. A valid
-Civil feature outside that search area receives an unverifiable warning unless it is
-more than 300 km from the original TIM bounds, in which case it receives a geographic
-inconsistency warning. Region anchors are used only when required to decode relative
-J2735 path offsets; they are not used as the representative comparison point.
+set and retrieves that feature's representative point. It then derives the overall WGS
+84 bounds of the TIM's path or circle region geometry and checks whether the point falls
+inside an expanded envelope. The expansion is the greater of 50 km or 20 percent of the
+TIM bounds' diagonal distance, capped at 150 km. A valid Civil feature outside that search area
+receives an unverifiable warning unless it is more than 300 km from the original TIM
+bounds, in which case it receives a geographic inconsistency warning. Region anchors are
+used only when required to decode relative J2735 path offsets; they are not used as the
+representative comparison point.
 
-The reduced Civil GNIS GeoPackage is bundled in the `timvalidator` JAR and queried with
-its `feature_id` and RTree indexes. At runtime it is extracted once to a temporary
-read-only data source because SQLite requires a filesystem path. No GNIS network request
-or external GDAL installation is required. See
+The reduced Civil GNIS CSV is bundled in the `timvalidator` JAR and loaded once
+per JVM. The provider builds an in-memory map for `feature_id` lookups and a JTS `STRtree`
+for geographic bounds queries. It reads the CSV directly from the classpath without a
+temporary file. No GNIS network request, SQLite dependency, or external GDAL installation
+is required at runtime. See
 [docs/civil_gnis_deployment_areas.md](docs/civil_gnis_deployment_areas.md) for how the
 dataset was produced.
 
@@ -306,4 +308,3 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 | 2 | circle geometry | `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
-

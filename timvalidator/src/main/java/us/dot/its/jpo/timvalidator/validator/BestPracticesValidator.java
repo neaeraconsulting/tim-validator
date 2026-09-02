@@ -11,7 +11,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMessageFrame;
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
-import us.dot.its.jpo.timvalidator.gnis.GeoPackageGnisFeatureProvider;
+import us.dot.its.jpo.timvalidator.gnis.CsvGnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
@@ -47,7 +47,7 @@ public class BestPracticesValidator {
     public BestPracticesValidator() {
         this(
                 UNCONFIGURED_PROVIDER,
-                new GeoPackageGnisFeatureProvider(),
+                new CsvGnisFeatureProvider(),
                 ValidationOptions.networkFree());
     }
 
@@ -60,7 +60,7 @@ public class BestPracticesValidator {
     public BestPracticesValidator(RoadGeometryProvider roadGeometryProvider) {
         this(
                 roadGeometryProvider,
-                new GeoPackageGnisFeatureProvider(),
+                new CsvGnisFeatureProvider(),
                 ValidationOptions.withRoadwayHeading());
     }
 

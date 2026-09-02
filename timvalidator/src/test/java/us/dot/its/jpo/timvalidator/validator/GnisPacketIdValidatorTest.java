@@ -22,7 +22,7 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.UniqueMSGID;
-import us.dot.its.jpo.timvalidator.gnis.GeoPackageGnisFeatureProvider;
+import us.dot.its.jpo.timvalidator.gnis.CsvGnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeature;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
@@ -42,7 +42,7 @@ class GnisPacketIdValidatorTest {
         TravelerInformation testTim = tim(packetId, 39.9108, -104.9878);
 
         List<ValidationIssue> issues = new GnisPacketIdValidator(
-                new GeoPackageGnisFeatureProvider()).validate(testTim);
+                new CsvGnisFeatureProvider()).validate(testTim);
 
         assertEquals(9, testTim.getPacketID().getOctets().length);
         assertTrue(issues.isEmpty(), "Northglenn's GNIS prefix should match its TIM bounds");

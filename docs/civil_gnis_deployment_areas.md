@@ -1,112 +1,72 @@
-# Civil GNIS Deployment Areas GeoPackage
+# Civil GNIS Deployment Areas CSV
 
-`civil_gnis_deployment_areas.gpkg` is a reduced, spatially indexed extract of the
-USGS Geographic Names Information System (GNIS) Domestic Names dataset. It is
-intended for lightweight offline validation of TIM `packetID` deployment-area
-identifiers.
+`civil_gnis_deployment_areas.csv` is a reduced extract of the USGS Geographic
+Names Information System (GNIS) Domestic Names dataset. It supports lightweight,
+offline validation of TIM `packetID` deployment-area identifiers.
 
-The generated file is copied into the library at
+The CSV is stored at
 `timvalidator/src/main/resources/us/dot/its/jpo/timvalidator/gnis/`. Maven includes
-that resource in the published `timvalidator` JAR so applications consuming the
-library do not need to deploy the GeoPackage separately.
+it in the published `timvalidator` JAR, so consuming applications do not need to
+deploy a separate data file or database.
 
 ## Source and filtering
 
-The source was the USGS national pipe-delimited file
-`DomesticNames_National.txt`, available from the [GNIS download
+The source is the USGS national pipe-delimited `DomesticNames_National.txt` file,
+available from the [GNIS download
 page](https://www.usgs.gov/us-board-on-geographic-names/download-gnis-data).
-GNIS source coordinates use NAD83 (EPSG:4269).
 
-The extract retained only records where:
+The extract contains only records where:
 
 - `feature_class` is exactly `Civil`;
-- the primary coordinate is not the GNIS unknown-location value `0.0, 0.0`; and
+- the primary coordinate is present and is not the GNIS unknown-location value
+  `0.0, 0.0`; and
 - the following columns are retained, in this order:
 
 ```text
-feature_id|feature_name|feature_class|state_name|prim_lat_dec|prim_long_dec
+feature_id,feature_name,feature_class,state_name,prim_lat_dec,prim_long_dec
 ```
 
-The reduced text file can be reproduced on Ubuntu/WSL with:
-
-```bash
-awk -F'|' 'BEGIN {
-    OFS="|"
-    print "feature_id|feature_name|feature_class|state_name|prim_lat_dec|prim_long_dec"
-}
-NR > 1 && $3 == "Civil" && $16 != "" && $17 != "" && !($16 == "0.0" && $17 == "0.0") {
-    print $1, $2, $3, $4, $16, $17
-}' DomesticNames_National.txt > Civil_GNIS_DeploymentAreas.txt
-```
-
-## GeoPackage creation
-
-The reduced text was imported as point geometry using longitude for X and
-latitude for Y. Coordinates were assigned their source CRS, NAD83 (EPSG:4269),
-and transformed to WGS 84 (EPSG:4326) to match J2735 TIM anchor coordinates.
-
-An equivalent GDAL command is:
+GDAL can produce the CSV directly from the national download while applying the
+filter and correct CSV quoting:
 
 ```bash
 ogr2ogr \
-  -f GPKG \
-  civil_gnis_deployment_areas.gpkg \
-  "CSV:Civil_GNIS_DeploymentAreas.txt" \
+  -f CSV \
+  civil_gnis_deployment_areas.csv \
+  "CSV:DomesticNames_National.txt" \
   -oo SEPARATOR=PIPE \
   -oo AUTODETECT_TYPE=YES \
-  -oo X_POSSIBLE_NAMES=prim_long_dec \
-  -oo Y_POSSIBLE_NAMES=prim_lat_dec \
-  -s_srs EPSG:4269 \
-  -t_srs EPSG:4326 \
-  -nln gnis_deployment_areas \
-  -nlt POINT \
-  -lco GEOMETRY_NAME=geom \
-  -lco SPATIAL_INDEX=YES
+  -where "feature_class = 'Civil' AND prim_lat_dec IS NOT NULL
+          AND prim_long_dec IS NOT NULL
+          AND NOT (prim_lat_dec = 0 AND prim_long_dec = 0)" \
+  -select feature_id,feature_name,feature_class,state_name,prim_lat_dec,prim_long_dec \
+  -lco SEPARATOR=COMMA \
+  -lco STRING_QUOTING=IF_AMBIGUOUS
 ```
 
-The original latitude and longitude columns are retained in addition to the
-generated `geom` point. The GeoPackage RTree spatial index supports bounding-box
-queries against `geom`.
+GNIS primary coordinates are NAD83 decimal degrees. For this lightweight sanity
+check they are treated as longitude/latitude coordinates compatible with J2735
+WGS 84 anchors; the practical datum difference is immaterial at the validation
+distances used by the project.
 
-## Feature-ID index
+## Runtime indexing
 
-A separate unique index supports direct lookup of the GNIS identifier decoded
-from the first three bytes of a TIM `packetID`:
+The library reads the packaged CSV lazily on the first GNIS lookup and shares the
+loaded dataset across validator instances. It creates:
 
-```bash
-ogrinfo civil_gnis_deployment_areas.gpkg \
-  -dialect SQLite \
-  -sql "CREATE UNIQUE INDEX IF NOT EXISTS idx_gnis_feature_id
-        ON gnis_deployment_areas(feature_id)"
-```
+- an in-memory map keyed by `feature_id` for direct packet-prefix lookups; and
+- a JTS `STRtree` of representative feature points for geographic bounds queries.
+
+No SQLite, GeoPackage, GDAL, or external service is required at runtime.
 
 ## Result and verification
 
-The generated artifact has:
-
-- layer name `gnis_deployment_areas`;
-- 64,911 point features;
-- WGS 84 geometry registered as EPSG:4326;
-- geometry column `geom` and feature-ID column `fid`;
-- no non-`Civil` records;
-- no `0.0, 0.0` primary coordinates;
-- an RTree spatial index; and
-- a unique index named `idx_gnis_feature_id`.
-
-Inspect the layer and verify both indexes with:
+The generated artifact has 64,911 records, all with unique feature identifiers,
+`Civil` feature classes, and nonzero primary coordinates. Basic shell checks are:
 
 ```bash
-ogrinfo -so civil_gnis_deployment_areas.gpkg gnis_deployment_areas
-
-ogrinfo civil_gnis_deployment_areas.gpkg \
-  -dialect SQLite \
-  -sql "SELECT HasSpatialIndex('gnis_deployment_areas', 'geom') AS has_spatial_index"
-
-ogrinfo civil_gnis_deployment_areas.gpkg \
-  -dialect SQLite \
-  -sql "SELECT name, sql FROM sqlite_master
-        WHERE name = 'idx_gnis_feature_id'"
+head -n 1 civil_gnis_deployment_areas.csv
+wc -l civil_gnis_deployment_areas.csv
 ```
 
-`HasSpatialIndex` should return `1`, and the final query should return the unique
-`feature_id` index definition.
+The expected line count is 64,912 including the header.
