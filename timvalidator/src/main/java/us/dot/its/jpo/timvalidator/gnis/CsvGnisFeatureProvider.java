@@ -130,6 +130,11 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
                     seenFeatureIds);
         }
 
+        if (featuresById.isEmpty()) {
+            throw new GnisLookupException(
+                    "Civil GNIS CSV does not contain any valid features: " + description);
+        }
+
         return new Dataset(
                 Map.copyOf(featuresById),
                 Map.copyOf(invalidFeatures));
@@ -261,8 +266,8 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         private static Dataset get() throws GnisLookupException {
             Dataset current = dataset;
             if (current == null) {
-                // All default providers share one parsed map and spatial index. The
-                // second check prevents duplicate loading when initialization races.
+                // All default providers share one parsed map. The second check
+                // prevents duplicate loading when initialization races.
                 synchronized (PackagedDataset.class) {
                     current = dataset;
                     if (current == null) {

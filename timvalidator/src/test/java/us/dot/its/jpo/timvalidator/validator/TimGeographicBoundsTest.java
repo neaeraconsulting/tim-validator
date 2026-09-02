@@ -13,8 +13,6 @@ import org.locationtech.jts.geom.Coordinate;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
-import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
-
 class TimGeographicBoundsTest {
 
     private static final double COORDINATE_TOLERANCE = 0.000001;

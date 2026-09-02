@@ -1,13 +1,13 @@
-package us.dot.its.jpo.timvalidator.gnis;
+package us.dot.its.jpo.timvalidator.validator;
 
-/** A WGS-84 longitude/latitude query envelope. */
-public record GnisBounds(
+/** An internal WGS-84 longitude/latitude envelope used by GNIS validation. */
+record GnisBounds(
         double minimumLongitude,
         double maximumLongitude,
         double minimumLatitude,
         double maximumLatitude) {
 
-    public GnisBounds {
+    GnisBounds {
         if (!Double.isFinite(minimumLongitude)
                 || !Double.isFinite(maximumLongitude)
                 || !Double.isFinite(minimumLatitude)
@@ -22,7 +22,7 @@ public record GnisBounds(
         }
     }
 
-    public boolean contains(double longitude, double latitude) {
+    boolean contains(double longitude, double latitude) {
         return longitude >= minimumLongitude
                 && longitude <= maximumLongitude
                 && latitude >= minimumLatitude

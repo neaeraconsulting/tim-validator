@@ -14,7 +14,6 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrameList;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
-import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
 
 /**
@@ -22,7 +21,7 @@ import us.dot.its.jpo.timvalidator.validator.OffsetPathDecoder.DecodeResult;
  *
  * <p>Longitudes may temporarily use the range {@code 0..360} when that produces
  * the smaller envelope for geometry crossing the antimeridian. Methods that expose
- * query envelopes normalize the result back to {@code -180..180}.</p>
+ * geographic envelopes normalize the result back to {@code -180..180}.</p>
  *
  * @param minimumLongitude western edge in decimal degrees
  * @param maximumLongitude eastern edge in decimal degrees
@@ -202,11 +201,11 @@ record TimGeographicBounds(
     /**
      * Expands the envelope by approximately the requested ground distance.
      *
-     * <p>The result contains two query envelopes when expansion crosses the
-     * antimeridian, allowing ordinary geospatial query comparisons.</p>
+     * <p>The result contains two envelopes when expansion crosses the
+     * antimeridian, allowing ordinary containment comparisons.</p>
      *
      * @param bufferMeters outward expansion applied to every edge
-     * @return one or two normalized WGS-84 query envelopes
+     * @return one or two normalized WGS-84 envelopes
      */
     List<GnisBounds> expanded(double bufferMeters) {
         // One degree of latitude has sufficiently stable length for this
@@ -270,7 +269,7 @@ record TimGeographicBounds(
     }
 
     /**
-     * Converts an internal longitude interval into valid geospatial query bounds,
+     * Converts an internal longitude interval into valid WGS-84 bounds,
      * splitting it at the antimeridian when necessary.
      */
     private static List<GnisBounds> normalizedBounds(

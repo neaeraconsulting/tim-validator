@@ -47,26 +47,26 @@ class GnisPacketIdValidatorTest {
     }
 
     @Test
-    void validate_jerFixturesWithDifferentSingleRegionTypes() {
-        assertFixturePasses("ClosedPathTim.json", -84.402707, 33.7564706);
-        assertFixturePasses("SingleRegionCircleTIM.json", -74.8771, 40.5598);
-        assertFixturePasses("SingleRegionPathOffsetTIM.json", -104.9683865, 40.4747167);
+    void validate_jerFixturesWithDifferentSingleRegionTypes() throws Exception {
+        assertFixturePasses("ClosedPathTim.json", 2403126, "City of Atlanta");
+        assertFixturePasses("SingleRegionCircleTIM.json", 882228, "Hunterdon County");
+        assertFixturePasses("SingleRegionPathOffsetTIM.json", 2413496, "Town of Windsor");
     }
 
     @Test
-    void validate_jerFixtureWithMultipleRegions() {
+    void validate_jerFixtureWithMultipleRegions() throws Exception {
         TravelerInformation tim = fixture("MultiRegionPathOffsetTIM.json");
 
         assertEquals(2, tim.getDataFrames().getFirst().getRegions().size());
-        assertFixturePasses(tim, -104.647101, 41.1531501);
+        assertFixturePasses(tim, 2409445, "City of Cheyenne");
     }
 
     @Test
-    void validate_jerFixtureWithMultipleDataFrames() {
+    void validate_jerFixtureWithMultipleDataFrames() throws Exception {
         TravelerInformation tim = fixture("MultiDataFrameOffsetTim.json");
 
         assertEquals(2, tim.getDataFrames().size());
-        assertFixturePasses(tim, -104.647101, 41.1531501);
+        assertFixturePasses(tim, 2409445, "City of Cheyenne");
     }
 
     @Test
@@ -182,30 +182,28 @@ class GnisPacketIdValidatorTest {
 
     private static void assertFixturePasses(
             String fileName,
-            double longitude,
-            double latitude) {
-        assertFixturePasses(fixture(fileName), longitude, latitude);
+            int expectedGnisId,
+            String expectedFeatureName) throws Exception {
+        assertFixturePasses(fixture(fileName), expectedGnisId, expectedFeatureName);
     }
 
     private static void assertFixturePasses(
             TravelerInformation tim,
-            double longitude,
-            double latitude) {
+            int expectedGnisId,
+            String expectedFeatureName) throws Exception {
         byte[] packetId = tim.getPacketID().getOctets();
         int gnisId = Byte.toUnsignedInt(packetId[0]) << 16
                 | Byte.toUnsignedInt(packetId[1]) << 8
                 | Byte.toUnsignedInt(packetId[2]);
-        GnisFeature selectedFeature = new GnisFeature(
-                gnisId,
-                "Fixture Deployment Area",
-                "Civil",
-                new Coordinate(longitude, latitude));
-        StubProvider provider = new StubProvider(Optional.of(selectedFeature));
+        CsvGnisFeatureProvider provider = new CsvGnisFeatureProvider();
+        GnisFeature selectedFeature = provider.findById(gnisId).orElseThrow();
 
         List<ValidationIssue> issues = new GnisPacketIdValidator(provider).validate(tim);
 
-        assertTrue(issues.isEmpty());
-        assertEquals(gnisId, provider.requestedId);
+        assertEquals(expectedGnisId, gnisId);
+        assertEquals(expectedFeatureName, selectedFeature.name());
+        assertEquals("Civil", selectedFeature.featureClass());
+        assertTrue(issues.isEmpty(), () -> "Expected the fixture packetID to pass: " + issues);
     }
 
     private static TravelerInformation tim(String packetId, double latitude, double longitude) {

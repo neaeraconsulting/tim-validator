@@ -8,7 +8,6 @@ import java.util.Optional;
 import org.locationtech.jts.geom.Coordinate;
 
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformation;
-import us.dot.its.jpo.timvalidator.gnis.GnisBounds;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeature;
 import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.gnis.GnisLookupException;
@@ -73,8 +72,8 @@ final class GnisPacketIdValidator {
             }
 
             // Pass without a flag when the selected feature is in the expanded search area
-            for (GnisBounds queryBounds : bounds.expanded(expansionMeters)) {
-                if (queryBounds.contains(selectedLocation.getX(), selectedLocation.getY())) {
+            for (GnisBounds expandedBounds : bounds.expanded(expansionMeters)) {
+                if (expandedBounds.contains(selectedLocation.getX(), selectedLocation.getY())) {
                     return List.of();
                 }
             }

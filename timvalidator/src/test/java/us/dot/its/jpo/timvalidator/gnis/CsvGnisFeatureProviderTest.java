@@ -71,8 +71,21 @@ class CsvGnisFeatureProviderTest {
     }
 
     @Test
+    void emptyCsv_reportsLookupFailure() throws Exception {
+        Path csv = writeCsv();
+        CsvGnisFeatureProvider testProvider = new CsvGnisFeatureProvider(csv);
+
+        GnisLookupException exception = assertThrows(
+                GnisLookupException.class,
+                () -> testProvider.findById(198131));
+
+        assertTrue(exception.getMessage().contains("does not contain any valid features"));
+    }
+
+    @Test
     void loader_rejectsNonCivilAndUnknownLocationFeatures() throws Exception {
         Path csv = writeCsv(
+                "199999,Valid Feature,Civil,Colorado,39.6,-104.8",
                 "200000,Not Civil,Populated Place,Colorado,39.7,-104.9",
                 "200001,Unknown Location,Civil,Colorado,0.0,0.0");
         CsvGnisFeatureProvider testProvider = new CsvGnisFeatureProvider(csv);
@@ -91,6 +104,7 @@ class CsvGnisFeatureProviderTest {
     @Test
     void loader_keepsDuplicateFeatureIdRejectedAfterLaterRows() throws Exception {
         Path csv = writeCsv(
+                "199999,Valid Feature,Civil,Colorado,39.6,-104.8",
                 "200000,First,Civil,Colorado,39.7,-104.9",
                 "200000,Second,Civil,Colorado,39.8,-104.8",
                 "200000,Third,Civil,Colorado,39.9,-104.7");
