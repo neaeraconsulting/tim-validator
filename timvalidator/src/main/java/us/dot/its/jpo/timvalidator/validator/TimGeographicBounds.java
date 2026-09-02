@@ -36,6 +36,7 @@ record TimGeographicBounds(
         double maximumLatitude) {
 
     private static final double METERS_PER_LATITUDE_DEGREE = 111_320.0;
+    private static final double LONGITUDE_RANGE_COMPARISON_TOLERANCE = 1e-12;
 
     /**
      * Builds one envelope around every decodable region in the TIM.
@@ -170,7 +171,8 @@ record TimGeographicBounds(
 
         // Comparing ordinary -180..180 longitudes with a shifted 0..360 range
         // prevents a narrow antimeridian crossing from appearing nearly global.
-        if (shiftedMaximum - shiftedMinimum < standardMaximum - standardMinimum) {
+        if (shiftedMaximum - shiftedMinimum + LONGITUDE_RANGE_COMPARISON_TOLERANCE
+                < standardMaximum - standardMinimum) {
             return Optional.of(new TimGeographicBounds(
                     shiftedMinimum,
                     shiftedMaximum,

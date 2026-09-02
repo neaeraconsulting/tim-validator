@@ -3,7 +3,6 @@ package us.dot.its.jpo.timvalidator.validator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -73,13 +72,12 @@ class GnisPacketIdValidatorTest {
 
     @Test
     void validate_readsUnsignedBigEndianPrefixAndWarnsForUnknownCivilId() {
-        StubProvider provider = new StubProvider(Optional.empty(), List.of());
+        StubProvider provider = new StubProvider(Optional.empty());
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         ValidationIssue issue = validator.validate(tim("123456000000000000", 40.0, -105.0)).getFirst();
 
         assertEquals(GNIS_ID, provider.requestedId);
-        assertTrue(provider.requestedBounds.isEmpty());
         assertEquals(ValidationSeverity.WARNING, issue.severity());
         assertEquals("Best Practices", issue.checkName());
         assertEquals("/value/TravelerInformation/packetID", issue.path());
@@ -89,18 +87,16 @@ class GnisPacketIdValidatorTest {
     @Test
     void validate_selectedFeatureInsideExpandedBoundsDoesNotFlag() {
         GnisFeature feature = feature(-104.6, 40.0);
-        StubProvider provider = new StubProvider(Optional.of(feature), List.of());
+        StubProvider provider = new StubProvider(Optional.of(feature));
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         assertTrue(validator.validate(tim("123456000000000000", 40.0, -105.0)).isEmpty());
-        assertTrue(provider.requestedBounds.isEmpty());
     }
 
     @Test
     void validate_clearlyDistantFeatureWarns() {
         StubProvider provider = new StubProvider(
-                Optional.of(feature(-74.0, 40.7)),
-                List.of());
+                Optional.of(feature(-74.0, 40.7)));
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         ValidationIssue issue = validator.validate(
@@ -112,8 +108,7 @@ class GnisPacketIdValidatorTest {
     @Test
     void validate_intermediateDistanceWarnsThatRelationshipIsUnverified() {
         StubProvider provider = new StubProvider(
-                Optional.of(feature(-102.7, 40.0)),
-                List.of());
+                Optional.of(feature(-102.7, 40.0)));
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         ValidationIssue issue = validator.validate(
@@ -128,7 +123,7 @@ class GnisPacketIdValidatorTest {
         GnisFeatureProvider provider = new GnisFeatureProvider() {
             @Override
             public Optional<GnisFeature> findById(int id) throws GnisLookupException {
-                throw new GnisLookupException("database unavailable");
+                throw new GnisLookupException("GNIS data unavailable");
             }
 
             @Override
@@ -142,14 +137,13 @@ class GnisPacketIdValidatorTest {
                 tim("123456000000000000", 40.0, -105.0)).getFirst();
 
         assertTrue(issue.message().contains("could not be verified against the TIM bounds"));
-        assertTrue(issue.message().contains("database unavailable"));
+        assertTrue(issue.message().contains("GNIS data unavailable"));
     }
 
     @Test
     void validate_missingRegionGeometryProducesGenericWarning() {
         StubProvider provider = new StubProvider(
-                Optional.of(feature(-105.0, 40.0)),
-                List.of());
+                Optional.of(feature(-105.0, 40.0)));
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
         TravelerInformation tim = new TravelerInformation();
         tim.setPacketID(new UniqueMSGID("123456000000000000"));
@@ -157,26 +151,23 @@ class GnisPacketIdValidatorTest {
         ValidationIssue issue = validator.validate(tim).getFirst();
 
         assertTrue(issue.message().contains("TIM does not contain usable region geometry"));
-        assertTrue(provider.requestedBounds.isEmpty());
     }
 
     @Test
     void validate_featureWithoutUsableLocationProducesGenericWarning() {
         StubProvider provider = new StubProvider(
-                Optional.of(new GnisFeature(GNIS_ID, "Civil Area", "Civil", null)),
-                List.of());
+                Optional.of(new GnisFeature(GNIS_ID, "Civil Area", "Civil", null)));
         GnisPacketIdValidator validator = new GnisPacketIdValidator(provider);
 
         ValidationIssue issue = validator.validate(
                 tim("123456000000000000", 40.0, -105.0)).getFirst();
 
         assertTrue(issue.message().contains("does not contain a usable representative location"));
-        assertTrue(provider.requestedBounds.isEmpty());
     }
 
     @Test
     void validate_shortPacketIdIsLeftToSchemaValidation() {
-        StubProvider provider = new StubProvider(Optional.empty(), List.of());
+        StubProvider provider = new StubProvider(Optional.empty());
         TravelerInformation tim = new TravelerInformation();
 
         assertTrue(new GnisPacketIdValidator(provider).validate(tim).isEmpty());
@@ -215,7 +206,7 @@ class GnisPacketIdValidatorTest {
                 "Fixture Deployment Area",
                 "Civil",
                 new Coordinate(longitude, latitude));
-        StubProvider provider = new StubProvider(Optional.of(selectedFeature), List.of());
+        StubProvider provider = new StubProvider(Optional.of(selectedFeature));
 
         List<ValidationIssue> issues = new GnisPacketIdValidator(provider).validate(tim);
 
@@ -255,15 +246,10 @@ class GnisPacketIdValidatorTest {
     private static final class StubProvider implements GnisFeatureProvider {
 
         private final Optional<GnisFeature> lookup;
-        private final List<GnisFeature> spatialResults;
-        private final List<GnisBounds> requestedBounds = new ArrayList<>();
         private int requestedId = -1;
 
-        private StubProvider(
-                Optional<GnisFeature> lookup,
-                List<GnisFeature> spatialResults) {
+        private StubProvider(Optional<GnisFeature> lookup) {
             this.lookup = lookup;
-            this.spatialResults = spatialResults;
         }
 
         @Override
@@ -274,8 +260,10 @@ class GnisPacketIdValidatorTest {
 
         @Override
         public List<GnisFeature> findWithin(GnisBounds bounds) {
-            requestedBounds.add(bounds);
-            return spatialResults;
+            // Guard the intended validation flow: after findById returns the selected
+            // feature, the validator should compare its location directly with the
+            // expanded TIM bounds instead of performing a redundant spatial query.
+            throw new AssertionError("packetID validation must not perform a spatial query");
         }
     }
 }
