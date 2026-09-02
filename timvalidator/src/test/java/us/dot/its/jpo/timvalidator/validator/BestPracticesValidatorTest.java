@@ -57,6 +57,13 @@ class BestPracticesValidatorTest {
         assertTrue(issue.message().contains("indefinite end time which is not recommended"));
     }
 
+    @Test
+    void validate_normalDurationDoesNotProduceWarning() throws Exception {
+        int currentYear = Year.now(ZoneOffset.UTC).getValue();
+
+        assertTrue(validate(dataFrame(currentYear, 60)).isEmpty());
+    }
+
     private static List<ValidationIssue> validate(TravelerDataFrame... dataFrames)
             throws Exception {
         TravelerDataFrameList dataFrameList = new TravelerDataFrameList();
