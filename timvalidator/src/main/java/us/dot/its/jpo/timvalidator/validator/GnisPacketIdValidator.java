@@ -108,11 +108,10 @@ final class GnisPacketIdValidator {
     }
 
     static double expansionMeters(double diagonalMeters) {
-        return Math.min(
-                MAXIMUM_BOUNDING_BOX_EXPANSION_METERS,
-                Math.max(
-                        MINIMUM_BOUNDING_BOX_EXPANSION_METERS,
-                        diagonalMeters * BOUNDING_BOX_DIAGONAL_FACTOR));
+        return Math.clamp(
+                diagonalMeters * BOUNDING_BOX_DIAGONAL_FACTOR,
+                MINIMUM_BOUNDING_BOX_EXPANSION_METERS,
+                MAXIMUM_BOUNDING_BOX_EXPANSION_METERS);
     }
 
     private static boolean isUsableLocation(Coordinate location) {

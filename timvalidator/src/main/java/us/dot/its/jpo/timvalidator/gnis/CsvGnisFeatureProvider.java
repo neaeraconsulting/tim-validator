@@ -19,6 +19,12 @@ import java.util.Set;
 
 import org.locationtech.jts.geom.CoordinateXY;
 
+import com.fasterxml.jackson.databind.MappingIterator;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.dataformat.csv.CsvMapper;
+import com.fasterxml.jackson.dataformat.csv.CsvParser;
+import com.fasterxml.jackson.dataformat.csv.CsvSchema;
+
 /** Reads approved Civil GNIS deployment-area features from an in-memory CSV dataset. */
 public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
 
@@ -32,6 +38,12 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
             "state_name",
             "prim_lat_dec",
             "prim_long_dec");
+    private static final ObjectReader CSV_READER = CsvMapper.builder()
+            .enable(CsvParser.Feature.SKIP_EMPTY_LINES)
+            .enable(CsvParser.Feature.WRAP_AS_ARRAY)
+            .build()
+            .readerFor(String[].class)
+            .with(CsvSchema.emptySchema());
 
     private final Path csvPath;
     private volatile Dataset loadedDataset;
@@ -93,66 +105,61 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
             throws IOException, GnisLookupException {
         // Fail initialization when the column order changes; row parsing below relies
         // on these fixed positions
-        String header = reader.readLine();
-        if (header == null) {
-            throw new GnisLookupException(
-                    "Civil GNIS CSV has an unexpected header: " + description);
-        }
-        try {
-            if (!parseCsvLine(stripByteOrderMark(header)).equals(EXPECTED_COLUMNS)) {
+        try (MappingIterator<String[]> records = CSV_READER.readValues(reader)) {
+            if (!records.hasNextValue()) {
                 throw new GnisLookupException(
                         "Civil GNIS CSV has an unexpected header: " + description);
             }
-        } catch (IllegalArgumentException ex) {
-            throw new GnisLookupException(
-                    "Civil GNIS CSV has an invalid header: " + description,
-                    ex);
-        }
-
-        Map<Integer, GnisFeature> featuresById = new HashMap<>();
-        Map<Integer, String> invalidFeatures = new HashMap<>();
-        Set<Integer> seenFeatureIds = new HashSet<>();
-        // Build the ID lookup first while preserving malformed IDs so an exact lookup
-        // can report bad source data instead of treating the ID as unknown.
-        String line;
-        long lineNumber = 1;
-        while ((line = reader.readLine()) != null) {
-            lineNumber++;
-            if (line.isBlank()) {
-                continue;
+            List<String> header = new ArrayList<>(List.of(records.nextValue()));
+            if (!header.isEmpty()) {
+                header.set(0, stripByteOrderMark(header.getFirst()));
             }
-            addFeature(
-                    line,
-                    description,
-                    lineNumber,
-                    featuresById,
-                    invalidFeatures,
-                    seenFeatureIds);
-        }
+            if (!header.equals(EXPECTED_COLUMNS)) {
+                throw new GnisLookupException(
+                        "Civil GNIS CSV has an unexpected header in " + description
+                                + ": " + header);
+            }
 
-        if (featuresById.isEmpty()) {
-            throw new GnisLookupException(
-                    "Civil GNIS CSV does not contain any valid features: " + description);
-        }
+            Map<Integer, GnisFeature> featuresById = new HashMap<>();
+            Map<Integer, String> invalidFeatures = new HashMap<>();
+            Set<Integer> seenFeatureIds = new HashSet<>();
+            // Build the ID lookup while preserving malformed IDs so an exact lookup
+            // can report bad source data instead of treating the ID as unknown
+            long recordNumber = 1;
+            while (records.hasNextValue()) {
+                recordNumber++;
+                addFeature(
+                        List.of(records.nextValue()),
+                        description,
+                        recordNumber,
+                        featuresById,
+                        invalidFeatures,
+                        seenFeatureIds);
+            }
 
-        return new Dataset(
-                Map.copyOf(featuresById),
-                Map.copyOf(invalidFeatures));
+            if (featuresById.isEmpty()) {
+                throw new GnisLookupException(
+                        "Civil GNIS CSV does not contain any valid features: " + description);
+            }
+
+            return new Dataset(
+                    Map.copyOf(featuresById),
+                    Map.copyOf(invalidFeatures));
+        }
     }
 
     /** Parses and validates one data row before adding it to the ID lookup. */
     private static void addFeature(
-            String line,
+            List<String> columns,
             String description,
-            long lineNumber,
+            long recordNumber,
             Map<Integer, GnisFeature> featuresById,
             Map<Integer, String> invalidFeatures,
             Set<Integer> seenFeatureIds) {
         Integer featureId = null;
         try {
             // Parse the ID before the remaining values when possible so malformed
-            // records can still be associated with a later packetID lookup.
-            List<String> columns = parseCsvLine(line);
+            // records can still be associated with a later packetID lookup
             featureId = parseFeatureId(columns);
             if (featureId != null && !seenFeatureIds.add(featureId)) {
                 throw new IllegalArgumentException("feature_id is duplicated");
@@ -187,14 +194,14 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
                     new CoordinateXY(longitude, latitude));
             featuresById.put(featureId, feature);
         } catch (IllegalArgumentException ex) {
-            // A bad row should not prevent the remaining national dataset from loading.
+            // A bad row should not prevent the remaining national dataset from loading
             String featureDescription = featureId == null
                     ? ""
                     : " for feature_id " + featureId;
             String message = String.format(
                     Locale.ROOT,
-                    "Civil GNIS CSV row %d%s in %s contains invalid data: %s",
-                    lineNumber,
+                    "Civil GNIS CSV record %d%s in %s contains invalid data: %s",
+                    recordNumber,
                     featureDescription,
                     description,
                     ex.getMessage());
@@ -218,35 +225,6 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         }
     }
 
-    /** Parses one single-line CSV record, including quoted commas and escaped quotes. */
-    private static List<String> parseCsvLine(String line) {
-        List<String> columns = new ArrayList<>();
-        StringBuilder value = new StringBuilder();
-        boolean quoted = false;
-        for (int index = 0; index < line.length(); index++) {
-            char character = line.charAt(index);
-            if (character == '"') {
-                // Two quotes inside a quoted value represent one literal quote.
-                if (quoted && index + 1 < line.length() && line.charAt(index + 1) == '"') {
-                    value.append('"');
-                    index++;
-                } else {
-                    quoted = !quoted;
-                }
-            } else if (character == ',' && !quoted) {
-                columns.add(value.toString());
-                value.setLength(0);
-            } else {
-                value.append(character);
-            }
-        }
-        if (quoted) {
-            throw new IllegalArgumentException("unterminated quoted CSV field");
-        }
-        columns.add(value.toString());
-        return columns;
-    }
-
     private static String stripByteOrderMark(String value) {
         return value.startsWith("\uFEFF") ? value.substring(1) : value;
     }
@@ -267,7 +245,7 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
             Dataset current = dataset;
             if (current == null) {
                 // All default providers share one parsed map. The second check
-                // prevents duplicate loading when initialization races.
+                // prevents duplicate loading when initialization races
                 synchronized (PackagedDataset.class) {
                     current = dataset;
                     if (current == null) {

@@ -40,7 +40,7 @@ class CsvGnisFeatureProviderTest {
                 GnisLookupException.class,
                 () -> testProvider.findById(0x1000000));
 
-        assertEquals("Denver, County", valid.name());
+        assertEquals("Denver, \"County\"", valid.name());
         assertTrue(exception.getMessage().contains("16777216"));
     }
 
@@ -119,7 +119,7 @@ class CsvGnisFeatureProviderTest {
 
     private CsvGnisFeatureProvider providerWithInvalidFeature() throws Exception {
         return new CsvGnisFeatureProvider(writeCsv(
-                "198131,\"Denver, County\",Civil,Colorado,39.7619791,-104.8757684",
+                "198131,\"Denver, \"\"County\"\"\",Civil,Colorado,39.7619791,-104.8757684",
                 "16777216,Invalid ID,Civil,Colorado,39.7,-104.9"));
     }
 
