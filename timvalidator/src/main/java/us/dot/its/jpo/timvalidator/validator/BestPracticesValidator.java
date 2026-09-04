@@ -66,7 +66,7 @@ public class BestPracticesValidator {
     public BestPracticesValidator(Clock clock) {
         this(
                 UNCONFIGURED_PROVIDER,
-                new GeoPackageGnisFeatureProvider(),
+                new CsvGnisFeatureProvider(),
                 ValidationOptions.networkFree(),
                 clock);
     }
