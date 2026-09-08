@@ -8,6 +8,7 @@ import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.converter.JerToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.converter.UperToMessageFrameConverter;
 import us.dot.its.jpo.timvalidator.exception.ValidationException;
+import us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider;
 import us.dot.its.jpo.timvalidator.pojo.ValidationIssue;
 import us.dot.its.jpo.timvalidator.pojo.ValidationResult;
 import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
@@ -39,7 +40,7 @@ public class TimValidationService {
     private final BestPracticesValidator bestPracticesValidator;
     private final ValidationOptions defaultOptions;
 
-    /** Creates a service whose default validation is network-free. */
+    /** Creates a service with packaged Civil GNIS validation and no network lookups. */
     public TimValidationService() {
         this(new BestPracticesValidator(), ValidationOptions.defaults());
     }
@@ -66,6 +67,20 @@ public class TimValidationService {
     }
 
     /**
+     * Creates a validation service with an injected GNIS source.
+     *
+     * <p>Roadway heading validation is disabled for this service.</p>
+     *
+     * @param provider provider used to retrieve GNIS features
+     * @return a service with GNIS validation enabled
+     */
+    public static TimValidationService withGnisFeatureProvider(GnisFeatureProvider provider) {
+        return new TimValidationService(
+                new BestPracticesValidator(Objects.requireNonNull(provider, "provider")),
+                ValidationOptions.networkFree());
+    }
+
+    /**
      * Creates a validation service with an injected roadway source.
      *
      * @param roadGeometryProvider provider used to retrieve nearby road geometry
@@ -75,6 +90,22 @@ public class TimValidationService {
                 new BestPracticesValidator(Objects.requireNonNull(
                         roadGeometryProvider,
                         "roadGeometryProvider")),
+                ValidationOptions.withRoadwayHeading());
+    }
+
+    /**
+     * Creates a validation service with injected roadway and GNIS sources.
+     *
+     * @param roadGeometryProvider provider used to retrieve nearby road geometry
+     * @param gnisFeatureProvider provider used to retrieve GNIS features
+     */
+    public TimValidationService(
+            RoadGeometryProvider roadGeometryProvider,
+            GnisFeatureProvider gnisFeatureProvider) {
+        this(
+                new BestPracticesValidator(
+                        Objects.requireNonNull(roadGeometryProvider, "roadGeometryProvider"),
+                        Objects.requireNonNull(gnisFeatureProvider, "gnisFeatureProvider")),
                 ValidationOptions.withRoadwayHeading());
     }
 

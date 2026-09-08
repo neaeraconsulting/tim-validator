@@ -68,6 +68,40 @@ JER requests send the TIM MessageFrame JSON body. UPER requests send the UPER-en
 
 See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details and example response payloads.
 
+### Time Validation
+
+The validator applies two non-blocking time-related best-practice checks to each
+TIM data frame. A `startYear` later than the current UTC year produces a warning,
+and a `durationTime` of `32000`, which represents an indefinite end time, produces
+a warning recommending a definite duration instead.
+
+The current year comes from the UTC system clock by default. Applications validating
+archived TIMs can instead supply a historical `java.time.Clock` through
+`BestPracticesValidator(Clock)`.
+
+### GNIS Packet-ID Validation
+
+The first three bytes of a nine-byte TIM `packetID` are interpreted as an unsigned,
+big-endian GNIS deployment-area identifier. This is a non-blocking best-practice check;
+J2735 field validity remains the responsibility of schema validation.
+
+The validator first requires the identifier to exist in its approved Civil GNIS feature
+set and retrieves that feature's representative point. It then derives the overall WGS
+84 bounds of the TIM's path or circle region geometry and checks whether the point falls
+inside an expanded envelope. The expansion is the greater of 50 km or 20 percent of the
+TIM bounds' diagonal distance, capped at 150 km. A valid Civil feature outside that search area
+receives an unverifiable warning unless it is more than 300 km from the original TIM
+bounds, in which case it receives a geographic inconsistency warning. Region anchors are
+used only when required to decode relative J2735 path offsets; they are not used as the
+representative comparison point.
+
+The reduced Civil GNIS CSV is bundled in the `timvalidator` JAR and loaded once
+per JVM. The provider builds an in-memory map for `feature_id` lookups and reads the CSV
+directly from the classpath without a temporary file. No GNIS network request, SQLite
+dependency, or external GDAL installation is required at runtime. See
+[docs/civil_gnis_deployment_areas.md](docs/civil_gnis_deployment_areas.md) for how the
+dataset was produced.
+
 ### Road-Heading Validation
 
 Roadway-backed heading validation is optional and network-free by default. When it is
@@ -284,4 +318,3 @@ The base J2735 schema models `regions[]` as one `GeographicalPath` object with s
 | 2 | circle geometry | `description` | `geometry` |
 
 For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
-

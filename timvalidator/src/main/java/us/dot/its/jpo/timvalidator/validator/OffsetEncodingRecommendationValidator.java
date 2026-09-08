@@ -5,7 +5,6 @@ import java.util.Locale;
 import java.util.Optional;
 
 import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.CoordinateXY;
 
 import us.dot.its.jpo.asn.j2735.r2024.Common.NodeXY;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.GeographicalPath;
@@ -109,17 +108,9 @@ final class OffsetEncodingRecommendationValidator {
     private static Optional<Double> maximumAngularComponentSeparation(
             GeographicalPath region,
             List<Coordinate> localNodesCentimeters) {
-        Coordinate[] localNodesMeters = new Coordinate[localNodesCentimeters.size()];
-        for (int index = 0; index < localNodesCentimeters.size(); index++) {
-            Coordinate node = localNodesCentimeters.get(index);
-            localNodesMeters[index] = new CoordinateXY(
-                    node.getX() / CENTIMETERS_PER_METER,
-                    node.getY() / CENTIMETERS_PER_METER);
-        }
-
         Optional<List<Coordinate>> geographicNodes = OffsetPathDecoder.wgs84Coordinates(
-                region.getAnchor(),
-                localNodesMeters);
+                region,
+                localNodesCentimeters);
         if (geographicNodes.isEmpty()) {
             return Optional.empty();
         }
