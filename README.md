@@ -1,49 +1,145 @@
-# TIM Validation
+# TIM Validator
 
-This repository contains a TIM validation library and a Spring Boot API that exposes the library over HTTP. The root Maven project is an aggregator, so both modules build together in reactor order.
+## Project Description
 
-## Modules
+TIM Validator is a U.S. Department of Transportation (U.S. DOT) Intelligent
+Transportation Systems Joint Program Office (ITS JPO) project. Noblis provides
+systems engineering for the project. Neaera Consulting developed this source
+code.
 
-- `timvalidator` - Java library for validating Traveler Information Messages (TIMs).
-- `timvalidator-api` - Spring Boot REST API that depends on `timvalidator`.
+The software is a Java library and Spring Boot REST API for validating SAE J2735
+Traveler Information Messages (TIMs). TIMs carry roadway and traveler information
+similar to road signs or dynamic message signs, including work-zone, speed, and
+event notices for connected and automated vehicle applications.
 
-## What It Validates
+The purpose of this source code is to give ITS applications a reusable validator
+for TIM MessageFrame payloads in both JER JSON and UPER hex. Validation confirms
+that a message matches the generated J2735 structure, then applies a stricter
+ITWG TIM profile schema, ITIS advisory content checks, and additional TIM
+best-practice checks. Those ITWG TIM best practices were developed by Justin
+Anderson (ITS Joint Program Office, U.S. Department of Transportation). The
+library is the core product; the API is a thin HTTP wrapper over the same
+service so operators can validate messages without embedding the library.
 
-The validator supports TIM MessageFrame payloads in both JER JSON and UPER hex formats. Validation includes:
+This repository is a Maven aggregator with two modules that build together in
+reactor order:
 
-- Generated J2735 schema validation to confirm the message matches the base J2735 structure.
-- ITWG TIM profile schema validation for stricter TIM best-practice constraints.
-- ITIS content validation for advisory ITIS code patterns.
-- Additional TIM best-practice checks in the validation service.
+- `timvalidator` — Java library for validating TIM MessageFrames.
+- `timvalidator-api` — Spring Boot REST API that depends on `timvalidator`.
 
-Validation results are returned as a single response with:
+The library uses the native J2735 2024 ASN.1 codec. It is related to that codec
+and to the packaged Civil GNIS deployment-area dataset used for `packetID`
+checks. The project is under active development as `1.0.0-SNAPSHOT`.
 
-- `valid` - overall pass/fail.
-- `issues` - parseable validation issues with severity, check name, message, and JSON Pointer path when available.
-- `checks` - status for each validation stage.
-- `validationTimestamp` and `validationDurationMs`.
+## Prerequisites
 
-## Build And Test
+Requires:
 
-From the repository root:
+- Java 23 (or higher)
+- Maven 3.9 or higher (3.9.9 is used in CI and Docker)
+- Docker (optional, for the containerized API)
+
+The Maven builds copy the native J2735 codec into each module's `target/libs`
+directory:
+
+| Platform | Native library |
+|---|---|
+| Windows | `asnapplication.dll` |
+| Linux | `libasnapplication.so` |
+
+If you run the packaged API jar from another directory, copy the matching native
+file beside the jar or into a `libs` directory. The Spring Boot Maven plugin
+passes `--enable-native-access=ALL-UNNAMED`, which the native codec needs on
+modern Java.
+
+## Usage
+
+### Building
+
+From the repository root, install both modules:
+
+```bash
+mvn install
+```
+
+On Windows PowerShell the same command works:
 
 ```powershell
 mvn install
 ```
 
-To run tests for both modules:
+Build the API Docker image:
 
-```powershell
+```bash
+docker build -t timvalidator-api .
+```
+
+Or build and start the API with Compose:
+
+```bash
+docker compose up --build
+```
+
+### Testing
+
+Unit tests and JaCoCo coverage checks run as part of the Maven build. From the
+repository root:
+
+```bash
 mvn -pl timvalidator-api -am clean test
 ```
 
-The API and validator use the native J2735 codec. The Maven builds copy the native library into each module's `target/libs` directory.
+To compile, test, and enforce coverage thresholds (80% line / 60% branch on the
+library):
 
-## Run The API
+```bash
+mvn clean verify
+```
 
-```powershell
+Library tests inject in-memory fakes for roadway geometry. They never call the
+live Overpass service.
+
+### Execution
+
+#### Library
+
+```java
+import us.dot.its.jpo.timvalidator.config.ValidationOptions;
+import us.dot.its.jpo.timvalidator.service.TimValidationService;
+
+TimValidationService validator = new TimValidationService();
+
+// Network-free: J2735 schema, ITWG schema, ITIS, and local best-practice checks.
+validator.validateTimJer(jer, ValidationOptions.networkFree());
+```
+
+To enable optional OpenStreetMap roadway-heading checks, supply an Overpass
+endpoint and a User-Agent that uniquely identifies your application. The library
+has no default endpoint or User-Agent. See the
+[Overpass usage guidelines](https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage)
+before choosing an endpoint:
+
+```java
+TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
+    "https://overpass-api.de/api/interpreter",
+    "my-app/1.0 (contact@example.com)");
+
+validator.validateTimJer(jer, ValidationOptions.withRoadwayHeading());
+```
+
+#### REST API
+
+Run from source after installing the library:
+
+```bash
 cd timvalidator-api
 mvn spring-boot:run
+```
+
+Run the packaged jar (place the native library beside the jar or in `libs/`):
+
+```bash
+java --enable-native-access=ALL-UNNAMED -jar target/timvalidator-api-1.0.0-SNAPSHOT.jar
 ```
 
 Default base URL:
@@ -64,257 +160,112 @@ POST /api/v1/tim/validate/uper
 Content-Type: text/plain
 ```
 
-JER requests send the TIM MessageFrame JSON body. UPER requests send the UPER-encoded TIM MessageFrame as a hex string.
+JER requests send the TIM MessageFrame JSON body. UPER requests send the
+UPER-encoded TIM MessageFrame as a hex string. Add `?roadwayHeading=true` to
+opt into the optional roadway-heading check for that request.
 
-See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details and example response payloads.
+Example:
 
-### Time Validation
-
-The validator applies two non-blocking time-related best-practice checks to each
-TIM data frame. A `startYear` later than the current UTC year produces a warning,
-and a `durationTime` of `32000`, which represents an indefinite end time, produces
-a warning recommending a definite duration instead.
-
-The current year comes from the UTC system clock by default. Applications validating
-archived TIMs can instead supply a historical `java.time.Clock` through
-`BestPracticesValidator(Clock)`.
-
-### GNIS Packet-ID Validation
-
-The first three bytes of a nine-byte TIM `packetID` are interpreted as an unsigned,
-big-endian GNIS deployment-area identifier. This is a non-blocking best-practice check;
-J2735 field validity remains the responsibility of schema validation.
-
-The validator first requires the identifier to exist in its approved Civil GNIS feature
-set and retrieves that feature's representative point. It then derives the overall WGS
-84 bounds of the TIM's path or circle region geometry and checks whether the point falls
-inside an expanded envelope. The expansion is the greater of 50 km or 20 percent of the
-TIM bounds' diagonal distance, capped at 150 km. A valid Civil feature outside that search area
-receives an unverifiable warning unless it is more than 300 km from the original TIM
-bounds, in which case it receives a geographic inconsistency warning. Region anchors are
-used only when required to decode relative J2735 path offsets; they are not used as the
-representative comparison point.
-
-The reduced Civil GNIS CSV is bundled in the `timvalidator` JAR and loaded once
-per JVM. The provider builds an in-memory map for `feature_id` lookups and reads the CSV
-directly from the classpath without a temporary file. No GNIS network request, SQLite
-dependency, or external GDAL installation is required at runtime. See
-[docs/civil_gnis_deployment_areas.md](docs/civil_gnis_deployment_areas.md) for how the
-dataset was produced.
-
-### Road-Heading Validation
-
-Roadway-backed heading validation is optional and network-free by default. When it is
-enabled and a TIM region has a directional heading slice, the validator queries nearby
-OpenStreetMap roadways through Overpass. For a closed path, it decodes the TIM polygon
-and sends a slightly buffered version of that polygon as the Overpass search area. For a
-circle, it queries from the circle center using the encoded radius and distance unit.
-Disabled checks, missing headings, `0000` (no heading), and `ffff` (all headings) do not
-trigger a lookup.
-
-Returned roads are projected into the same local coordinate system as the TIM region.
-JTS retains only positive-length roadway portions inside the polygon or circle. Each
-heading range is checked against every retained segment bearing, treating opposite
-bearings as the same road axis. A road that only touches a region at one point does not
-qualify.
-
-Heading mismatches, missing road matches, and lookup failures are returned as
-non-blocking `WARNING` issues under the `Best Practices` check. The JSON Pointer path
-identifies the region heading that was evaluated.
-
-The library fixes a 5-second Overpass query budget and a 20-second HTTP deadline; these
-are not configurable. The Overpass endpoint and User-Agent, by contrast, have no default
-in the library at all and must be supplied explicitly by the caller — see below.
-
-The Overpass query uses an allowlist of ordinary motor-vehicle road classes from
-`motorway` through `tertiary`, along with their link classes, `unclassified`,
-`residential`, and `living_street`. Generic `service` and `road` ways are not eligible;
-neither are non-road classes such as tracks, paths, cycleways, or pedestrian ways.
-Ordinary roads explicitly tagged as inaccessible or private and all area features are
-also excluded.
-
-A way tagged `highway=construction` is eligible only when its `construction` tag names
-one of those allowed road classes. Temporary `access=no`, `vehicle=no`, or
-`motor_vehicle=no` tags are permitted for these construction ways because a closed
-work-zone road is still relevant TIM geometry; explicitly private construction ways
-and area features remain excluded.
-
-Each heading center may match any roadway segment inside the TIM region. Roads returned
-by the buffered polygon query but lying outside the original polygon are discarded
-before heading evaluation.
-
-Each contiguous active heading range, including an even-width or north-wrapping
-range, is evaluated from its circular angular midpoint. A roadway axis is tangent
-when it is within plus or minus 22.5 degrees of that midpoint.
-
-Tests inject an in-memory `RoadGeometryProvider`; they never call the live Overpass service.
-The ordinary `new TimValidationService()` constructor is fully network-free: it has no
-roadway provider configured at all, so even explicitly passing
-`ValidationOptions.withRoadwayHeading()` to it will fail with a clear error rather than
-silently reaching any network endpoint.
-
-```java
-import us.dot.its.jpo.timvalidator.config.ValidationOptions;
-
-TimValidationService validator = new TimValidationService();
-
-// Guaranteed not to call any roadway provider.
-validator.validateTimJer(jer, ValidationOptions.networkFree());
+```bash
+curl -sS -X POST http://localhost:8080/api/v1/tim/validate/jer \
+  -H "Content-Type: application/json" \
+  --data-binary @tim-messageframe.json
 ```
 
-To enable roadway-backed heading validation, choose an Overpass endpoint and a User-Agent
-that uniquely identifies your application, and use them explicitly — the library has no
-default endpoint or User-Agent of its own, since it's published for use by an unknown
-number of downstream consumers and must never silently enroll all of them into hitting
-shared Overpass infrastructure under one identity. See the Overpass usage guidelines at
-<https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage> before choosing an
-endpoint, especially for production or commercial use (self-hosted or paid instances are
-recommended there):
+See [timvalidator-api/README.md](timvalidator-api/README.md) for endpoint details,
+response payloads, and native-library packaging notes.
 
-```java
-TimValidationService validator = TimValidationService.withOverpassRoadGeometry(
-    "https://overpass-api.de/api/interpreter",
-    "my-app/1.0 (contact@example.com)");
+## Additional Notes
 
-// Enables roadway lookups for directional heading slices.
-validator.validateTimJer(jer, ValidationOptions.withRoadwayHeading());
-```
+**Further documentation:**
 
-The `timvalidator-api` module, being one specific deployment rather than a library used by
-unknown consumers, does default to the public Overpass instance and a generic User-Agent —
-both configurable via `timvalidator.roadway-heading.overpass-url` and
-`timvalidator.roadway-heading.overpass-user-agent` in `application.properties`, and both
-should be reviewed for any production deployment.
+- [Validation checks](docs/validation-checks.md) — time, GNIS `packetID`, and roadway-heading behavior, including library configuration examples.
+- [J2735 vs ITWG schema](docs/j2735-vs-itwg-schema.md) — required fields, prohibited fields, choice narrowing, and region-shape rules.
+- [Civil GNIS deployment areas](docs/civil_gnis_deployment_areas.md) — how the packaged GNIS extract was produced.
+- [API README](timvalidator-api/README.md) — REST request and response details.
 
-The API accepts the same choice through `?roadwayHeading=true|false`. Requests that omit
-the parameter are network-free by default. Operators can change the default with
-`timvalidator.roadway-heading.enabled-by-default`.
+**Roadway heading:** The library constructor is network-free. The API defaults
+to the public Overpass instance and a generic User-Agent when heading checks are
+enabled; review `timvalidator.roadway-heading.overpass-url` and
+`timvalidator.roadway-heading.overpass-user-agent` before production use.
+Requests that omit `?roadwayHeading` are network-free unless
+`timvalidator.roadway-heading.enabled-by-default` is set to `true`.
 
-Tests and specialized library integrations may still inject a `RoadGeometryProvider`
-directly without changing the fixed matching rules.
+**Associated datasets:** A reduced USGS Geographic Names Information System
+(GNIS) Civil feature extract is bundled in the `timvalidator` JAR for offline
+`packetID` deployment-area checks. Source data is the USGS Domestic Names
+national file from the
+[GNIS download page](https://www.usgs.gov/us-board-on-geographic-names/download-gnis-data).
+No GNIS network request, SQLite dependency, or GDAL installation is required at
+runtime.
 
-## Differences: J2735 Schema Vs ITWG Schema
+**Known issues:** None identified in this documentation set.
 
-The validator runs both the generated J2735 schema and the stricter ITWG profile schema. The ITWG schema is a best-practice overlay on the generated J2735 TIM MessageFrame schema.
+## Version History and Retention
 
-- Base schema: `schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json`
-- ITWG schema: `us/dot/its/jpo/timvalidator/TravelerInformationMessageFrameITWG.schema.json`
+**Status:** This project is in the prototype / pre-release phase (`1.0.0-SNAPSHOT`).
 
-### Required Fields
+**Release Frequency:** The repository is updated as features and fixes are merged.
+CI runs on every branch. Snapshot publishing and Docker image builds occur from
+designated branches (`main`, `develop`, and related snapshot branches).
 
-`TravelerInformation` requires more fields under ITWG:
+**Release History:** See [CHANGELOG.md](CHANGELOG.md).
 
-- J2735: `msgCnt`, `dataFrames`
-- ITWG: `msgCnt`, `dataFrames`, `timeStamp`, `packetID`
+**Retention:** This project will remain publicly accessible for a minimum of five
+years (until at least 09/08/2031).
 
-Each `dataFrames[]` item requires one additional field under ITWG:
+## License
 
-- J2735: `doNotUse1`, `frameType`, `msgId`, `startTime`, `durationTime`, `priority`, `doNotUse2`, `regions`, `doNotUse3`, `doNotUse4`, `content`
-- ITWG: same as J2735, plus `startYear`
+This project is licensed under the Apache License, Version 2.0 — see
+[LICENSE.md](LICENSE.md) for the licensing status and full license text.
 
-`contentNew` is optional in both schemas. If `contentNew` is present, it is still validated.
+## Contributions
 
-### Closed Objects
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our Code of
+Conduct, the process for submitting pull requests, and how contributions will
+be released.
 
-The generated J2735 schema generally allows unspecified additional properties. The ITWG schema closes many objects with `additionalProperties: false`, including:
+## Contact Information
 
-- the root MessageFrame object
-- `TravelerInformation`
-- each `dataFrames[]` item
-- `msgId`
-- `content`
-- each `regions[]` item and each region shape branch
-- nested region objects such as `anchor`, `description`, `geometry`, `circle.center`, and computed lane objects
-- nested `contentNew.frictionInfo` objects
+Contact Name: Spain Niemer, Systems Engineer, Noblis
 
-This means serializers must omit unsupported fields. Empty arrays still count as present fields, so this fails ITWG validation:
+Contact Name: Kellen Shain, Systems Engineer, Noblis
 
-```json
-"content": {
-  "advisory": [],
-  "speedLimit": [],
-  "workZone": []
-}
-```
+Organization: ITS Joint Program Office, U.S. Department of Transportation
 
-For ITWG, send only the allowed field:
+Contact Information: email and phone to be provided by Noblis before public release
 
-```json
-"content": {
-  "advisory": []
-}
-```
+## Acknowledgements
 
-### Removed Or Prohibited Fields
+### Citing this code
 
-These are valid in the base J2735 structure but are removed or prohibited by the current ITWG schema:
+To track how this government-funded code is used, we request that if you decide
+to build additional software using this code please acknowledge its Digital
+Object Identifier in your software's README/documentation.
 
-| Path | ITWG behavior |
-|---|---|
-| `TravelerInformation.urlB` | prohibited |
-| `TravelerInformation.regional` | prohibited |
-| `dataFrames[].url` | prohibited |
-| `dataFrames[].msgId.roadSignID` | prohibited |
-| `dataFrames[].content.workZone` | prohibited |
-| `dataFrames[].content.genericSign` | prohibited |
-| `dataFrames[].content.speedLimit` | prohibited |
-| `dataFrames[].content.exitService` | prohibited |
-| `regions[].name` | prohibited |
-| `regions[].id` | prohibited |
-| `regions[].regional` | prohibited |
-| `regions[].description.oldRegion` | prohibited |
-| `geometry.extent` | prohibited |
-| `geometry.laneWidth` | prohibited |
-| `geometry.regional` | prohibited |
-| `Position3D.regional` on `anchor` or `circle.center` | prohibited |
-| `NodeAttributeSetXY/LL.regional` | prohibited |
-| `LaneDataAttribute.regional` | prohibited |
-| `NodeOffset.regional` | prohibited |
-| `ComputedLane.regional` | prohibited |
-| `ComputedLane.scaleXaxis` / `ComputedLane.scaleYaxis` | prohibited |
+> Digital Object Identifier: not yet assigned
 
-### Choice Narrowing
+To cite this code in a publication or report, please cite our associated
+report/paper and/or our source code. Below is a sample citation for this code:
 
-| Area | J2735 | ITWG |
-|---|---|---|
-| `frameType` | `unknown`, `advisory`, `roadSignage`, `commercialSignage` | `roadSignage`, `commercialSignage` |
-| `msgId` | `furtherInfoID` or `roadSignID` | closed object with only `furtherInfoID` |
-| `content` | `advisory`, `workZone`, `genericSign`, `speedLimit`, `exitService` | closed object with only `advisory` |
-| `regions[].description` | `path`, `geometry`, `oldRegion` | `path` or `geometry` |
+> U.S. Department of Transportation, Intelligent Transportation Systems Joint Program Office. (2026). _TIM Validator_ (1.0.0-SNAPSHOT) [Source code]. Provided by ITS CodeHub through GitHub.com. Accessed YYYY-MM-DD from DOI to be assigned.
 
-ITWG also requires `msgId.furtherInfoID` to equal `"0000"`.
+When you copy or adapt from this code, please include the original URL you
+copied the source code from and date of retrieval as a comment in your code.
+Additional information on how to cite can be found in the
+[ITS CodeHub FAQ](https://its.dot.gov/code/#/faqs).
 
-### Range And Const Tightening
+### Contributors
 
-| Field | J2735 | ITWG |
-|---|---|---|
-| `dataFrames[].doNotUse1` | `0..31` | must be `0` |
-| `dataFrames[].doNotUse2` | `0..31` | must be `0` |
-| `dataFrames[].doNotUse3` | `0..31` | must be `0` |
-| `dataFrames[].doNotUse4` | `0..31` | must be `0` |
-| `dataFrames[].durationTime` | `0..32000` | `1..32000` |
-| `dataFrames[].startTime` | `0..527040` | `1..527039` |
-| `dataFrames[].startYear` | `0..4095` | `2000..4095` |
-| `regions[].anchor.lat.maximum` | `900000001` | `900000000` |
-| `regions[].anchor.long.maximum` | `1800000001` | `1800000000` |
-| `regions[].anchor.required` | `lat`, `long` | `lat`, `long`, `elevation` |
-| `regions[].laneWidth.minimum` | `0` | `1` |
-| `geometry.circle.center.lat.maximum` | `900000001` | `900000000` |
-| `geometry.circle.center.long.maximum` | `1800000001` | `1800000000` |
-| `geometry.circle.center.required` | `lat`, `long` | `lat`, `long`, `elevation` |
-| `geometry.circle.radius` | `0..4095` | `1..4094` |
-| `ComputedLane.referenceLaneId.maximum` | `255` | `254` |
+- Spain Niemer, Systems Engineer, Noblis
+- Kellen Shain, Systems Engineer, Noblis
+- Justin Anderson, ITS Joint Program Office, U.S. Department of Transportation — ITWG TIM best practices document
+- Software development team, Neaera Consulting: Michael English, Drew Johnston, John Wiens, Ivan Yourshaw, Rishabh Kapoor, and Darren Weibler
 
-The ITWG schema also adds `ComputedLane` axis-size pairing rules so small offset axes pair with small axes and large offset axes pair with large axes.
+This project is sponsored by the ITS Joint Program Office, U.S. Department of
+Transportation. Noblis provides systems engineering. Software implementation
+was performed by Neaera Consulting.
 
-### Region Shapes
-
-The base J2735 schema models `regions[]` as one `GeographicalPath` object with several optional fields. ITWG adds three mutually exclusive region shapes:
-
-| Branch | Shape | Required fields | Description allowed |
-|---|---|---|---|
-| 0 | open path, `closedPath: false` | `anchor`, `laneWidth`, `directionality`, `closedPath`, `description` | `path` |
-| 1 | polygon, `closedPath: true` | `anchor`, `closedPath`, `description` | `path` |
-| 2 | circle geometry | `description` | `geometry` |
-
-For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
+This software uses the USGS Geographic Names Information System (GNIS) Domestic
+Names dataset for Civil deployment-area identifiers and, when roadway-heading
+validation is enabled, OpenStreetMap data retrieved through the Overpass API.

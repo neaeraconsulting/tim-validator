@@ -2,6 +2,12 @@
 
 Spring Boot wrapper for the `timvalidator` library.
 
+Repository-level setup, license, contribution, and retention information is in
+the [root README](../README.md). Detailed validation-check behavior is in
+[docs/validation-checks.md](../docs/validation-checks.md). Schema differences
+between J2735 and the ITWG profile are in
+[docs/j2735-vs-itwg-schema.md](../docs/j2735-vs-itwg-schema.md).
+
 ## Run Locally
 
 Install the validator jar first:

@@ -1,0 +1,125 @@
+# Differences: J2735 Schema vs ITWG Schema
+
+The validator runs both the generated J2735 schema and the stricter ITWG profile schema. The ITWG schema is a best-practice overlay on the generated J2735 TIM MessageFrame schema.
+
+- Base schema: `schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json`
+- ITWG schema: `us/dot/its/jpo/timvalidator/TravelerInformationMessageFrameITWG.schema.json`
+
+## Required Fields
+
+`TravelerInformation` requires more fields under ITWG:
+
+- J2735: `msgCnt`, `dataFrames`
+- ITWG: `msgCnt`, `dataFrames`, `timeStamp`, `packetID`
+
+Each `dataFrames[]` item requires one additional field under ITWG:
+
+- J2735: `doNotUse1`, `frameType`, `msgId`, `startTime`, `durationTime`, `priority`, `doNotUse2`, `regions`, `doNotUse3`, `doNotUse4`, `content`
+- ITWG: same as J2735, plus `startYear`
+
+`contentNew` is optional in both schemas. If `contentNew` is present, it is still validated.
+
+## Closed Objects
+
+The generated J2735 schema generally allows unspecified additional properties. The ITWG schema closes many objects with `additionalProperties: false`, including:
+
+- the root MessageFrame object
+- `TravelerInformation`
+- each `dataFrames[]` item
+- `msgId`
+- `content`
+- each `regions[]` item and each region shape branch
+- nested region objects such as `anchor`, `description`, `geometry`, `circle.center`, and computed lane objects
+- nested `contentNew.frictionInfo` objects
+
+This means serializers must omit unsupported fields. Empty arrays still count as present fields, so this fails ITWG validation:
+
+```json
+"content": {
+  "advisory": [],
+  "speedLimit": [],
+  "workZone": []
+}
+```
+
+For ITWG, send only the allowed field:
+
+```json
+"content": {
+  "advisory": []
+}
+```
+
+## Removed Or Prohibited Fields
+
+These are valid in the base J2735 structure but are removed or prohibited by the current ITWG schema:
+
+| Path | ITWG behavior |
+|---|---|
+| `TravelerInformation.urlB` | prohibited |
+| `TravelerInformation.regional` | prohibited |
+| `dataFrames[].url` | prohibited |
+| `dataFrames[].msgId.roadSignID` | prohibited |
+| `dataFrames[].content.workZone` | prohibited |
+| `dataFrames[].content.genericSign` | prohibited |
+| `dataFrames[].content.speedLimit` | prohibited |
+| `dataFrames[].content.exitService` | prohibited |
+| `regions[].name` | prohibited |
+| `regions[].id` | prohibited |
+| `regions[].regional` | prohibited |
+| `regions[].description.oldRegion` | prohibited |
+| `geometry.extent` | prohibited |
+| `geometry.laneWidth` | prohibited |
+| `geometry.regional` | prohibited |
+| `Position3D.regional` on `anchor` or `circle.center` | prohibited |
+| `NodeAttributeSetXY/LL.regional` | prohibited |
+| `LaneDataAttribute.regional` | prohibited |
+| `NodeOffset.regional` | prohibited |
+| `ComputedLane.regional` | prohibited |
+| `ComputedLane.scaleXaxis` / `ComputedLane.scaleYaxis` | prohibited |
+
+## Choice Narrowing
+
+| Area | J2735 | ITWG |
+|---|---|---|
+| `frameType` | `unknown`, `advisory`, `roadSignage`, `commercialSignage` | `roadSignage`, `commercialSignage` |
+| `msgId` | `furtherInfoID` or `roadSignID` | closed object with only `furtherInfoID` |
+| `content` | `advisory`, `workZone`, `genericSign`, `speedLimit`, `exitService` | closed object with only `advisory` |
+| `regions[].description` | `path`, `geometry`, `oldRegion` | `path` or `geometry` |
+
+ITWG also requires `msgId.furtherInfoID` to equal `"0000"`.
+
+## Range And Const Tightening
+
+| Field | J2735 | ITWG |
+|---|---|---|
+| `dataFrames[].doNotUse1` | `0..31` | must be `0` |
+| `dataFrames[].doNotUse2` | `0..31` | must be `0` |
+| `dataFrames[].doNotUse3` | `0..31` | must be `0` |
+| `dataFrames[].doNotUse4` | `0..31` | must be `0` |
+| `dataFrames[].durationTime` | `0..32000` | `1..32000` |
+| `dataFrames[].startTime` | `0..527040` | `1..527039` |
+| `dataFrames[].startYear` | `0..4095` | `2000..4095` |
+| `regions[].anchor.lat.maximum` | `900000001` | `900000000` |
+| `regions[].anchor.long.maximum` | `1800000001` | `1800000000` |
+| `regions[].anchor.required` | `lat`, `long` | `lat`, `long`, `elevation` |
+| `regions[].laneWidth.minimum` | `0` | `1` |
+| `geometry.circle.center.lat.maximum` | `900000001` | `900000000` |
+| `geometry.circle.center.long.maximum` | `1800000001` | `1800000000` |
+| `geometry.circle.center.required` | `lat`, `long` | `lat`, `long`, `elevation` |
+| `geometry.circle.radius` | `0..4095` | `1..4094` |
+| `ComputedLane.referenceLaneId.maximum` | `255` | `254` |
+
+The ITWG schema also adds `ComputedLane` axis-size pairing rules so small offset axes pair with small axes and large offset axes pair with large axes.
+
+## Region Shapes
+
+The base J2735 schema models `regions[]` as one `GeographicalPath` object with several optional fields. ITWG adds three mutually exclusive region shapes:
+
+| Branch | Shape | Required fields | Description allowed |
+|---|---|---|---|
+| 0 | open path, `closedPath: false` | `anchor`, `laneWidth`, `directionality`, `closedPath`, `description` | `path` |
+| 1 | polygon, `closedPath: true` | `anchor`, `closedPath`, `description` | `path` |
+| 2 | circle geometry | `description` | `geometry` |
+
+For polygon regions, `direction` is allowed but optional. Use `direction` only when the polygon has a heading restriction. For circle geometry, heading belongs under `description.geometry.direction`; `regions.direction`, `regions.directionality`, and `regions.laneWidth` are not allowed on the circle branch.
