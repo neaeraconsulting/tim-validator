@@ -8,12 +8,10 @@ on:
       - synchronize
   push:
     branches:
-      - main
-      - develop
-      - snapshot
-      - github-workflows
+      - "*"
 jobs:
   unit-test:
+    name: Unit Tests
     runs-on: ubuntu-24.04
     permissions:
       contents: read

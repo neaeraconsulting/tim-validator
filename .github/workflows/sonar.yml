@@ -1,4 +1,4 @@
-# TODO enable Sonar checks when the repository is made public
+# TODO add Sonar checks when the repository is made public
 name: Sonar
 on:
   - push

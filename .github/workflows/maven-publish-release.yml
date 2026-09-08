@@ -1,11 +1,12 @@
 name: Maven Central Publish Release
 on:
-  - push
-  - pull_request
+  release:
+    types:
+      - published
 
 jobs:
-  sonar:
-    if: false # Disabled
+  publish-release:
+    if: ${{ !github.event.release.prerelease }} # Don't run this on prerelease
     runs-on: ubuntu-24.04
     permissions:
       contents: read

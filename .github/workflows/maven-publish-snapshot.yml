@@ -1,14 +1,31 @@
 name: Maven Central Publish Snapshot
 on:
-  - push
-  - pull_request
+  release:
+    types:
+      - prereleased
 
 jobs:
-  sonar:
-    if: false # Disabled
+  publish-snapshot:
+    name: Publish Snapshot of Develop Branch
     runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ./timvalidator
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '23'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Get Version Number from Maven POM
+        id: get_version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "got version from POM $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      
