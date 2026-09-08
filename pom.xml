@@ -6,11 +6,11 @@
 
     <groupId>com.neaeraconsulting</groupId>
     <artifactId>noblis</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
-    <name>noblis</name>
-    <description>Aggregator build for the TIM validator library and API</description>
+    <name>TIM Validator Tool</name>
+    <description>Aggregator build for the TIM Validator Tool library and API</description>
 
     <modules>
         <module>timvalidator</module>

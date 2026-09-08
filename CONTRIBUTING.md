@@ -1,9 +1,11 @@
 # Contributing
 
-Thank you for considering a contribution to the TIM Validator, an ITS Joint
+Thank you for considering a contribution to TIM Validator Tool, an ITS Joint
 Program Office (ITS JPO), U.S. Department of Transportation project. Noblis
-provides systems engineering for the project. If you are unsure about anything,
-open an issue or pull request and the maintainers will help.
+provides systems engineering for the project. Community pull requests are
+welcome. If you are unsure about anything, open an issue or pull request at
+[https://github.com/neaeraconsulting/tim-validator](https://github.com/neaeraconsulting/tim-validator)
+and the maintainers will help.
 
 ## Licensing status
 
@@ -35,10 +37,10 @@ Unacceptable behavior may be reported to the project contact listed in the
 
 ## Contributing process
 
-Most pull requests should target the default development branch. Merged changes
-are included in the next snapshot or release. If a bug fix needs to land on a
-release branch, merge it to the development branch first, then open a
-follow-up pull request that cherry-picks the commits onto the release branch.
+Most pull requests should target the default branch. Merged changes are included
+in the next release as needed. If a bug fix needs to land on a release branch,
+merge it to the default branch first, then open a follow-up pull request that
+cherry-picks the commits onto the release branch.
 
 A maintainer will be assigned to review each pull request. Small cleanups may
 be merged after an initial review. Larger changes may require discussion or
@@ -47,8 +49,8 @@ after a few days, comment on the thread. Contributors are likewise expected to
 respond to review comments in a reasonable time. Pull requests with no response
 for two weeks or longer may be closed and can be reopened when work resumes.
 
-Once a pull request is merged, maintainers will include it in the next snapshot
-or release as appropriate.
+Once a pull request is merged, maintainers will include it in the next release
+as appropriate.
 
 ## Issue guidelines
 

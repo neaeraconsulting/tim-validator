@@ -1,11 +1,10 @@
-# TIM Validator
+# TIM Validator Tool
 
 ## Project Description
 
-TIM Validator is a U.S. Department of Transportation (U.S. DOT) Intelligent
+TIM Validator Tool is a U.S. Department of Transportation (U.S. DOT) Intelligent
 Transportation Systems Joint Program Office (ITS JPO) project. Noblis provides
-systems engineering for the project. Neaera Consulting developed this source
-code.
+systems engineering. Neaera Consulting developed this source code.
 
 The software is a Java library and Spring Boot REST API for validating SAE J2735
 Traveler Information Messages (TIMs). TIMs carry roadway and traveler information
@@ -15,11 +14,13 @@ event notices for connected and automated vehicle applications.
 The purpose of this source code is to give ITS applications a reusable validator
 for TIM MessageFrame payloads in both JER JSON and UPER hex. Validation confirms
 that a message matches the generated J2735 structure, then applies a stricter
-ITWG TIM profile schema, ITIS advisory content checks, and additional TIM
-best-practice checks. Those ITWG TIM best practices were developed by Justin
-Anderson (ITS Joint Program Office, U.S. Department of Transportation). The
-library is the core product; the API is a thin HTTP wrapper over the same
-service so operators can validate messages without embedding the library.
+Interoperability Technical Working Group (ITWG) TIM profile schema, ITIS advisory
+content checks, and additional TIM best-practice checks. Those practices are
+documented in
+[Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf),
+developed by Justin Anderson. The library is the core product; the API is a thin
+HTTP wrapper over the same service so operators can validate messages without
+embedding the library.
 
 This repository is a Maven aggregator with two modules that build together in
 reactor order:
@@ -29,7 +30,8 @@ reactor order:
 
 The library uses the native J2735 2024 ASN.1 codec. It is related to that codec
 and to the packaged Civil GNIS deployment-area dataset used for `packetID`
-checks. The project is under active development as `1.0.0-SNAPSHOT`.
+checks. The public source repository is
+[https://github.com/neaeraconsulting/tim-validator](https://github.com/neaeraconsulting/tim-validator).
 
 ## Prerequisites
 
@@ -103,6 +105,16 @@ live Overpass service.
 
 #### Library
 
+Consume the published artifact:
+
+```xml
+<dependency>
+  <groupId>com.neaeraconsulting</groupId>
+  <artifactId>timvalidator</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+
 ```java
 import us.dot.its.jpo.timvalidator.config.ValidationOptions;
 import us.dot.its.jpo.timvalidator.service.TimValidationService;
@@ -139,7 +151,7 @@ mvn spring-boot:run
 Run the packaged jar (place the native library beside the jar or in `libs/`):
 
 ```bash
-java --enable-native-access=ALL-UNNAMED -jar target/timvalidator-api-1.0.0-SNAPSHOT.jar
+java --enable-native-access=ALL-UNNAMED -jar target/timvalidator-api-1.0.0.jar
 ```
 
 Default base URL:
@@ -179,10 +191,12 @@ response payloads, and native-library packaging notes.
 
 **Further documentation:**
 
+- [ITWG requirement coverage](docs/itwg-requirement-coverage.md) — implemented, partial, missing, and deprecated checks.
 - [Validation checks](docs/validation-checks.md) — time, GNIS `packetID`, and roadway-heading behavior, including library configuration examples.
 - [J2735 vs ITWG schema](docs/j2735-vs-itwg-schema.md) — required fields, prohibited fields, choice narrowing, and region-shape rules.
 - [Civil GNIS deployment areas](docs/civil_gnis_deployment_areas.md) — how the packaged GNIS extract was produced.
 - [API README](timvalidator-api/README.md) — REST request and response details.
+- [Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf) — ITWG TIM best practices (draft).
 
 **Roadway heading:** The library constructor is network-free. The API defaults
 to the public Overpass instance and a generic User-Agent when heading checks are
@@ -196,18 +210,29 @@ Requests that omit `?roadwayHeading` are network-free unless
 `packetID` deployment-area checks. Source data is the USGS Domestic Names
 national file from the
 [GNIS download page](https://www.usgs.gov/us-board-on-geographic-names/download-gnis-data).
-No GNIS network request, SQLite dependency, or GDAL installation is required at
-runtime.
+GNIS Domestic Names data is a U.S. Government work. No GNIS network request,
+SQLite dependency, or GDAL installation is required at runtime.
 
-**Known issues:** None identified in this documentation set.
+When optional roadway-heading validation is enabled, the tool queries
+OpenStreetMap through the Overpass API. OpenStreetMap data is © OpenStreetMap
+contributors and is available under the
+[Open Data Commons Open Database License (ODbL)](https://opendatacommons.org/licenses/odbl/).
+Public Overpass instances are shared, rate-limited infrastructure; follow the
+[Overpass usage guidelines](https://wiki.openstreetmap.org/wiki/Overpass_API#Rules_of_usage)
+and identify your application with a unique User-Agent.
+
+**Known limitations:** Some ITWG deployment-policy checks are intentionally out
+of scope for this library. See
+[ITWG requirement coverage](docs/itwg-requirement-coverage.md) for the full
+status list. Currently **Missing** items include multi-frame dependency,
+UTC-only time semantics, vendor/deployment priority policy, `msgCnt` increment
+across content changes, and agency-versus-commercial `frameType` policy.
 
 ## Version History and Retention
 
-**Status:** This project is in the prototype / pre-release phase (`1.0.0-SNAPSHOT`).
+**Status:** This project is in the release phase (`1.0.0`).
 
-**Release Frequency:** The repository is updated as features and fixes are merged.
-CI runs on every branch. Snapshot publishing and Docker image builds occur from
-designated branches (`main`, `develop`, and related snapshot branches).
+**Release Frequency:** This project is updated as needed.
 
 **Release History:** See [CHANGELOG.md](CHANGELOG.md).
 
@@ -221,34 +246,34 @@ This project is licensed under the Apache License, Version 2.0 — see
 
 ## Contributions
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our Code of
-Conduct, the process for submitting pull requests, and how contributions will
-be released.
+Community pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+for details on our Code of Conduct, the process for submitting pull requests,
+and how contributions will be released.
 
 ## Contact Information
 
 Contact Name: Spain Niemer, Systems Engineer, Noblis
 
+Contact Information: Spain.Niemer@noblis.org
+
 Contact Name: Kellen Shain, Systems Engineer, Noblis
 
-Organization: ITS Joint Program Office, U.S. Department of Transportation
-
-Contact Information: email and phone to be provided by Noblis before public release
+Contact Information: Kellen.Shain@noblis.org
 
 ## Acknowledgements
 
 ### Citing this code
 
-To track how this government-funded code is used, we request that if you decide
-to build additional software using this code please acknowledge its Digital
-Object Identifier in your software's README/documentation.
+If you build additional software using this code, please acknowledge the source
+repository in your software's README or documentation.
 
-> Digital Object Identifier: not yet assigned
+Published Maven artifact:
 
-To cite this code in a publication or report, please cite our associated
-report/paper and/or our source code. Below is a sample citation for this code:
+> `com.neaeraconsulting:timvalidator:1.0.0`
 
-> U.S. Department of Transportation, Intelligent Transportation Systems Joint Program Office. (2026). _TIM Validator_ (1.0.0-SNAPSHOT) [Source code]. Provided by ITS CodeHub through GitHub.com. Accessed YYYY-MM-DD from DOI to be assigned.
+To cite this code in a publication or report:
+
+> Noblis. (2026). _TIM Validator Tool_ (1.0.0) [Source code]. Provided by ITS CodeHub through GitHub.com. Accessed YYYY-MM-DD from https://github.com/neaeraconsulting/tim-validator.
 
 When you copy or adapt from this code, please include the original URL you
 copied the source code from and date of retrieval as a comment in your code.
@@ -259,13 +284,12 @@ Additional information on how to cite can be found in the
 
 - Spain Niemer, Systems Engineer, Noblis
 - Kellen Shain, Systems Engineer, Noblis
-- Justin Anderson, ITS Joint Program Office, U.S. Department of Transportation — ITWG TIM best practices document
 - Software development team, Neaera Consulting: Michael English, Drew Johnston, John Wiens, Ivan Yourshaw, Rishabh Kapoor, and Darren Weibler
+
+The Interoperability Technical Working Group (ITWG) TIM best practices document
+was developed by Justin Anderson. This release references the draft
+[Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf).
 
 This project is sponsored by the ITS Joint Program Office, U.S. Department of
 Transportation. Noblis provides systems engineering. Software implementation
 was performed by Neaera Consulting.
-
-This software uses the USGS Geographic Names Information System (GNIS) Domestic
-Names dataset for Civil deployment-area identifiers and, when roadway-heading
-validation is enabled, OpenStreetMap data retrieved through the Overpass API.

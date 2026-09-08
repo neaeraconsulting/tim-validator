@@ -1,8 +1,8 @@
 # TIM Validation Checks
 
 This document describes the library and API validation pipeline beyond the generated
-J2735 and ITWG JSON Schema stages. It preserves the operational detail previously
-documented in the repository README.
+J2735 and Interoperability Technical Working Group (ITWG) JSON Schema stages. It
+preserves the operational detail previously documented in the repository README.
 
 Validation results are returned as a single response with:
 

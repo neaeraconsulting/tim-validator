@@ -1,9 +1,11 @@
-# TIM Validator API
+# TIM Validator Tool API
 
 Spring Boot wrapper for the `timvalidator` library.
 
 Repository-level setup, license, contribution, and retention information is in
-the [root README](../README.md). Detailed validation-check behavior is in
+the [root README](../README.md). Requirement coverage is in
+[docs/itwg-requirement-coverage.md](../docs/itwg-requirement-coverage.md).
+Detailed validation-check behavior is in
 [docs/validation-checks.md](../docs/validation-checks.md). Schema differences
 between J2735 and the ITWG profile are in
 [docs/j2735-vs-itwg-schema.md](../docs/j2735-vs-itwg-schema.md).
@@ -36,7 +38,7 @@ libasnapplication.so    Linux
 Packaged jar example:
 
 ```powershell
-java --enable-native-access=ALL-UNNAMED -jar target\timvalidator-api-1.0.0-SNAPSHOT.jar
+java --enable-native-access=ALL-UNNAMED -jar target\timvalidator-api-1.0.0.jar
 ```
 
 Default base URL:

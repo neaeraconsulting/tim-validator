@@ -6,11 +6,11 @@
 
     <groupId>com.neaeraconsulting</groupId>
     <artifactId>timvalidator</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <name>timvalidator</name>
-    <description>TIM Validator Library</description>
-    <url>https://neaera.visualstudio.com/_git/Noblis</url>
+    <description>TIM Validator Tool library</description>
+    <url>https://github.com/neaeraconsulting/tim-validator</url>
 
     <licenses>
         <license>
@@ -66,9 +66,9 @@
     </contributors>
 
     <scm>
-        <connection>scm:git:https://neaera.visualstudio.com/Noblis/_git/Noblis</connection>
-        <developerConnection>scm:git:neaera@vs-ssh.visualstudio.com:v3/neaera/Noblis/Noblis</developerConnection>
-        <url>https://neaera.visualstudio.com/Noblis/_git/Noblis</url>
+        <connection>scm:git:https://github.com/neaeraconsulting/tim-validator.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/neaeraconsulting/tim-validator.git</developerConnection>
+        <url>https://github.com/neaeraconsulting/tim-validator</url>
     </scm>
 
     <properties>
