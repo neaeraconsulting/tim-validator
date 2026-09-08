@@ -1,4 +1,5 @@
-name: sonar.yml
-on:
-
-jobs:
+# TODO enable Sonar checks when the repository is made public
+#name: sonar.yml
+#on:
+#
+#jobs:

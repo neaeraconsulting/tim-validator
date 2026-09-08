@@ -1,4 +1,4 @@
-name: maven-publish-snapshot.yml
-on:
-
-jobs:
+#name: maven-publish-snapshot.yml
+#on:
+#
+#jobs:
