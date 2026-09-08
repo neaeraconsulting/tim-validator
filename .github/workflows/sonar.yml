@@ -1,5 +1,15 @@
 # TODO enable Sonar checks when the repository is made public
-#name: sonar.yml
-#on:
-#
-#jobs:
+name: Sonar
+on:
+  - push
+  - pull_request
+
+jobs:
+  sonar:
+    if: false # Disabled
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
