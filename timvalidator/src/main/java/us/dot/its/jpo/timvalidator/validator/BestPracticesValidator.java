@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 import us.dot.its.jpo.asn.j2735.r2024.MessageFrame.MessageFrame;
 import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerDataFrame;
@@ -29,6 +30,7 @@ public class BestPracticesValidator {
 
     private static final String CHECK_NAME = "Best Practices";
     private static final long INDEFINITE_DURATION_MINUTES = 32_000L;
+    private static final Set<Long> WORKER_RELATED_ITIS_CODES = Set.of(6_952L);
 
     private static final RoadGeometryProvider UNCONFIGURED_PROVIDER = (location, radiusMeters) -> {
         throw new ValidationException(
@@ -219,7 +221,10 @@ public class BestPracticesValidator {
         return List.copyOf(issues);
     }
 
-    /** Warns when durationTime uses the value representing an indefinite end time. */
+    /**
+     * Reports indefinite durationTime values, escalating worker-related advisories to
+     * errors because they must use a limited time window.
+     */
     private static List<ValidationIssue> validateDefiniteEndTimes(TravelerInformation tim) {
         TravelerDataFrameList dataFrames = tim.getDataFrames();
         if (dataFrames == null) {
@@ -234,14 +239,39 @@ public class BestPracticesValidator {
                 continue;
             }
 
-            issues.add(warning(
-                    String.format(
-                            Locale.ROOT,
-                            "Data frame %d durationTime 32000 represents an indefinite end time which is not recommended",
-                            index),
-                    dataFramePath(index) + "/durationTime"));
+            String path = dataFramePath(index) + "/durationTime";
+            if (containsWorkerRelatedItisCode(dataFrame)) {
+                issues.add(error(
+                        String.format(
+                                Locale.ROOT,
+                                "Worker-related data frame %d durationTime 32000 represents an indefinite end time; worker TIMs must use a limited time window",
+                                index),
+                        path));
+            } else {
+                issues.add(warning(
+                        String.format(
+                                Locale.ROOT,
+                                "Data frame %d durationTime 32000 represents an indefinite end time which is not recommended",
+                                index),
+                        path));
+            }
         }
         return List.copyOf(issues);
+    }
+
+    private static boolean containsWorkerRelatedItisCode(TravelerDataFrame dataFrame) {
+        if (dataFrame.getContent() == null || dataFrame.getContent().getAdvisory() == null) {
+            return false;
+        }
+
+        for (var sequence : dataFrame.getContent().getAdvisory()) {
+            if (sequence != null && sequence.getItem() != null
+                    && sequence.getItem().getItis() != null
+                    && WORKER_RELATED_ITIS_CODES.contains(sequence.getItem().getItis().getValue())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Builds the indexed path prefix needed for warnings produced inside data-frame loops. */
@@ -273,6 +303,10 @@ public class BestPracticesValidator {
 
     private static ValidationIssue error(String message) {
         return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, null);
+    }
+
+    private static ValidationIssue error(String message, String path) {
+        return new ValidationIssue(ValidationSeverity.ERROR, CHECK_NAME, message, path);
     }
 
     private static ValidationIssue warning(String message, String path) {
