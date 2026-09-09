@@ -19,12 +19,13 @@ public final class GeoUtils {
 
   /**
    * Checks if the given coordinate is valid according to WGS-84 standards. A coordinate is considered valid if it resides between -90 and 90 degrees latitude and -180 and 180 degrees longitude.
-   * Coordinates are aligned such that the X coordinate of the `Coordinate` object represents longitude and the Y coordinate represents latitude.
+   * Coordinates are aligned such that the X coordinate of the {@code Coordinate} object represents longitude and the Y coordinate represents latitude.
    * @param coordinate the coordinate to check
    * @return true if the coordinate is valid according to WGS-84 standards, false otherwise
    */
   public static boolean coordinateIsValid(Coordinate coordinate) {
-    return (coordinate.isValid()
+    return (coordinate != null
+        && coordinate.isValid()
         && coordinate.getY() >= -90.0
         && coordinate.getY() <= 90.0
         && coordinate.getX() >= -180.0
