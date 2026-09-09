@@ -74,20 +74,38 @@ public class ValidationResult {
         issues.forEach(this::addIssue);
     }
 
+    /**
+     * Adds an error issue to the overall result.
+     * @param checkName name of the validation check that produced the error
+     * @param message detailed error message
+     * @param path the path within the data structure where the error occurred
+     */
     public void addError(String checkName, String message, String path) {
         addIssue(new ValidationIssue(ValidationSeverity.ERROR, checkName, message, path));
     }
 
+    /**
+     * Adds a warning issue to the overall result.
+     * @param checkName name of the validation check that produced the warning
+     * @param message detailed warning message
+     * @param path the path within the data structure where the warning occurred
+     */
     public void addWarning(String checkName, String message, String path) {
         addIssue(new ValidationIssue(ValidationSeverity.WARNING, checkName, message, path));
     }
 
+    /**
+     * Checks if the overall validation result is valid (i.e., contains no errors).
+     *
+     * @return true if there are no error issues, false otherwise
+     */
     public boolean isValid() {
         return getErrors().isEmpty();
     }
 
     /**
      * Generates a human-readable summary of the validation.
+     * @return a human-readable summary of the validation result
      */
     public String getSummary() {
         StringBuilder summary = new StringBuilder();
@@ -127,20 +145,40 @@ public class ValidationResult {
         return summary.toString();
     }
 
+    /**
+     * Returns a copy of the validation checks and their results.
+     *
+     * @return a map of validation check names to their corresponding results
+     */
     public Map<String, CheckResult> getValidationChecks() {
         return new HashMap<>(validationChecks);
     }
 
+    /**
+     * Returns a copy of the list of validation issues.
+     *
+     * @return a list of validation issues
+     */
     public List<ValidationIssue> getIssues() {
         return new ArrayList<>(issues);
     }
 
+    /**
+     * Returns a list of validation issues with severity ERROR.
+     *
+     * @return a list of error validation issues
+     */
     public List<ValidationIssue> getErrors() {
         return issues.stream()
             .filter(issue -> issue.severity() == ValidationSeverity.ERROR)
             .collect(Collectors.toList());
     }
 
+    /**
+     * Returns a list of validation issues with severity WARNING.
+     *
+     * @return a list of warning validation issues
+     */
     public List<ValidationIssue> getWarnings() {
         return issues.stream()
             .filter(issue -> issue.severity() == ValidationSeverity.WARNING)
