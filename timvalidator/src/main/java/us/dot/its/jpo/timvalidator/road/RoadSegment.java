@@ -43,7 +43,7 @@ public record RoadSegment(long sourceId, String name, LineString geometry) {
      * @param name the name of the road segment
      * @param geometry the geometry of the road segment represented as a LineString
      * @return a RoadSegment instance with validated geometry
-     * @throws InvalidGeometryException if the geometry is invalid. A geometry is invalid if it contains less than two coordinates, or if any of the coordinate positions are out of bounds for a WSG-84 project (latitude must be between -90 and 90, longitude must be between -180 and 180)
+     * @throws InvalidGeometryException if the geometry is invalid. A geometry is invalid if it contains less than two coordinates, or if any of the coordinate positions are out of bounds for a WGS-84 project (latitude must be between -90 and 90, longitude must be between -180 and 180)
     */
     public static RoadSegment validRoadSegment(long sourceId, String name, LineString geometry)
             throws InvalidGeometryException {
