@@ -15,17 +15,23 @@ public record ValidationOptions(boolean roadwayHeadingEnabled) {
     private static final ValidationOptions NETWORK_FREE = new ValidationOptions(false);
     private static final ValidationOptions WITH_ROADWAY_HEADING = new ValidationOptions(true);
 
-    /** Returns the default, network-free validation options. */
+    /** Returns the default, network-free validation options. 
+     * @return the default, network-free validation options. roadwayHeading validation is disabled
+     */
     public static ValidationOptions defaults() {
         return NETWORK_FREE;
     }
 
-    /** Returns options that explicitly disable external roadway lookups. */
+    /** Returns ValidationOptions object with roadway headings disabled. 
+     * @return validation options with roadway headings disabled
+    */
     public static ValidationOptions networkFree() {
         return NETWORK_FREE;
     }
 
-    /** Returns options that enable roadway-backed heading-slice validation. */
+    /** Returns ValidationOptions object with roadway headings enabled. 
+     * @return validation options with roadway headings enabled
+     */
     public static ValidationOptions withRoadwayHeading() {
         return WITH_ROADWAY_HEADING;
     }
