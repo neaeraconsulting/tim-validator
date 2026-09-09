@@ -26,10 +26,21 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
  */
 public class ItisJsonValidator extends AbstractJsonValidator {
 
+    /**
+     * Constructs an instance of the ITIS JSON validator using the default ITIS schema.
+     * Default ITIS Schema is located here: us/dot/its/jpo/timvalidator/ITISCodes.json
+     */
     private static final Resource ITIS_SCHEMA_RESOURCE =
         new ClassPathResource("us/dot/its/jpo/timvalidator/ITISCodes.json");
+
+    /**
+     * Name of the ITIS content validation check.
+     */
     private static final String CHECK_NAME = "ITIS Content Validation";
 
+    /**
+     * Constructs an instance of the ITIS JSON validator using the default ITIS schema.
+     */
     public ItisJsonValidator() {
         super(ITIS_SCHEMA_RESOURCE);
     }
@@ -44,6 +55,9 @@ public class ItisJsonValidator extends AbstractJsonValidator {
 
     /**
      * Validates eligible advisory ITIS content and returns non-blocking warnings for skipped frames.
+     * @param content the deserialized TIM message frame to validate
+     * @return a list of non-blocking validation issues encountered during validation
+     * @throws ValidationException if there is an error during validation.
      */
     public List<ValidationIssue> validateAndCollectWarnings(Object content) throws ValidationException {
         if (!(content instanceof TravelerInformationMessageFrame messageFrame)) {
@@ -97,6 +111,10 @@ public class ItisJsonValidator extends AbstractJsonValidator {
 
     /**
      * Converts advisory content into the normalized object expected by ITISCodes.json.
+     * @param dataFrame the TIM message frame to normalize
+     * @param frameIndex the index of the frame within the message
+     * @param warnings a list to which non-blocking validation issues will be added
+     * @return an Optional containing the normalized content. If the TIM message does not contain any advisory ITIS codes eleigible for validation an empty optional is returned.
      */
     private Optional<Map<String, Object>> normalizeDataFrame(
             TravelerDataFrame dataFrame,
