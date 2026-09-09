@@ -136,6 +136,7 @@ public class BestPracticesValidator {
      *
      * @param timMessage the TIM message to validate
      * @return structured validation issues (empty list if all checks pass)
+     * @throws ValidationException if there is an error during validation
      */
     public List<ValidationIssue> validate(Object timMessage) throws ValidationException {
         return validate(timMessage, defaultOptions);
@@ -147,6 +148,7 @@ public class BestPracticesValidator {
      * @param timMessage the TIM message to validate
      * @param options checks to perform for this validation
      * @return structured validation issues (empty list if all checks pass)
+     * @throws ValidationException if there is an error during validation
      */
     public List<ValidationIssue> validate(
             Object timMessage,
