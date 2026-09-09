@@ -14,7 +14,6 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
 
 /**
  * Processed validation result for a TIM message.
- * 
  * Provides a comprehensive summary of validation status, individual check results,
  * and the deserialized message for reference.
  */
@@ -22,18 +21,58 @@ import us.dot.its.jpo.asn.j2735.r2024.TravelerInformation.TravelerInformationMes
 @Setter
 public class ValidationResult {
 
+    /**
+     * The error message associated with the validation result.
+     */
     private String errorMessage;
+
+    /**
+     * The original UPER-encoded input for the TIM message.
+     */
     private String uperInput;
+    /**
+     * The original JER-encoded input for the TIM message.
+     */
     private String jerInput;
+
+    /**
+     * The original XER-encoded input for the TIM message.
+     */
     private String xerFormat;
-    private TravelerInformationMessageFrame timMessage; // The deserialized POJO
+
+    /**
+     * The deserialized TIM message as a POJO.
+     */
+    private TravelerInformationMessageFrame timMessage;
+
+    /**
+     * The timestamp when the validation was performed in UTC.
+     */
     private Instant validationTimestamp;
+
+    /**
+     * The duration of the validation process in milliseconds.
+     */
     private long validationDurationMs;
+
+    /**
+     * Indicates whether roadway heading validation is enabled.
+     */
     private boolean roadwayHeadingValidationEnabled;
 
-    private final Map<String, CheckResult> validationChecks; // Maps check name to result
+    /**
+     * The map of validation check results, keyed by the check name.
+     */
+    private final Map<String, CheckResult> validationChecks;
+
+    /**
+     * The list of validation issues encountered during the validation process.
+     */
     private final List<ValidationIssue> issues;
 
+    /**
+     * Initializes a new instance of the ValidationResult class with default values.
+     */
     public ValidationResult() {
         this.validationTimestamp = Instant.now();
         this.validationChecks = new HashMap<>();
@@ -184,6 +223,7 @@ public class ValidationResult {
             .filter(issue -> issue.severity() == ValidationSeverity.WARNING)
             .collect(Collectors.toList());
     }
+
 
     /**
      * Inner class representing a single validation check result.
