@@ -6,7 +6,7 @@ import org.locationtech.jts.geom.Coordinate;
  * GNIS feature and its official representative location. 
  * @param id the unique identifier of the GNIS feature
  * @param name the name of the GNIS feature
- * @param featureClass the featureClass name of the GNIS feature. Class names are definitions are available here: https://www.usgs.gov/us-board-on-geographic-names/gnis-domestic-names-feature-classes
+ * @param featureClass the featureClass name of the GNIS feature. Class name definitions are available here: https://www.usgs.gov/us-board-on-geographic-names/gnis-domestic-names-feature-classes
  * @param location the official representative location of the GNIS feature
  * */
 public record GnisFeature(
