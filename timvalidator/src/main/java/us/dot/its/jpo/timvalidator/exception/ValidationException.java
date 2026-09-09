@@ -56,7 +56,7 @@ public class ValidationException extends Exception {
     }
 
     /**
-     * Creates a new ValidationException with the specified cause. Does not explicitly set the Exception message, validation result, or provide a list of issues. 
+     * Creates a new ValidationException with the specified cause. Does not explicitly set the Exception message, validation result, or provide a list of issues. However, the default exception message will be derived from the cause if available per the behavior of the superclass Exception.
      * @param cause the cause of this exception
      */
     public ValidationException(Throwable cause) {
