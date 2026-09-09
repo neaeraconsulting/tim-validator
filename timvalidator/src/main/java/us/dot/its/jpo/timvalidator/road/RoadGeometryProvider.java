@@ -22,6 +22,10 @@ public interface RoadGeometryProvider {
 
     /**
      * Finds roads near a WGS-84 coordinate, where x is longitude and y is latitude.
+     * @param location the WGS-84 coordinate representing the center of the search area
+     * @param radiusMeters the radius of the search area in meters
+     * @return a list of RoadSegment instances near the specified location
+     * @throws ValidationException if there is an error during the lookup. Errors may occur if the location is invalid or if the radius is non-positive.
      */
     List<RoadSegment> findNearbyRoads(Coordinate location, double radiusMeters)
         throws ValidationException;
@@ -32,6 +36,10 @@ public interface RoadGeometryProvider {
      * <p>The default preserves compatibility with point-radius providers by using
      * JTS's minimum bounding circle and Proj4J's WGS-84 geodesic distance. Providers
      * that support polygon queries should override this method.</p>
+     * 
+     * @param searchArea the polygon representing the search area
+     * @return a list of RoadSegment instances within the search area
+     * @throws ValidationException if there is an error during the lookup. Errors may occur if the search area is empty, or if the search area becomes infinite or negative.
      */
     default List<RoadSegment> findRoadsIn(Polygon searchArea)
             throws ValidationException {
