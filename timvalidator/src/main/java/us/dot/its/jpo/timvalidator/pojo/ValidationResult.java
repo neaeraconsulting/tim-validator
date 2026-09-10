@@ -227,12 +227,37 @@ public class ValidationResult {
 
     /**
      * Inner class representing a single validation check result.
+     * @param name the name of the validation check
+     * @param passed whether the validation check passed
+     * @param details additional details about the validation check result
      */
-    @Getter
-    @AllArgsConstructor
-    public static class CheckResult {
-        private final String name;
-        private final boolean passed;
-        private final String details;
+    public static record CheckResult(String name, boolean passed, String details) {
+
+        /**
+         * Returns the name of the validation check.
+         *
+         * @return the name of the validation check
+         */
+        public String getName() {
+            return name;
+        }
+
+        /**
+         * Returns whether the validation check passed.
+         *
+         * @return true if the validation check passed, false otherwise
+         */
+        public boolean isPassed() {
+            return passed;
+        }
+
+        /**
+         * Returns additional details about the validation check result.
+         *
+         * @return the details of the validation check result
+         */
+        public String getDetails() {
+            return details;
+        }
     }
 }
