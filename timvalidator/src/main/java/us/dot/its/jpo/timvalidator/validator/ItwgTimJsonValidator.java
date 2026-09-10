@@ -9,7 +9,7 @@ import org.springframework.core.io.Resource;
 public class ItwgTimJsonValidator extends TimJsonValidator {
 
     /**
-     * Constructs an instance of the ITWG TIM JSON validator using the ITWG schema.
+     * Defines the {@code ClassPathResource} for the ITWG TIM JSON schema.
      * Default ITWG Schema is located here: us/dot/its/jpo/timvalidator/TravelerInformationMessageFrameITWG.schema.json
      */
     private static final Resource ITWG_TIM_SCHEMA_RESOURCE =
