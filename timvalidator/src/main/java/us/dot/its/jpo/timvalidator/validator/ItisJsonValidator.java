@@ -27,7 +27,7 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
 public class ItisJsonValidator extends AbstractJsonValidator {
 
     /**
-     * Constructs an instance of the ITIS JSON validator using the default ITIS schema.
+     * Defines the {@code ClassPathResource} for the ITIS JSON schema.
      * Default ITIS Schema is located here: us/dot/its/jpo/timvalidator/ITISCodes.json
      */
     private static final Resource ITIS_SCHEMA_RESOURCE =
@@ -114,7 +114,7 @@ public class ItisJsonValidator extends AbstractJsonValidator {
      * @param dataFrame the TIM message frame to normalize
      * @param frameIndex the index of the frame within the message
      * @param warnings a list to which non-blocking validation issues will be added
-     * @return an Optional containing the normalized content. If the TIM message does not contain any advisory ITIS codes eleigible for validation an empty optional is returned.
+     * @return an Optional containing the normalized content. If the TIM message does not contain any advisory ITIS codes eligible for validation an empty optional is returned.
      */
     private Optional<Map<String, Object>> normalizeDataFrame(
             TravelerDataFrame dataFrame,
