@@ -53,13 +53,21 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         this.csvPath = null;
     }
 
-    /** Uses a CSV file at an explicit path, primarily for tests and custom datasets. */
+    /** Creates a new instance of CsvGnisFeatureProvider using a custom CSV file path.
+     * @param csvPath the path to the CSV file containing the Civil GNIS deployment-area features
+     */
     public CsvGnisFeatureProvider(Path csvPath) {
         this.csvPath = Objects.requireNonNull(csvPath, "csvPath")
                 .toAbsolutePath()
                 .normalize();
     }
 
+    /**
+     * Finds a GNIS feature by its unique identifier. If the feature is marked as invalid in the dataset,
+     * a GnisLookupException is thrown. Otherwise, an Optional containing the feature is returned, or an empty
+     * Optional if the feature is not found.
+     * @see us.dot.its.jpo.timvalidator.gnis.GnisFeatureProvider#findById(int)
+     */
     @Override
     public Optional<GnisFeature> findById(int gnisId) throws GnisLookupException {
         Dataset dataset = dataset();
@@ -70,7 +78,10 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         return Optional.ofNullable(dataset.featuresById().get(gnisId));
     }
 
-    /** Returns the loaded packaged dataset or this instance's custom dataset. */
+    /** Returns the loaded packaged dataset or this instance's custom dataset. 
+     * @return the dataset containing GNIS features and their validity status
+     * @throws GnisLookupException if there is an error loading the dataset
+     */
     private Dataset dataset() throws GnisLookupException {
         if (csvPath == null) {
             return PackagedDataset.get();
@@ -91,7 +102,11 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         return current;
     }
 
-    /** Opens a custom CSV path and retains I/O failures for the validation warning. */
+    /** Opens a custom CSV path and retains I/O failures for the validation warning. 
+     * @param path the path to the custom CSV file
+     * @return the dataset loaded from the CSV file
+     * @throws GnisLookupException if there is an error reading or parsing the CSV file
+     */
     private static Dataset load(Path path) throws GnisLookupException {
         try (BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             return load(reader, path.toString());
@@ -100,7 +115,13 @@ public final class CsvGnisFeatureProvider implements GnisFeatureProvider {
         }
     }
 
-    /** Validates the CSV and builds the in-memory ID lookup. */
+    /** Validates the CSV and builds the in-memory ID lookup. 
+     * @param reader the reader for the CSV file
+     * @param description a description of the CSV source, used in error messages
+     * @return the dataset loaded from the CSV file
+     * @throws IOException if an I/O error occurs while reading the CSV
+     * @throws GnisLookupException if the CSV contains invalid data or cannot be parsed
+     */
     private static Dataset load(BufferedReader reader, String description)
             throws IOException, GnisLookupException {
         // Fail initialization when the column order changes; row parsing below relies

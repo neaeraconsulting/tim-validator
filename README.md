@@ -37,8 +37,8 @@ checks. The public source repository is
 
 Requires:
 
-- Java 23 (or higher)
-- Maven 3.9 or higher (3.9.9 is used in CI and Docker)
+- Java 25 (or higher)
+- Maven 3.9 or higher (3.9.11 is used in CI and Docker)
 - Docker (optional, for the containerized API)
 
 The Maven builds copy the native J2735 codec into each module's `target/libs`

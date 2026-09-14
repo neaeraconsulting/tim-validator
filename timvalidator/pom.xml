@@ -72,10 +72,8 @@
     </scm>
 
     <properties>
-        <java.version>23</java.version>
-        <maven.compiler.source>23</maven.compiler.source>
-        <maven.compiler.target>23</maven.compiler.target>
-        <maven.compiler.release>23</maven.compiler.release>
+        <java.version>25</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <jacocoArgLine></jacocoArgLine>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -117,7 +115,7 @@
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-core</artifactId>
-            <version>6.1.14</version>
+            <version>6.2.19</version>
         </dependency>
 
         <dependency>
@@ -172,8 +170,7 @@
                             <version>1.18.46</version>
                         </path>
                     </annotationProcessorPaths>
-                    <source>23</source>
-                    <target>23</target>
+                    <release>${maven.compiler.release}</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -233,7 +230,7 @@
                     <includes>
                         <include>**/*Test.java</include>
                     </includes>
-                    <argLine>@{jacocoArgLine} -Djava.library.path=${project.build.directory}/libs</argLine>
+                    <argLine>@{jacocoArgLine} --enable-native-access=ALL-UNNAMED -Djava.library.path=${project.build.directory}/libs</argLine>
                 </configuration>
             </plugin>
             <plugin>

@@ -33,7 +33,7 @@ stages:
         displayName: Compile, test, and check coverage
         pool:
           vmImage: ubuntu-24.04
-        container: maven:3.9.9-eclipse-temurin-23
+        container: maven:3.9.11-eclipse-temurin-25
         variables:
           MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
           MAVEN_OPTS: '-Dmaven.repo.local=$(Pipeline.Workspace)/.m2/repository'
@@ -103,12 +103,12 @@ stages:
               wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | sudo tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null
               echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | sudo tee /etc/apt/sources.list.d/adoptium.list
               sudo apt update
-              sudo apt install -y temurin-23-jdk
-              JAVA_23_BIN=$(update-alternatives --list java | grep "23-jdk")
-              JAVA_23_HOME=$(echo $JAVA_23_BIN | sed "s:/bin/java::")
-              sudo update-alternatives --set java $JAVA_23_BIN
-              export JAVA_HOME=$JAVA_23_HOME
-              echo "JAVA_23_BIN: $JAVA_23_BIN"
+              sudo apt install -y temurin-25-jdk
+              JAVA_25_BIN=$(update-alternatives --list java | grep "25-jdk")
+              JAVA_25_HOME=$(echo $JAVA_25_BIN | sed "s:/bin/java::")
+              sudo update-alternatives --set java $JAVA_25_BIN
+              export JAVA_HOME=$JAVA_25_HOME
+              echo "JAVA_25_BIN: $JAVA_25_BIN"
               echo "JAVA_HOME: $JAVA_HOME"
               echo "##vso[task.setvariable variable=JavaHome]$JAVA_HOME"
               echo "java version:"
