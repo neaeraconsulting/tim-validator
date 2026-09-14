@@ -16,9 +16,10 @@ for TIM MessageFrame payloads in both JER JSON and UPER hex. Validation confirms
 that a message matches the generated J2735 structure, then applies a stricter
 Interoperability Technical Working Group (ITWG) TIM profile schema, ITIS advisory
 content checks, and additional TIM best-practice checks. Those practices are
-documented in
+described in the ITWG reference draft
 [Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf),
-developed by Justin Anderson. The library is the core product; the API is a thin
+developed by Justin Anderson. The document is a draft reference for this release,
+not a final normative standard. The library is the core product; the API is a thin
 HTTP wrapper over the same service so operators can validate messages without
 embedding the library.
 
@@ -191,12 +192,14 @@ response payloads, and native-library packaging notes.
 
 **Further documentation:**
 
+- [Documentation index](docs/README.md) — recommended reading order and document catalog.
+- [Validation pipeline](docs/validation-pipeline.md) — end-to-end pipeline diagram, module architecture, severity model, and example payloads.
 - [ITWG requirement coverage](docs/itwg-requirement-coverage.md) — implemented, partial, missing, and deprecated checks.
-- [Validation checks](docs/validation-checks.md) — time, GNIS `packetID`, and roadway-heading behavior, including library configuration examples.
+- [Validation checks](docs/validation-checks.md) — time, GNIS `packetID`, geometry, and roadway-heading behavior, including library configuration examples.
 - [J2735 vs ITWG schema](docs/j2735-vs-itwg-schema.md) — required fields, prohibited fields, choice narrowing, and region-shape rules.
 - [Civil GNIS deployment areas](docs/civil_gnis_deployment_areas.md) — how the packaged GNIS extract was produced.
 - [API README](timvalidator-api/README.md) — REST request and response details.
-- [Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf) — ITWG TIM best practices (draft).
+- [Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf) — ITWG reference draft used for this release’s traceability; not a final standard.
 
 **Roadway heading:** The library constructor is network-free. The API defaults
 to the public Overpass instance and a generic User-Agent when heading checks are

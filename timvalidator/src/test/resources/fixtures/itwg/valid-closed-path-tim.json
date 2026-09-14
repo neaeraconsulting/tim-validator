@@ -4,7 +4,7 @@
     "TravelerInformation": {
       "msgCnt": 1,
       "timeStamp": 1,
-      "packetID": "000000000000000000",
+      "packetID": "24AB36000000000000",
       "dataFrames": [
         {
           "doNotUse1": 0,
@@ -20,21 +20,22 @@
           "regions": [
             {
               "anchor": {
-                "lat": 0,
-                "long": 0,
+                "lat": 337628370,
+                "long": -844220541,
                 "elevation": 0
               },
               "closedPath": true,
               "direction": "0000",
               "description": {
                 "path": {
+                  "scale": 1,
                   "offset": {
                     "xy": {
                       "nodes": [
                         {
                           "delta": {
                             "node-XY1": {
-                              "x": 0,
+                              "x": 500,
                               "y": 0
                             }
                           }
@@ -42,15 +43,7 @@
                         {
                           "delta": {
                             "node-XY1": {
-                              "x": 1,
-                              "y": 1
-                            }
-                          }
-                        },
-                        {
-                          "delta": {
-                            "node-XY1": {
-                              "x": 1,
+                              "x": 500,
                               "y": 0
                             }
                           }
@@ -59,7 +52,23 @@
                           "delta": {
                             "node-XY1": {
                               "x": 0,
-                              "y": -1
+                              "y": 500
+                            }
+                          }
+                        },
+                        {
+                          "delta": {
+                            "node-XY1": {
+                              "x": -500,
+                              "y": 0
+                            }
+                          }
+                        },
+                        {
+                          "delta": {
+                            "node-XY1": {
+                              "x": 0,
+                              "y": -500
                             }
                           }
                         }
@@ -77,6 +86,16 @@
               {
                 "item": {
                   "itis": 268
+                }
+              },
+              {
+                "item": {
+                  "itis": 12599
+                }
+              },
+              {
+                "item": {
+                  "itis": 8720
                 }
               }
             ]

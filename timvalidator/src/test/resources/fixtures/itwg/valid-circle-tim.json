@@ -4,7 +4,7 @@
     "TravelerInformation": {
       "msgCnt": 1,
       "timeStamp": 1,
-      "packetID": "000000000000000000",
+      "packetID": "0D7634000000000000",
       "dataFrames": [
         {
           "doNotUse1": 0,
@@ -19,21 +19,16 @@
           "doNotUse2": 0,
           "regions": [
             {
-              "anchor": {
-                "lat": 0,
-                "long": 0,
-                "elevation": 0
-              },
               "description": {
                 "geometry": {
                   "direction": "0000",
                   "circle": {
                     "center": {
-                      "lat": 0,
-                      "long": 0,
+                      "lat": 405672969,
+                      "long": -749122478,
                       "elevation": 0
                     },
-                    "radius": 1,
+                    "radius": 100,
                     "units": "meter"
                   }
                 }
@@ -47,6 +42,16 @@
               {
                 "item": {
                   "itis": 268
+                }
+              },
+              {
+                "item": {
+                  "itis": 12599
+                }
+              },
+              {
+                "item": {
+                  "itis": 8720
                 }
               }
             ]

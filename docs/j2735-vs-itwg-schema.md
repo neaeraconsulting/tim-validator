@@ -1,6 +1,6 @@
 # Differences: J2735 Schema vs ITWG Schema
 
-The validator runs both the generated J2735 schema and the stricter Interoperability Technical Working Group (ITWG) profile schema. The ITWG schema is a best-practice overlay on the generated J2735 TIM MessageFrame schema.
+The validator runs both the generated J2735 schema and the stricter Interoperability Technical Working Group (ITWG) profile schema. The ITWG schema is a best-practice overlay on the generated J2735 TIM MessageFrame schema. See [validation-pipeline.md](validation-pipeline.md) for where these stages fit in the overall flow.
 
 - Base schema: `schemas/TravelerInformation/TravelerInformationMessageFrame.schema.json`
 - ITWG schema: `us/dot/its/jpo/timvalidator/TravelerInformationMessageFrameITWG.schema.json`

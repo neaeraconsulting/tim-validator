@@ -4,6 +4,9 @@ This document describes the library and API validation pipeline beyond the gener
 J2735 and Interoperability Technical Working Group (ITWG) JSON Schema stages. It
 preserves the operational detail previously documented in the repository README.
 
+For the end-to-end pipeline, severity model, and module layout, see
+[validation-pipeline.md](validation-pipeline.md).
+
 Validation results are returned as a single response with:
 
 - `valid` — overall pass/fail.
@@ -50,6 +53,94 @@ directly from the classpath without a temporary file. No GNIS network request, S
 dependency, or external GDAL installation is required at runtime. See
 [civil_gnis_deployment_areas.md](civil_gnis_deployment_areas.md) for how the
 dataset was produced.
+
+## Geometry Validation
+
+Geometry checks run inside the Best Practices stage for each geographical region
+in every data frame. Issues are reported under the `Best Practices` check name.
+Most geometry rules use JTS to decode offset-encoded paths into a local
+coordinate system anchored at the region's WGS 84 anchor.
+
+Local path and polygon checks are skipped when:
+
+- the region uses a computed lane offset;
+- the region uses circle geometry (`description.geometry`); or
+- the offset path cannot be decoded (a non-blocking warning explains why).
+
+### Path and polygon structure
+
+For decodable offset paths, the validator checks the decoded centerline or
+polygon boundary:
+
+| Check | Severity | Applies to |
+|---|---|---|
+| Repeated nodes | ERROR | Open paths and closed polygons |
+| Self-intersecting centerline or polygon boundary | ERROR | Open paths and closed polygons |
+| Closed polygon first/last point must coincide | ERROR | Closed paths (`closedPath: true`) |
+
+Closed-polygon repeated-point detection excludes the closing vertex pair.
+
+### Anchor placement
+
+For offset-encoded paths, the anchor is validated relative to the first decoded
+node:
+
+| Check | Severity | Rule |
+|---|---|---|
+| Anchor distance | ERROR | The anchor must be approximately 10.00 m before the first path node (±1 m tolerance). |
+| Anchor approach direction | WARNING | The anchor should lie before the first node relative to the direction of the first path segment. |
+
+### Lane width and corridor
+
+For open paths with an encoded `laneWidth`:
+
+| Check | Severity | Rule |
+|---|---|---|
+| Width at bends | ERROR | `laneWidth` must not exceed the maximum centered width allowed by any three-point bend in the centerline. |
+| Corridor validity | ERROR | The lane corridor formed by offsetting the centerline by half the lane width must be constructible, non-self-intersecting, and form a valid polygon with usable area. |
+| Suspiciously small `laneWidth` | WARNING | Values from 1–20 cm may indicate meters were entered instead of centimeters. |
+
+### Offset encoding recommendation
+
+When a path can be decoded, the validator compares the encoded node
+representation (XY, LL, or absolute latitude/longitude) against the path's
+spatial extent:
+
+- XY nodes are recommended when maximum node separation is at most 327.67 m.
+- LL nodes are recommended for longer paths whose latitude/longitude component
+  separation is at most 0.8388607 degrees.
+- Absolute latitude/longitude nodes are recommended when component separation
+  exceeds that threshold.
+
+A mismatch produces a non-blocking warning recommending the more appropriate
+encoding.
+
+### Circle geometry
+
+For circle regions, imperial distance units produce a warning recommending metric
+units. Other circle-specific field requirements are enforced by ITWG schema
+validation.
+
+### Computed lanes
+
+When a region uses a computed lane offset, the validator emits a warning
+recommending that `referenceLaneId` identify the left-most lane in the direction
+of traffic. Local centerline and corridor checks are not applied to computed-lane
+regions.
+
+### Multi-lane relationships
+
+When a TIM contains multiple explicit open-path lane regions, the validator
+compares each pair of decodable lanes in a shared coordinate system:
+
+| Condition | Severity |
+|---|---|
+| Centerlines cross in the interior (not at endpoints) | ERROR |
+| Centerlines share a segment, or lane corridor interiors overlap beyond numerical tolerance | WARNING |
+| Endpoint-only contact | Allowed |
+
+At most one issue is reported per lane pair. Lanes whose individual geometry is
+already invalid are excluded from pairwise comparison.
 
 ## Road-Heading Validation
 

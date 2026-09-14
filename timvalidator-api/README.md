@@ -3,7 +3,10 @@
 Spring Boot wrapper for the `timvalidator` library.
 
 Repository-level setup, license, contribution, and retention information is in
-the [root README](../README.md). Requirement coverage is in
+the [root README](../README.md). The
+[documentation index](../docs/README.md) lists all technical docs. Start with
+the [validation pipeline](../docs/validation-pipeline.md) for an end-to-end
+overview. Requirement coverage is in
 [docs/itwg-requirement-coverage.md](../docs/itwg-requirement-coverage.md).
 Detailed validation-check behavior is in
 [docs/validation-checks.md](../docs/validation-checks.md). Schema differences
@@ -86,6 +89,9 @@ external check. An explicit `roadwayHeading=false` always opts out.
 
 ## Response Shape
 
+The example below is a complete response shape; `checks` contains one entry for
+each validation stage.
+
 ```json
 {
   "valid": false,
@@ -113,6 +119,16 @@ external check. An explicit `roadwayHeading=false` always opts out.
       "name": "ITWG Schema Validation",
       "passed": false,
       "details": "Schema validation failed: ..."
+    },
+    {
+      "name": "ITIS Content Validation",
+      "passed": true,
+      "details": "ITIS content validation completed with non-blocking warnings"
+    },
+    {
+      "name": "Best Practices",
+      "passed": true,
+      "details": "All best practices checks passed"
     }
   ],
   "roadwayHeadingValidationEnabled": false,
@@ -121,7 +137,12 @@ external check. An explicit `roadwayHeading=false` always opts out.
 }
 ```
 
-Validation failures return `200 OK` with `valid: false` when the API can parse and process the request. Invalid request bodies return `400 Bad Request`.
+Validation failures for parseable request bodies return `200 OK` with
+`valid: false`. Malformed JSON sent to the JER endpoint returns `400 Bad
+Request` before the validator is called. A parseable but invalid UPER string is
+processed by the validator and returns `200 OK` with a `Validation Pipeline`
+issue. Requests with an unsupported content type are rejected by Spring with
+`415 Unsupported Media Type`.
 
 Schema checks are split into the generated J2735 schema and the stricter ITWG TIM profile schema:
 
