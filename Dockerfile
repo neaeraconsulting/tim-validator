@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM maven:3.9.9-eclipse-temurin-23 AS build
+FROM maven:3.9.11-eclipse-temurin-25 AS build
 
 WORKDIR /workspace
 
@@ -18,7 +18,7 @@ RUN mvn -f timvalidator-api/pom.xml -DskipTests=${MAVEN_SKIP_TESTS} dependency:g
 COPY timvalidator-api/src timvalidator-api/src
 RUN mvn -f timvalidator-api/pom.xml -DskipTests=${MAVEN_SKIP_TESTS} package
 
-FROM eclipse-temurin:23-jre
+FROM eclipse-temurin:25-jre
 
 WORKDIR /app
 

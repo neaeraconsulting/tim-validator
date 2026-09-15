@@ -22,6 +22,12 @@ public class UperToMessageFrameConverter {
     private static final long STRING_CACHE_SIZE = 512L;
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
+    /**
+     * Creates a new {@code UperToMessageFrameConverter}.
+     */
+    public UperToMessageFrameConverter() {
+    }
+
     private static final ThreadLocal<MessageFrameCodec> CODEC = ThreadLocal.withInitial(() -> {
         try {
             return new MessageFrameCodec(

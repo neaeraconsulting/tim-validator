@@ -13,6 +13,11 @@ public class JerToMessageFrameConverter {
     private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(ObjectMapper::new);
 
     /**
+     * Creates a new {@code JerToMessageFrameConverter}.
+     */
+    public JerToMessageFrameConverter() {}
+
+    /**
      * Deserializes JER format into a TravelerInformationMessageFrame POJO using Jackson ObjectMapper.
      *
      * @param jerFormat the JER/JSON formatted string

@@ -26,16 +26,23 @@ import us.dot.its.jpo.timvalidator.pojo.ValidationSeverity;
  */
 public abstract class AbstractJsonValidator {
 
+    
     private final ObjectMapper mapper = new ObjectMapper();
     private final Resource schemaResource;
     private volatile Schema schema;
 
+    /**
+     * Constructs an AbstractJsonValidator with the specified JSON schema resource.
+     * @param schemaResource the Spring Resource pointing to the JSON schema file
+     */
     protected AbstractJsonValidator(Resource schemaResource) {
         this.schemaResource = schemaResource;
     }
 
     /**
      * Validates an already-deserialized payload by converting it to a JsonNode for schema validation.
+     * @param payload the deserialized payload to validate against the JSON schema
+     * @throws ValidationException if the payload is null or fails schema validation
      */
     public void validate(Object payload) throws ValidationException {
         if (payload == null) {
@@ -48,6 +55,8 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Validates raw JSON input directly.
+     * @param jsonString the raw JSON string to validate against the JSON schema
+     * @throws ValidationException if the JSON string is null, blank, or fails schema validation
      */
     public void validateJson(String jsonString) throws ValidationException {
         if (jsonString == null || jsonString.isBlank()) {
@@ -66,6 +75,8 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Validates an already parsed Jackson tree.
+     * @param node the Jackson JsonNode to validate against the JSON schema
+     * @throws ValidationException if the node is null or fails schema validation
      */
     public void validate(JsonNode node) throws ValidationException {
         if (node == null || node.isNull()) {
@@ -76,7 +87,10 @@ public abstract class AbstractJsonValidator {
     }
 
     /**
-     * Exposes the compiled schema for testing.
+     * Exposes the compiled schema for testing. This method is a public wrapper around the private getOrCreateSchema() function. 
+     * @return the compiled JSON schema instance
+     * @throws Exception if there is an error creating or retrieving the JSON schema
+     * @see #getOrCreateSchema()
      */
     public Schema getJsonSchema() throws Exception {
         return getOrCreateSchema();
@@ -84,6 +98,8 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Centralizes schema error aggregation so callers receive a single actionable validation message.
+     * @param node the JSON node to validate against the schema
+     * @throws ValidationException if the node fails schema validation
      */
     protected void validateNodeAgainstSchema(JsonNode node) throws ValidationException {
         List<Error> validationErrors;
@@ -102,6 +118,8 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Converts schema validation errors into structured issues for API and UI consumers.
+     * @param validationErrors the list of schema validation errors to convert
+     * @return a list of structured validation issues representing the errors
      */
     protected List<ValidationIssue> toValidationIssues(List<Error> validationErrors) {
         return validationErrors.stream()
@@ -115,6 +133,7 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Identifies this validator in structured validation issues.
+     * @return the name of the check associated with this validator
      */
     protected String getCheckName() {
         return "Schema Validation";
@@ -123,6 +142,8 @@ public abstract class AbstractJsonValidator {
     /**
      * Formats schema validation errors for callers. Subclasses may override this
      * when a validator needs domain-specific wording.
+     * @param validationErrors the list of schema validation errors to format
+     * @return a formatted string representing the validation errors
      */
     protected String formatValidationErrors(List<Error> validationErrors) {
         StringBuilder message = new StringBuilder("Schema validation failed:");
@@ -134,6 +155,7 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Ensures schema compilation happens only once and is safe under concurrent access.
+     * @return the compiled JSON schema instance
      */
     private Schema getOrCreateSchema() throws Exception {
         Schema existingSchema = schema;
@@ -151,6 +173,8 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Compiles the JSON schema text into a reusable validator instance.
+     * @param schemaResource the resource containing the JSON schema
+     * @return the compiled JSON schema instance
      */
     private Schema createSchema(Resource schemaResource) {
         String schemaJson;
@@ -182,6 +206,9 @@ public abstract class AbstractJsonValidator {
 
     /**
      * Reads the schema resource into text so subclasses can preprocess it before compilation.
+     * @param schemaResource the resource containing the JSON schema
+     * @return the JSON schema as a string
+     * @throws Exception if an error occurs while reading the schema resource
      */
     protected String loadSchema(Resource schemaResource) throws Exception {
         try (InputStream inputStream = schemaResource.getInputStream()) {

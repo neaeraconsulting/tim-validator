@@ -7,6 +7,12 @@ This repository contains a TIM validation library and a Spring Boot API that exp
 - `timvalidator` - Java library for validating Traveler Information Messages (TIMs).
 - `timvalidator-api` - Spring Boot REST API that depends on `timvalidator`.
 
+## Prerequisites
+
+- Java 25 or higher.
+- Maven 3.9 or higher; CI and Docker use Maven 3.9.11.
+- Docker, optionally, for the containerized API.
+
 ## What It Validates
 
 The validator supports TIM MessageFrame payloads in both JER JSON and UPER hex formats. Validation includes:
