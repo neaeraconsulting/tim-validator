@@ -15,7 +15,7 @@
     <artifactId>timvalidator-api</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>timvalidator-api</name>
-    <description>Spring Boot API for TIM validation</description>
+    <description>Spring Boot API for TIM Validator Tool</description>
 
     <properties>
         <java.version>25</java.version>
