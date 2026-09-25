@@ -17,7 +17,7 @@ and usage examples.
 
 1. [J2735 vs ITWG schema](j2735-vs-itwg-schema.md)
 2. [ITWG requirement coverage](itwg-requirement-coverage.md)
-3. [Best Practices for TIM Deployment (draft PDF)](Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf)
+3. _Best Practices for TIM Deployment_ — public link will be added after publication
 
 ### Operators validating messages
 
@@ -34,7 +34,7 @@ and usage examples.
 | [j2735-vs-itwg-schema.md](j2735-vs-itwg-schema.md) | Required fields, prohibited fields, and choice narrowing between schemas |
 | [itwg-requirement-coverage.md](itwg-requirement-coverage.md) | ITWG best-practice requirement implementation status |
 | [civil_gnis_deployment_areas.md](civil_gnis_deployment_areas.md) | How the bundled Civil GNIS CSV was produced |
-| [Best Practices for TIM Deployment (reference draft PDF)](Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf) | ITWG reference draft used for this release's traceability; not a final standard |
+| _Best Practices for TIM Deployment_ | ITWG best-practices document used for this release's traceability. A public link will be added after publication |
 
 ## Example payloads
 

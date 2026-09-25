@@ -1,11 +1,9 @@
 # Interoperability Technical Working Group (ITWG) Requirement Coverage
 
 This document maps TIM Validator Tool checks to Interoperability Technical Working
-Group (ITWG) TIM best-practice requirements. The reference draft used for this
-release's traceability is
-[Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf).
-It is a draft reference and not a final normative standard.
-For the end-to-end validation flow, see [validation-pipeline.md](validation-pipeline.md).
+Group (ITWG) TIM best-practice requirements in _Best Practices for TIM Deployment_.
+A public link will be added after that document is published. For the end-to-end
+validation flow, see [validation-pipeline.md](validation-pipeline.md).
 
 ## Status legend
 

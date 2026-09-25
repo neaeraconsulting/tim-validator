@@ -1,5 +1,8 @@
 # License
 
+Copyright 2026 U.S. Department of Transportation (U.S. DOT). See [NOTICE](NOTICE)
+for the copyright notice.
+
 This project is licensed under the Apache License, Version 2.0. The Maven
 module metadata in `timvalidator/pom.xml` declares the same license.
 

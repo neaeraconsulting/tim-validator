@@ -15,13 +15,11 @@ The purpose of this source code is to give ITS applications a reusable validator
 for TIM MessageFrame payloads in both JER JSON and UPER hex. Validation confirms
 that a message matches the generated J2735 structure, then applies a stricter
 Interoperability Technical Working Group (ITWG) TIM profile schema, ITIS advisory
-content checks, and additional TIM best-practice checks. Those practices are
-described in the ITWG reference draft
-[Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf),
-developed by Justin Anderson. The document is a draft reference for this release,
-not a final normative standard. The library is the core product; the API is a thin
-HTTP wrapper over the same service so operators can validate messages without
-embedding the library.
+content checks, and additional TIM best-practice checks. Those practices follow
+_Best Practices for TIM Deployment_, developed by Justin Anderson. A public link
+will be added after that document is published. The library is the core product; the
+API is a thin HTTP wrapper over the same service so operators can validate messages
+without embedding the library.
 
 This repository is a Maven aggregator with two modules that build together in
 reactor order:
@@ -199,7 +197,7 @@ response payloads, and native-library packaging notes.
 - [J2735 vs ITWG schema](docs/j2735-vs-itwg-schema.md) — required fields, prohibited fields, choice narrowing, and region-shape rules.
 - [Civil GNIS deployment areas](docs/civil_gnis_deployment_areas.md) — how the packaged GNIS extract was produced.
 - [API README](timvalidator-api/README.md) — REST request and response details.
-- [Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf) — ITWG reference draft used for this release’s traceability; not a final standard.
+- _Best Practices for TIM Deployment_ — ITWG best-practices document used for this release’s traceability. A public link will be added after publication.
 
 **Roadway heading:** The library constructor is network-free. The API defaults
 to the public Overpass instance and a generic User-Agent when heading checks are
@@ -246,6 +244,7 @@ years (until at least 09/08/2031).
 
 This project is licensed under the Apache License, Version 2.0 — see
 [LICENSE.md](LICENSE.md) for the licensing status and full license text.
+Copyright 2026 U.S. Department of Transportation (U.S. DOT); see [NOTICE](NOTICE).
 
 ## Contributions
 
@@ -289,9 +288,8 @@ Additional information on how to cite can be found in the
 - Kellen Shain, Systems Engineer, Noblis
 - Software development team, Neaera Consulting: Michael English, Drew Johnston, John Wiens, Ivan Yourshaw, Rishabh Kapoor, and Darren Weibler
 
-The Interoperability Technical Working Group (ITWG) TIM best practices document
-was developed by Justin Anderson. This release references the draft
-[Best Practices for TIM Deployment DRAFT (Consolidated Content Types) 08-20-2026](docs/Best%20Practices%20for%20TIM%20Deployment%20DRAFT%20(Consolidated%20Content%20Types)%2008-20-2026.pdf).
+_Best Practices for TIM Deployment_ was developed by Justin Anderson. A public
+link will be added after the document is published.
 
 This project is sponsored by the ITS Joint Program Office, U.S. Department of
 Transportation. Noblis provides systems engineering. Software implementation
