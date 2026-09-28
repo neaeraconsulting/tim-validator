@@ -16,4 +16,5 @@
         <module>timvalidator</module>
         <module>timvalidator-api</module>
     </modules>
+
 </project>
