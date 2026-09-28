@@ -2,11 +2,12 @@ name: Maven Central Publish Snapshot
 on:
   release:
     types:
-      - prereleased
+      - published
 
 jobs:
   publish-snapshot:
     name: Publish Snapshot to Maven Central
+    if: ${{ github.event.release.prerelease }} # Only publish if prerelease
     runs-on: ubuntu-24.04
     defaults:
       run:
