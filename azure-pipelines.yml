@@ -81,6 +81,20 @@ stages:
               DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1'
 
 
+  # Build and publish the timvalidator-api image to Docker Hub on merge to
+  # main and develop.
+  #
+  # One-time Azure DevOps setup:
+  # 1. Create a Docker Hub access token (Account Settings > Personal access
+  #    tokens). Grant Read, Write, Delete on the repository.
+  # 2. Pipeline > Edit > Variables, add:
+  #      DOCKERHUB_USERNAME  your Docker Hub username (the account that owns
+  #                          the token; may differ from the image namespace)
+  #      DOCKERHUB_PAT       the access token — enable "Keep this value secret"
+  #
+  # Published tags:
+  #   main    -> {namespace}/timvalidator-api:{12-char sha}, :main, :latest
+  #   develop -> {namespace}/timvalidator-api:{12-char sha}, :develop
   - stage: Docker
     displayName: Build and publish image
     dependsOn: CI
