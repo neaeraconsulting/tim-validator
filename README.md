@@ -134,7 +134,7 @@ and Windows:
                     <artifactItem>
                         <groupId>com.neaeraconsulting</groupId>
                         <artifactId>j2735-2024-ffm-lib</artifactId>
-                        <version>${ffm.library.version}</version>
+                        <version>3.0.0-beta1</version>
                         <classifier>windows-x86_64</classifier>
                         <type>dll</type>
                         <destFileName>asnapplication.dll</destFileName>
@@ -154,7 +154,7 @@ and Windows:
                     <artifactItem>
                         <groupId>com.neaeraconsulting</groupId>
                         <artifactId>j2735-2024-ffm-lib</artifactId>
-                        <version>${ffm.library.version}</version>
+                        <version>3.0.0-beta1</version>
                         <classifier>linux-x86_64</classifier>
                         <type>so</type>
                         <destFileName>libasnapplication.so</destFileName>
