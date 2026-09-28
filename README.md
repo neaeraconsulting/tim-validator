@@ -104,8 +104,8 @@ live Overpass service.
 
 #### Library
 
-The library includes a Java Jar and depends on the FFM native library, all available from Maven 
-Central. To consume the published Jar artifact the dependency:
+The library includes a Java JAR and depends on the FFM native library, both available from Maven 
+Central. To consume the published JAR, add artifact the dependency:
 
 ```xml
 <dependency>
