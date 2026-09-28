@@ -1,0 +1,55 @@
+name: Maven Central Publish Snapshot
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  publish-snapshot:
+    name: Publish Snapshot to Maven Central
+    if: ${{ github.event.release.prerelease }} # Only publish if prerelease
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ./timvalidator
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_SIGNING_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - name: Get Version Number from POM
+        id: get_version
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "got version from POM $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+      - name: Ensure Snapshot Version
+        id: is_snapshot
+        if: ${{ endsWith(steps.get_version.outputs.VERSION, '-SNAPSHOT') }}
+        run: |
+          echo "IS_SNAPSHOT=true" >> $GITHUB_OUTPUT
+      - name: Abort if not snapshot version
+        if: ${{ steps.is_snapshot.outputs.IS_SNAPSHOT == '' || steps.is_snapshot.outputs.IS_SNAPSHOT != 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.setFailed("Stopping publishing snapshot because the version is not like '-SNAPSHOT'")
+      - name: Publish Package (Snapshot)
+        run: mvn -P release --batch-mode deploy
+        env:
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_SIGNING_KEY_PASSWORD }}
+        
+
+      
