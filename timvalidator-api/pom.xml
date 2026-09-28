@@ -13,7 +13,7 @@
 
     <groupId>com.neaeraconsulting</groupId>
     <artifactId>timvalidator-api</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>timvalidator-api</name>
     <description>Spring Boot API for TIM Validator Tool</description>
 
