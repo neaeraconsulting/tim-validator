@@ -5,9 +5,9 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] — TODO CHANGE THIS TO THE CURRENT RELEASE DATE
+## [1.0.0] — 2026-09-28
 
-### Added
+### First Release
 
 - `timvalidator` Java library for validating SAE J2735 Traveler Information Message (TIM) MessageFrames in JER JSON and UPER hex.
 - Generated J2735 schema validation and a stricter Interoperability Technical Working Group (ITWG) TIM profile schema overlay.
@@ -18,4 +18,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image and Compose service for the API.
 - Maven reactor aggregator so both modules build together.
 
-[1.0.0]: https://github.com/neaeraconsulting/tim-validator/releases/tag/v1.0.0
+[1.0.0]: https://github.com/neaeraconsulting/tim-validator/tree/1.0.0

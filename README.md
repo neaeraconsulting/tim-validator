@@ -104,7 +104,8 @@ live Overpass service.
 
 #### Library
 
-Consume the published artifact:
+The library includes a Java JAR and depends on the FFM native library, both available from Maven 
+Central. To consume the published JAR, add artifact the dependency:
 
 ```xml
 <dependency>
@@ -112,6 +113,58 @@ Consume the published artifact:
   <artifactId>timvalidator</artifactId>
   <version>1.0.0</version>
 </dependency>
+```
+and also add the following to build/plugins in the POM to copy the native libraries for Linux
+and Windows:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-dependency-plugin</artifactId>
+    <version>3.6.1</version>
+    <executions>
+        <execution>
+            <id>copy-native-windows-x86_64</id>
+            <phase>process-resources</phase>
+            <goals>
+                <goal>copy</goal>
+            </goals>
+            <configuration>
+                <artifactItems>
+                    <artifactItem>
+                        <groupId>com.neaeraconsulting</groupId>
+                        <artifactId>j2735-2024-ffm-lib</artifactId>
+                        <version>3.0.0-beta1</version>
+                        <classifier>windows-x86_64</classifier>
+                        <type>dll</type>
+                        <destFileName>asnapplication.dll</destFileName>
+                    </artifactItem>
+                </artifactItems>
+                <outputDirectory>${project.build.directory}/libs</outputDirectory>
+            </configuration>
+        </execution>
+        <execution>
+            <id>copy-native-linux-x86_64</id>
+            <phase>process-resources</phase>
+            <goals>
+                <goal>copy</goal>
+            </goals>
+            <configuration>
+                <artifactItems>
+                    <artifactItem>
+                        <groupId>com.neaeraconsulting</groupId>
+                        <artifactId>j2735-2024-ffm-lib</artifactId>
+                        <version>3.0.0-beta1</version>
+                        <classifier>linux-x86_64</classifier>
+                        <type>so</type>
+                        <destFileName>libasnapplication.so</destFileName>
+                    </artifactItem>
+                </artifactItems>
+                <outputDirectory>${project.build.directory}/libs</outputDirectory>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
 ```
 
 ```java
